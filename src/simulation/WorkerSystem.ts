@@ -187,7 +187,11 @@ export class WorkerSystem {
       return;
     }
     if (task.phase === 'to_storage') {
-      InventorySystem.consumeReserved(state.inventory, order.partsNeeded, state.totalMinutes);
+      // Verbrauch genau einmal – auch bei neu vergebenem, unterbrochenem Transport
+      if (!order.partsConsumed) {
+        InventorySystem.consumeReserved(state.inventory, order.partsNeeded, state.totalMinutes);
+        order.partsConsumed = true;
+      }
       // Lagerhelfer liefern erst an der Bühne ab; Mechaniker tragen selbst.
       if (task.kind !== 'deliver') order.partsAtBay = true;
       for (const n of order.partsNeeded) {
@@ -272,6 +276,7 @@ export class WorkerSystem {
         Math.max(0, job.stepRemainingMinutes) *
         RepairSystem.durationFactor(w.skills[def.requiredSkill]);
       if (job.stepRemainingMinutes <= 0) {
+        const prevRepairId = job.repairId;
         const allDone = RepairSystem.advanceStep(ctx, order, w);
         if (allDone) {
           OrderSystem.setStatus(state, order, 'quality_check');
@@ -280,6 +285,13 @@ export class WorkerSystem {
           notify(ctx, 'info', `Reparatur abgeschlossen (${order.id}). Qualitätskontrolle steht an.`);
           WorkerSystem.releaseCrew(ctx, order);
         } else {
+          const nextJob = RepairSystem.currentJob(order);
+          if (nextJob && nextJob.repairId !== prevRepairId) {
+            // Folgejob mit anderem Werkzeug/Skill/Teamgröße: Crew freigeben,
+            // der Scheduler teilt mit erneuter Prüfung neu ein.
+            WorkerSystem.releaseCrew(ctx, order);
+            return;
+          }
           task.remainingMinutes =
             job.stepRemainingMinutes *
             RepairSystem.durationFactor(w.skills[def.requiredSkill]);
@@ -436,6 +448,43 @@ export class WorkerSystem {
       if (!cur) continue;
       WorkerSystem.releaseSpecific(ctx, cur, pick);
       assign(pick, order);
+    }
+
+    WorkerSystem.scheduleDeliveries(ctx);
+  }
+
+  /** Stellt sicher, dass angeforderte Teile immer zur Bühne kommen – auch nach
+   *  unterbrochenem Transport (Lagerhelfer entlassen/krank). Verbrauch bleibt einmalig. */
+  private static scheduleDeliveries(ctx: SimContext): void {
+    const { state } = ctx;
+    const storage = state.stations.find((s) => s.kind === 'storage');
+    if (!storage) return;
+    for (const order of state.orders) {
+      if (order.status !== 'repairing' || order.partsNeeded.length === 0 || order.partsAtBay) continue;
+      if (!order.stationId) continue;
+      const hasCarrier = state.workers.some(
+        (w) => w.task?.kind === 'deliver' && w.task.orderId === order.id,
+      );
+      if (hasCarrier) continue;
+      const helper = state.workers.find(
+        (w) => w.role === 'warehouse' && !w.task && w.trainingMinutes <= 0 &&
+          isOnDuty(state, w) && w.state !== 'off_duty',
+      );
+      if (helper) {
+        helper.task = { kind: 'deliver', orderId: order.id, stationId: order.stationId, phase: 'to_storage', remainingMinutes: 0 };
+        helper.path = findPath(ctx.map, helper.pos, storage.interact) ?? [];
+        helper.state = 'fetching_parts';
+        continue;
+      }
+      // Kein Lagerhelfer frei: wartenden Mechaniker selbst zum Lager schicken
+      const mech = order.crewIds
+        .map((id) => state.workers.find((w) => w.id === id))
+        .find((w) => w?.task?.kind === 'repair' && w.task.phase === 'working' && w.state === 'waiting');
+      if (mech && mech.task) {
+        mech.task.phase = 'to_storage';
+        mech.path = findPath(ctx.map, mech.pos, storage.interact) ?? [];
+        mech.state = 'fetching_parts';
+      }
     }
   }
 

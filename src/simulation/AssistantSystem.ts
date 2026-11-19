@@ -14,6 +14,7 @@ export class AssistantSystem {
     const { state } = ctx;
     const assistant = state.workers.find((w) => w.role === 'assistant');
     if (!assistant) return;
+    if ((assistant.sickUntilMinute ?? 0) > state.totalMinutes) return;
     const m = state.totalMinutes % 1440;
     if (m < assistant.shiftStartMinute || m >= assistant.shiftEndMinute) return;
     if (state.totalMinutes < state.assistantNextScanAtMinute) return;

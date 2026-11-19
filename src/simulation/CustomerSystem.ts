@@ -130,13 +130,11 @@ export class CustomerSystem {
       state.customers.push(customer);
     }
     if (state.customers.length > 120) {
-      const activeIds = new Set(
-        state.orders
-          .filter((o) => o.status !== 'delivered' && o.status !== 'cancelled')
-          .map((o) => o.customerId),
-      );
+      // Auch archivierte (ausgelieferte/stornierte) Aufträge referenzieren Kunden –
+      // sonst schlägt die Spielstand-Validierung beim Laden fehl.
+      const refIds = new Set(state.orders.map((o) => o.customerId));
       state.customers = state.customers.filter(
-        (c) => activeIds.has(c.id) || state.customers.indexOf(c) >= state.customers.length - 60,
+        (c) => refIds.has(c.id) || state.customers.indexOf(c) >= state.customers.length - 60,
       );
     }
 

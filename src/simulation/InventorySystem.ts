@@ -5,6 +5,11 @@ import { SupplierSystem } from './SupplierSystem';
 
 /** Lagerbestand, Reservierungen, Verbrauch und automatische Nachbestellung. */
 export class InventorySystem {
+  /** Menge einer Variante (oder aller), die noch unterwegs ist (offene Lieferungen). */
+  static openIncoming(deliveries: { partId: string; quantity: number; done: boolean }[], partId?: string): number {
+    return deliveries.reduce((a, d) => (!d.done && (partId === undefined || d.partId === partId) ? a + d.quantity : a), 0);
+  }
+
   static available(inv: InventoryState, partId: string): number {
     return (inv.stock[partId] ?? 0) - (inv.reserved[partId] ?? 0);
   }

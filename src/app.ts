@@ -23,6 +23,7 @@ let saveDirty = false;
 const sound = new SoundSystem();
 
 async function saveNow(): Promise<void> {
+  game.syncRngState();
   const ok = await SaveManager.saveAsync(game.state);
   ui.flashSaveIndicator(ok);
   lastAutosave = performance.now();
@@ -109,6 +110,7 @@ const actions: UIActions = {
   },
   saveNow,
   exportSave: () => {
+    game.syncRngState();
     const blob = new Blob([SaveManager.serialize(game.state)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -223,6 +225,7 @@ async function boot(): Promise<void> {
   window.addEventListener('keydown', (e) => {
     const tag = (e.target as HTMLElement)?.tagName;
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    if (ui.isDecisionModalOpen() && e.key !== 'Escape') return;
     if (e.code === 'Space') {
       e.preventDefault();
       actions.togglePause();
@@ -240,6 +243,7 @@ async function boot(): Promise<void> {
   window.addEventListener('beforeunload', () => {
     // Synchrone Notfallsicherung; beim nächsten Start wird der neuere
     // Stand (savedAt-Vergleich) automatisch nach IndexedDB migriert.
+    game.syncRngState();
     SaveManager.save(game.state);
   });
 

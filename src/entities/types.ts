@@ -181,6 +181,8 @@ export interface RepairOrder {
   partsNeeded: PartNeed[];
   partsReserved: boolean;
   partsAtBay: boolean;
+  /** Teile wurden bereits aus dem Lager verbraucht (Abholung), ggf. noch unterwegs. */
+  partsConsumed?: boolean;
   estimateCents: number | null;
   invoiceCents: number | null;
   budgetCents: number;
@@ -492,7 +494,7 @@ export interface GameDefs {
   tools: ToolDef[];
 }
 
-export const SAVE_VERSION = 13;
+export const SAVE_VERSION = 14;
 export const MINUTES_PER_DAY = 1440;
 export const GAME_MINUTES_PER_REAL_SECOND = 6;
 export const SIM_STEP_MINUTES = 0.25;

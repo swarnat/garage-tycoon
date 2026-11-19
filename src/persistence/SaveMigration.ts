@@ -258,6 +258,14 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     version = 13;
     raw.version = version;
   }
+  if (version === 13) {
+    // v13 → v14: Teile-Verbrauchsflag für unterbrochene Lagertransporte
+    for (const o of (raw.orders as Array<Record<string, unknown>>) ?? []) {
+      o.partsConsumed ??= o.partsAtBay === true;
+    }
+    version = 14;
+    raw.version = version;
+  }
   if (version !== SAVE_VERSION) {
     throw new SaveError(`Keine Migration für Version ${version} verfügbar`);
   }

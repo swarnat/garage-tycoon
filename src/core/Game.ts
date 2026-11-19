@@ -471,6 +471,11 @@ export class Game {
     return true;
   }
 
+  /** RNG-Zustand in den Snapshot übernehmen (Spieleraktionen ziehen Zufallszahlen). */
+  syncRngState(): void {
+    this.state.rngState = this.rng.state;
+  }
+
   chooseEvent(choiceId: string): void {
     EventSystem.choose(this.ctx, choiceId);
   }
@@ -505,7 +510,8 @@ export class Game {
     let all = true;
     for (const n of order.partsNeeded) {
       const avail = InventorySystem.available(this.state.inventory, n.partId);
-      const shortfall = n.quantity - avail;
+      const incoming = InventorySystem.openIncoming(this.state.deliveries, n.partId);
+      const shortfall = n.quantity - avail - incoming;
       if (shortfall > 0) {
         const ok = SupplierSystem.orderParts(this.ctx, n.partId, shortfall, supplierId);
         if (!ok) all = false;

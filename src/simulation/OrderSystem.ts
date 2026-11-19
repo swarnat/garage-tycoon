@@ -121,6 +121,11 @@ export class OrderSystem {
         }
         case 'ready_for_repair': {
           const v = vehicleById(state, order.vehicleId);
+          // Selbstheilung (z. B. nach Migration): Fahrzeug bereits an der Bühne
+          if (v.state === 'at_lift' && order.stationId) {
+            OrderSystem.setStatus(state, order, 'repairing');
+            break;
+          }
           if (!RepairSystem.orderNeedsLift(ctx, order) && v.state === 'waiting') {
             // Bodenreparatur: zurück auf einen freien Diagnoseplatz
             const diag = state.stations.find(
@@ -466,7 +471,13 @@ export class OrderSystem {
           });
           state.statistics.complaints += 1;
           state.reputation = Math.max(0, state.reputation - 4);
-          order.satisfaction = Math.max(20, (order.satisfaction ?? 80) - 25);
+          const prevSat = order.satisfaction ?? 80;
+          order.satisfaction = Math.max(20, prevSat - 25);
+          // Kundenzufriedenheit + Statistik synchron halten (sonst gilt der
+          // Kunde weiter als zufriedener Stammkunde)
+          const cc = state.customers.find((c) => c.id === order.customerId);
+          if (cc) cc.lastSatisfaction = order.satisfaction;
+          state.statistics.satisfactionSum += order.satisfaction - prevSat;
           notify(ctx, 'danger', `Reklamation zu ${order.id}: ${(refund / 100).toFixed(2)} € erstattet, Reputation −4.`);
         }
         notify(
@@ -485,10 +496,13 @@ export class OrderSystem {
   ): void {
     const { state } = ctx;
     if (order.status === 'cancelled' || order.status === 'delivered') return;
-    if (order.partsReserved && !order.partsAtBay) {
+    // Reservierung nur freigeben, wenn noch NICHT verbraucht (Abholung).
+    // Verbrauchte Teile sind aus dem Bestand – erneutes Freigeben würde
+    // die Reservierung anderer Aufträge ins Negative ziehen.
+    if (order.partsReserved && !order.partsConsumed) {
       InventorySystem.release(state.inventory, order.partsNeeded);
-      order.partsReserved = false;
     }
+    order.partsReserved = false;
     if (order.assignedWorkerId) {
       WorkerSystem.releaseWorker(ctx, order);
     }

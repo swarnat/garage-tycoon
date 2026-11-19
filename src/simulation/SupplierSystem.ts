@@ -25,7 +25,9 @@ export class SupplierSystem {
       return false;
     }
     if (
-      InventorySystem.totalStock(ctx.state.inventory) + quantity >
+      InventorySystem.totalStock(ctx.state.inventory) +
+        InventorySystem.openIncoming(ctx.state.deliveries) +
+        quantity >
       ctx.state.inventory.capacity
     ) {
       if (!auto) notify(ctx, 'warning', `Lager voll: ${part.name} passt nicht mehr ins Lager.`);
@@ -75,7 +77,10 @@ export class SupplierSystem {
       );
     }
     if (ctx.state.deliveries.length > 60) {
-      ctx.state.deliveries = ctx.state.deliveries.filter((d) => !d.done).slice(-40);
+      // Offene (bezahlte) Lieferungen NIE löschen, nur erledigte kürzen
+      const open = ctx.state.deliveries.filter((d) => !d.done);
+      const done = ctx.state.deliveries.filter((d) => d.done).slice(-40);
+      ctx.state.deliveries = [...open, ...done];
     }
   }
 }

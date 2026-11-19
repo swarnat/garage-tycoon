@@ -82,7 +82,7 @@ describe('Save-Migration v9 → v10', () => {
     raw.version = 9;
     delete (raw.inventory as Record<string, unknown>).usageLog;
     const migrated = migrate(raw);
-    expect(migrated.version).toBe(13);
+    expect(migrated.version).toBe(14);
     expect((migrated.inventory as Record<string, unknown>).usageLog).toEqual([]);
   });
 });

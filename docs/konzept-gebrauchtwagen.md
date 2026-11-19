@@ -65,3 +65,30 @@ Kompatibilität, Reparatur-Definitionen, Qualitätskontrolle, Marktpreise.
 Mittel–hoch. Wiederverwendung hoch (Repair/Inventory/QC/Market existieren).
 Neu: Offer-Generierung, Owned-Statusmaschine, Verkauf-Verhandlung, 2 Panels,
 Canvas-Darstellung, Migration. Grob 1–2 Patch-Runden.
+
+## Review-Ergänzungen (Codex-Review v0.10.1, eingearbeitet)
+- **Ein gemeinsamer Referenzwert je Modell/Alter/km** („Marktwert heile“),
+  damit Alter/km/Defekte nicht doppelt abgezogen werden (Ankauf-Zustandsfaktor
+  UND Verkaufs-Altersfaktor UND Defektanzahl UND Reparaturkosten sonst redundant).
+  Ankauf = Referenz − sichtbare Instandsetzung − begrenzter Risikoabschlag;
+  Verkauf = derselbe Referenz − Restmängel + kleiner QC-Effekt.
+- **„Wie gesehen“-Verkauf so kalibrieren, dass sofortiges Weiterverkaufen ohne
+  Wertschöpfung kein verlässlicher Gewinn ist** (sonst Arbitrage-Loop).
+- **Versteckte Defekte bei Erzeugung festlegen und speichern** (deterministisch,
+  Save/Load-stabil, passend zum Modell). In der Angebotsansicht nur Risikostufe +
+  Kostenspanne zeigen, nicht die exakte Anzahl. Teure Folgeschäden/Spezialwerkzeug
+  für frühe Angebote deckeln.
+- **Kapitalbindung real messen**: erwartete Verkaufsdauer / zeitlich begrenzte
+  Käuferangebote (Preisverfall allein bindet kaum, wenn Käufer immer da sind).
+  Vor Kauf freie Stellfläche, Restliquidität, erwartete Reparaturdauer anzeigen.
+  Kalkulation inkl. Teile-EK, Versand, Personalminuten, Standkosten, Zinsen.
+- **Eigenaufträge nachrangig**: nur starten wenn Kundenkapazität frei; beim
+  Warten auf Teile keine Bühne belegen lassen.
+- **Abschluss fachlich trennen**: `completeAndInvoice` bucht heute Kundenumsatz +
+  Reputation + Zufriedenheit + Abholung. Eigenfahrzeug wird nach QC nur
+  `verkaufsbereit`; Erlös erst beim echten Verkauf. Kauf/Verkauf mit stabilen
+  Vorgangs-IDs. Tagesstatistik: Ankauf = Investition, Verkauf muss den Fahrzeug-EK
+  in der Handelsmarge berücksichtigen (sonst voller Erlös = operativer Gewinn).
+- **MarketSystem hat nur Teile-Faktoren** – für Pkw eigene Vergleichswerte nötig.
+- **MVP-Empfehlung**: erst 1 Stellplatz, nachvollziehbare Ankaufskalkulation,
+  verlässlicher Ausstieg per „wie gesehen“. Verhandlung + größere Bestände später.

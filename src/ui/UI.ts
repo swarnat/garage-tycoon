@@ -423,6 +423,12 @@ export class UI {
     this.refresh(true);
   }
 
+  /** Offenes, nicht minimiertes Entscheidungs-Modal blockiert Tempo-Eingaben. */
+  isDecisionModalOpen(): boolean {
+    return this.modalOpen && !this.modalMinimized &&
+      (this.modalKind === 'tool' || this.modalKind === 'approval' || this.modalKind === 'parts' || this.modalKind === 'event');
+  }
+
   /** Ereignis-Modal: pausiert, minimierbar; Ablauf wählt automatisch die Default-Option. */
   showEventPrompt(): void {
     if (!this.getGame().state.activeEvent) return;
@@ -682,7 +688,7 @@ export class UI {
       this.lastDrawerSig = drawerSig;
       this.drawer.innerHTML = this.selection || !this.modalOpen ? this.renderDrawer() : '';
     }
-    this.drawer.classList.toggle('hidden', this.modalOpen || (this.panel === 'workshop' && !this.selection));
+    this.drawer.classList.toggle('hidden', (this.modalOpen && !this.modalMinimized) || (this.panel === 'workshop' && !this.selection));
     this.updateToasts();
   }
 
