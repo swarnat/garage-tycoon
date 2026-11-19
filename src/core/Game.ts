@@ -8,7 +8,7 @@ import {
 import { EventBus } from './EventBus';
 import { GameClock } from './GameClock';
 import { RandomGenerator } from './RandomGenerator';
-import { TileMap } from '../world/TileMap';
+import { TileMap, MAP_WIDTH, MAP_HEIGHT } from '../world/TileMap';
 import { DEFS } from '../data';
 import type { GameDefs } from '../entities/types';
 import type { SimContext } from '../simulation/context';
@@ -196,7 +196,7 @@ export class Game {
     this.defs = defs;
     this.rng = RandomGenerator.fromState(state.seed, state.rngState);
     this.clock = new GameClock(state.totalMinutes);
-    this.map = new TileMap(26, 18, state.stations);
+    this.map = new TileMap(MAP_WIDTH, MAP_HEIGHT, state.stations);
   }
 
   static new(seed: number = Math.floor(Math.random() * 2 ** 31)): Game {
@@ -508,49 +508,58 @@ export class Game {
   }
 
   buyLift(): boolean {
-    const lift = this.state.stations.find((s) => s.id === 'lift3');
-    if (!lift || lift.unlocked) return false;
+    const lift = this.state.stations.find((s) => s.kind === 'lift' && !s.unlocked);
+    if (!lift) return false;
     const cost = 800000;
     if (this.state.economy.balanceCents < cost) {
       notify(this.ctx, 'danger', 'Hebebühne: Kontostand reicht nicht (8.000 €).');
       return false;
     }
+    const n = lift.id.replace('lift', '');
     EconomySystem.book(this.state.economy, {
-      id: 'upgrade-lift3',
+      id: `upgrade-${lift.id}`,
       day: Math.floor(this.state.totalMinutes / 1440) + 1,
       atMinute: this.state.totalMinutes,
       amountCents: -cost,
       category: 'investment',
-      label: 'Dritte Hebebühne',
+      label: `Hebebühne ${n}`,
     });
     lift.unlocked = true;
-    this.map = new TileMap(26, 18, this.state.stations);
-    this.bus.emit('upgrade:purchased', 'lift3');
-    notify(this.ctx, 'success', 'Dritte Hebebühne installiert!');
+    this.map = new TileMap(MAP_WIDTH, MAP_HEIGHT, this.state.stations);
+    this.bus.emit('upgrade:purchased', lift.id);
+    notify(this.ctx, 'success', `Hebebühne ${n} installiert!`);
     return true;
   }
 
   buyDiagnosisBay(): boolean {
-    const bay = this.state.stations.find((s) => s.id === 'diag2');
-    if (!bay || bay.unlocked) return false;
+    const bay = this.state.stations.find((s) => s.kind === 'diagnosis' && !s.unlocked);
+    if (!bay) return false;
     const cost = 500000;
     if (this.state.economy.balanceCents < cost) {
-      notify(this.ctx, 'danger', 'Zweiter Diagnoseplatz: Kontostand reicht nicht (5.000 €).');
+      notify(this.ctx, 'danger', 'Diagnoseplatz: Kontostand reicht nicht (5.000 €).');
       return false;
     }
+    const n = bay.id.replace('diag', '');
     EconomySystem.book(this.state.economy, {
-      id: 'upgrade-diag2',
+      id: `upgrade-${bay.id}`,
       day: Math.floor(this.state.totalMinutes / 1440) + 1,
       atMinute: this.state.totalMinutes,
       amountCents: -cost,
       category: 'investment',
-      label: 'Zweiter Diagnoseplatz',
+      label: `Diagnoseplatz ${n}`,
     });
     bay.unlocked = true;
-    this.map = new TileMap(26, 18, this.state.stations);
-    this.bus.emit('upgrade:purchased', 'diag2');
-    notify(this.ctx, 'success', 'Zweiter Diagnoseplatz installiert!');
+    this.map = new TileMap(MAP_WIDTH, MAP_HEIGHT, this.state.stations);
+    this.bus.emit('upgrade:purchased', bay.id);
+    notify(this.ctx, 'success', `Diagnoseplatz ${n} installiert!`);
     return true;
+  }
+
+  setAllAutoReorder(on: boolean): void {
+    for (const p of this.defs.parts) {
+      this.state.inventory.autoReorder[p.id] = on;
+    }
+    notify(this.ctx, 'info', on ? 'Auto-Nachbestellung für alle Artikel aktiviert.' : 'Auto-Nachbestellung für alle Artikel deaktiviert.');
   }
 
   expandStorage(): boolean {

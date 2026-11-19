@@ -103,8 +103,9 @@ describe('Werkstattausbau: zweiter Diagnoseplatz', () => {
     expect(game.buyDiagnosisBay()).toBe(true);
     expect(diag2!.unlocked).toBe(true);
     expect(game.state.economy.balanceCents).toBe(balanceBefore - 500000);
-    expect(game.buyDiagnosisBay()).toBe(false); // schon gekauft
-    expect(game.map.isBlocked(14, 3)).toBe(true); // Karte neu gebaut
+    expect(game.buyDiagnosisBay()).toBe(true); // diag3 gibt es jetzt auch
+    expect(game.buyDiagnosisBay()).toBe(false); // alle gekauft
+    expect(game.map.isBlocked(14, 9)).toBe(true); // Karte neu gebaut (Diagnose vorn)
   });
 
   it('wird bei belegter erster Diagnose für Aufträge genutzt', () => {
@@ -179,7 +180,7 @@ describe('Save-Migration v3 → v4', () => {
     for (const c of raw.customers) delete c.lastSatisfaction;
     raw.stations = raw.stations.filter((s: { id: string }) => s.id !== 'diag2');
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(8);
+    expect(migrated.version).toBe(9);
     expect(migrated.orders[0]!.diagnosisExtended).toBe(false);
     expect(migrated.customers[0]!.lastSatisfaction).toBeNull();
     const diag2 = migrated.stations.find((s) => s.id === 'diag2');

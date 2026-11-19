@@ -130,7 +130,7 @@ describe('Längs-Parkplätze mit Straßenanschluss (8 Stück, 2 kaufbar)', () =>
   it('8 Parkplätze an der Straße, 6 davon frei geschaltet', () => {
     const parks = TileMap.defaultStations().filter((s) => s.kind === 'parking');
     expect(parks).toHaveLength(8);
-    expect(parks.filter((p) => p.unlocked)).toHaveLength(6);
+    expect(parks.filter((p) => p.unlocked)).toHaveLength(3);
     for (const p of parks) {
       expect(p.rect.y).toBe(16);
       expect(p.rect.h).toBe(1);
@@ -153,7 +153,7 @@ describe('Längs-Parkplätze mit Straßenanschluss (8 Stück, 2 kaufbar)', () =>
     expect(game.buyParking()).toBe(true);
     const lockedAfter = game.state.stations.filter((s) => s.kind === 'parking' && !s.unlocked).length;
     expect(lockedAfter).toBe(lockedBefore - 1);
-    expect(game.buyParking()).toBe(true);
+    for (let i = 0; i < 4; i++) expect(game.buyParking()).toBe(true);
     expect(game.buyParking()).toBe(false); // alle 8 frei
   });
 });
@@ -244,7 +244,7 @@ describe('Save-Migration v7 → v8', () => {
     );
     delete raw.orderRateFactor;
     const migrated = migrate(raw);
-    expect(migrated.version).toBe(8);
+    expect(migrated.version).toBe(9);
     const parks = (migrated.stations as Array<Record<string, unknown>>).filter((s) => s.kind === 'parking');
     expect(parks).toHaveLength(8);
     expect(migrated.orderRateFactor).toBe(1);

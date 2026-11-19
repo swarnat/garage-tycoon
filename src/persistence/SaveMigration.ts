@@ -100,6 +100,34 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     version = 8;
     raw.version = version;
   }
+  if (version === 8) {
+    // Neues Layout: Diagnose vorn, 4 Hebebühnen hinten, längere Halle (32 Tiles)
+    const oldStations = (raw.stations as Array<Record<string, unknown>>) ?? [];
+    const newStations = TileMap.defaultStations() as unknown as Array<Record<string, unknown>>;
+    for (const ns of newStations) {
+      const old = oldStations.find((o) => o.id === ns.id);
+      if (old) {
+        ns.unlocked = old.unlocked ?? ns.unlocked;
+        ns.orderId = old.orderId ?? null;
+      }
+    }
+    raw.stations = newStations;
+    // Fahrzeuge auf die neuen Stationspositionen umsetzen
+    const orders = (raw.orders as Array<Record<string, unknown>>) ?? [];
+    for (const v of (raw.vehicles as Array<Record<string, unknown>>) ?? []) {
+      const st = v.state === 'gone' || v.state === 'incoming' ? null : newStations.find((x) => x.id === v.targetStationId);
+      if (!st) continue;
+      const rect = st.rect as { x: number; y: number };
+      v.pos = { x: rect.x, y: rect.y };
+      v.path = [];
+      if (v.state === 'driving_in') v.state = st.kind === 'diagnosis' ? 'at_diagnosis' : 'waiting';
+      else if (v.state === 'driving_to_lift') v.state = 'at_lift';
+      else if (v.state === 'driving_out') { v.state = 'waiting'; v.targetStationId = null; v.pos = { x: 30, y: 15 }; }
+    }
+    void orders;
+    version = 9;
+    raw.version = version;
+  }
   // Idempotente Normalisierung neuer Felder (auch für aktuelle Version)
   const inv = raw.inventory as Record<string, unknown> | undefined;
   if (inv && typeof inv === 'object') {

@@ -40,6 +40,7 @@ export interface UIActions {
   acceptBudget(id: string): void;
   buyParking(): void;
   setOrderRate(v: number): void;
+  setAllAuto(on: boolean): void;
   insistPrice(id: string): void;
   buyTool(id: string): void;
   takeLoan(cents: number): void;
@@ -234,6 +235,46 @@ export class UI {
       this.onClick(e);
     });
     window.addEventListener('pointerup', () => { this.interacting = false; });
+    // Hilfe-Tooltips als fixed-Element am Body (werden nicht vom Canvas/Drawer verdeckt)
+    const showTip = (h: HTMLElement): void => {
+      hideTip();
+      const text = h.dataset.help;
+      if (!text) return;
+      const tip = document.createElement('div');
+      tip.className = 'help-tooltip';
+      tip.textContent = text;
+      document.body.appendChild(tip);
+      const r = h.getBoundingClientRect();
+      const tw = tip.offsetWidth;
+      const th = tip.offsetHeight;
+      let left = r.left + r.width / 2 - tw / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+      let top = r.top - th - 8;
+      if (top < 8) top = r.bottom + 8;
+      tip.style.left = `${left}px`;
+      tip.style.top = `${top}px`;
+    };
+    const hideTip = (): void => {
+      document.querySelectorAll('.help-tooltip').forEach((t) => t.remove());
+    };
+    let lastHelp: HTMLElement | null = null;
+    this.root.addEventListener('pointerover', (e) => {
+      const h = (e.target as HTMLElement).closest('.help') as HTMLElement | null;
+      if (h) { lastHelp = h; showTip(h); }
+    });
+    this.root.addEventListener('pointerout', (e) => {
+      if ((e.target as HTMLElement).closest('.help')) { lastHelp = null; hideTip(); }
+    });
+    this.root.addEventListener('focusin', (e) => {
+      const h = (e.target as HTMLElement).closest('.help') as HTMLElement | null;
+      if (h) { lastHelp = h; showTip(h); }
+    });
+    this.root.addEventListener('focusout', () => { lastHelp = null; hideTip(); });
+    // Scrollen (auch durch focus()) versteckt den Tooltip nicht, sondern positioniert ihn neu
+    window.addEventListener('scroll', () => {
+      if (lastHelp && lastHelp.isConnected) showTip(lastHelp);
+      else hideTip();
+    }, true);
     // Tastatur-Bedienung (Enter/Space auf Buttons) läuft weiter über click
     this.root.addEventListener('click', (e) => {
       if ((e as MouseEvent).detail === 0) this.onClick(e);
@@ -350,6 +391,7 @@ export class UI {
         break;
       case 'toggle-auto': this.actions.toggleAuto(btn.dataset.part ?? ''); break;
       case 'auto-supplier': this.actions.setAutoSupplier(id); break;
+      case 'auto-all': this.actions.setAllAuto(btn.dataset.on === '1'); break;
       case 'hire': this.actions.hireCandidate(id); break;
       case 'fire': this.actions.fireWorker(id); break;
       case 'train': this.actions.trainWorker(id, btn.dataset.skill ?? ''); break;
@@ -737,6 +779,9 @@ export class UI {
     html += `<div class="supplier-row">Lieferant (manuell):
       ${game.defs.suppliers.map((sup) => `<button class="btn small ${this.supplierId === sup.id ? 'primary' : ''}" data-action="supplier" data-id="${sup.id}">${esc(sup.name)} (${Math.round(sup.leadMinutes / 60)} h, +${Math.round((sup.priceFactor - 1) * 100)}%)</button>`).join('')}
     </div>`;
+    const allOn = game.defs.parts.every((p) => inv.autoReorder[p.id]);
+    const allOff = game.defs.parts.every((p) => !inv.autoReorder[p.id]);
+    html += `<div class="btn-row"><button class="btn small ${allOn ? 'primary' : ''}" data-action="auto-all" data-on="1" ${allOn ? 'disabled' : ''}>Alle Auto AN</button><button class="btn small ${allOff ? 'primary' : ''}" data-action="auto-all" data-on="0" ${allOff ? 'disabled' : ''}>Alle Auto AUS</button></div>`;
     html += `<div class="supplier-row">Auto-Nachbestellung bei ≤ Mindestmenge → Lieferant:
       ${game.defs.suppliers.map((sup) => `<button class="btn small ${inv.autoSupplierId === sup.id ? 'primary' : ''}" data-action="auto-supplier" data-id="${sup.id}">${esc(sup.name)}</button>`).join('')}
       <span class="muted">Zielbestand: Mindestbestand</span>
@@ -903,23 +948,26 @@ export class UI {
   private renderUpgrades(): string {
     const game = this.getGame();
     const s = game.state;
-    const lift3 = s.stations.find((x) => x.id === 'lift3');
+    const lifts = s.stations.filter((x) => x.kind === 'lift');
+    const nextLift = lifts.find((x) => !x.unlocked);
+    const diags = s.stations.filter((x) => x.kind === 'diagnosis');
+    const nextDiag = diags.find((x) => !x.unlocked);
     let html = `<div class="drawer-head"><h2>Werkstattausbau</h2></div>`;
     html += `<div class="card">
-      <div class="card-title">Dritte Hebebühne</div>
+      <div class="card-title">Hebebühnen (${lifts.filter((x) => x.unlocked).length}/${lifts.length})</div>
       <div class="meta">Mehr Kapazität für parallele Reparaturen. Achtung: ohne Personal und Aufträge bringt sie keinen Nutzen.</div>
-      <div class="meta">Kosten: ${eur(800000)}</div>
-      ${lift3?.unlocked
-        ? '<div class="chip st-delivered">Bereits installiert</div>'
-        : `<div class="btn-row"><button class="btn primary" data-action="buy-lift">Kaufen</button></div>`}
+      <div class="meta">Kosten je weiterer Bühne: ${eur(800000)}</div>
+      ${nextLift
+        ? `<div class="btn-row"><button class="btn primary" data-action="buy-lift">Bühne ${nextLift.id.replace('lift', '')} kaufen</button></div>`
+        : '<div class="chip st-delivered">Alle 4 Bühnen installiert</div>'}
     </div>`;
     html += `<div class="card">
-      <div class="card-title">Zweiter Diagnoseplatz</div>
+      <div class="card-title">Diagnoseplätze (${diags.filter((x) => x.unlocked).length}/${diags.length})</div>
       <div class="meta">Diagnosen parallel statt im Nadelöhr – besonders mit mehreren Mitarbeitern sinnvoll.</div>
-      <div class="meta">Kosten: ${eur(500000)}</div>
-      ${s.stations.find((x) => x.id === 'diag2')?.unlocked
-        ? '<div class="chip st-delivered">Bereits installiert</div>'
-        : `<div class="btn-row"><button class="btn primary" data-action="buy-diag">Kaufen</button></div>`}
+      <div class="meta">Kosten je weiterem Platz: ${eur(500000)}</div>
+      ${nextDiag
+        ? `<div class="btn-row"><button class="btn primary" data-action="buy-diag">Diagnose ${nextDiag.id.replace('diag', '')} kaufen</button></div>`
+        : '<div class="chip st-delivered">Alle 3 Diagnoseplätze installiert</div>'}
     </div>`;
     html += `<div class="card">
       <div class="card-title">Lagererweiterung (+60 Teile)</div>

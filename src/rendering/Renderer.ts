@@ -147,7 +147,7 @@ export class Renderer {
       }
     }
     // Werkstatthalle: heller Betonboden über den Arbeitsflächen
-    const hall = { x: 7, y: 1, w: 18, h: 12 };
+    const hall = { x: 7, y: 1, w: 24, h: 12 };
     for (let y = hall.y; y < hall.y + hall.h; y++) {
       for (let x = hall.x; x < hall.x + hall.w; x++) {
         const color = (x + y) % 2 === 0 ? 0x2a2e36 : 0x2c3039;
@@ -273,7 +273,7 @@ export class Renderer {
       g.rect(px + 3, py + 3, pw - 6, ph - 6).fill({ color: 0x1b1e24, alpha: 0.5 });
       g.rect(px + 3, py + 3, pw - 6, ph - 6).stroke({ width: 2, color: 0x3a3f4a, alpha: 0.8 });
       c.addChild(g);
-      c.addChild(this.label('BÜHNE 3', px + pw / 2, py + ph / 2 - 14, 10, 0x5a6170));
+      c.addChild(this.label(`BÜHNE ${s.id.replace('lift', '')}`, px + pw / 2, py + ph / 2 - 14, 10, 0x5a6170));
       c.addChild(this.label('(Ausbau)', px + pw / 2, py + ph / 2 + 2, 9, 0x5a6170));
       return c;
     }
@@ -282,7 +282,7 @@ export class Renderer {
       g.rect(px + 3, py + 3, pw - 6, ph - 6).fill({ color: 0x1b1e24, alpha: 0.5 });
       g.rect(px + 3, py + 3, pw - 6, ph - 6).stroke({ width: 2, color: 0x3a3f4a, alpha: 0.8 });
       c.addChild(g);
-      c.addChild(this.label('DIAGNOSE 2', px + pw / 2, py + ph / 2 - 14, 10, 0x5a6170));
+      c.addChild(this.label(`DIAGNOSE ${s.id.replace('diag', '')}`, px + pw / 2, py + ph / 2 - 14, 10, 0x5a6170));
       c.addChild(this.label('(Ausbau)', px + pw / 2, py + ph / 2 + 2, 9, 0x5a6170));
       return c;
     }
@@ -306,10 +306,10 @@ export class Renderer {
     }
     switch (s.kind) {
       case 'lift':
-        c.addChild(this.label(s.id === 'lift1' ? 'BÜHNE 1' : s.id === 'lift2' ? 'BÜHNE 2' : 'BÜHNE 3', px + pw / 2, py + ph + 2, 9, 0xd9a441));
+        c.addChild(this.label(`BÜHNE ${s.id.replace('lift', '')}`, px + pw / 2, py + ph + 2, 9, 0xd9a441));
         break;
       case 'diagnosis':
-        c.addChild(this.label(s.id === 'diag2' ? 'DIAGNOSE 2' : 'DIAGNOSE', px + pw / 2, py + ph + 2, 9, 0x4fc3f7));
+        c.addChild(this.label(`DIAGNOSE ${s.id.replace('diag', '')}`, px + pw / 2, py + ph + 2, 9, 0x4fc3f7));
         break;
       default:
         break;

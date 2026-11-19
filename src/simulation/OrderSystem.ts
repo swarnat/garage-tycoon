@@ -73,12 +73,12 @@ export class OrderSystem {
         case 'completed': {
           const v = vehicleById(state, order.vehicleId);
           if (v.state === 'at_lift' || v.state === 'at_diagnosis') {
-            OrderSystem.tryPickupParking(ctx, order, v);
+            OrderSystem.tryMoveToParking(ctx, order, v);
           }
           const readyToLeave =
             order.pickupAtMinute !== null && state.totalMinutes >= order.pickupAtMinute;
-          if (readyToLeave && (v.state === 'waiting_pickup' || v.state === 'at_lift' || v.state === 'at_diagnosis')) {
-            if (v.state === 'waiting_pickup' && v.targetStationId) {
+          if (readyToLeave && (v.state === 'waiting_pickup' || v.state === 'waiting' || v.state === 'at_lift' || v.state === 'at_diagnosis')) {
+            if ((v.state === 'waiting_pickup' || v.state === 'waiting') && v.targetStationId) {
               stationById(state, v.targetStationId).orderId = null;
             } else if (order.stationId) {
               stationById(state, order.stationId).orderId = null;
@@ -104,15 +104,38 @@ export class OrderSystem {
             OrderSystem.setStatus(state, order, 'waiting_for_diagnosis');
           }
           break;
-        case 'waiting_for_parts':
+        case 'waiting_for_parts': {
           if (InventorySystem.reserve(state.inventory, order.partsNeeded)) {
             order.partsReserved = true;
             OrderSystem.setStatus(state, order, 'ready_for_repair');
+          } else {
+            // Warten auf Teile passiert auf dem Parkplatz, nicht auf der Diagnose
+            const v = vehicleById(state, order.vehicleId);
+            if (v.state === 'at_diagnosis' || v.state === 'at_lift') {
+              OrderSystem.tryMoveToParking(ctx, order, v);
+            }
           }
           break;
-        case 'ready_for_repair':
-          OrderSystem.placeAtRepairStation(ctx, order);
+        }
+        case 'ready_for_repair': {
+          const v = vehicleById(state, order.vehicleId);
+          if (!RepairSystem.orderNeedsLift(ctx, order) && v.state === 'waiting') {
+            // Bodenreparatur: zurück auf einen freien Diagnoseplatz
+            const diag = state.stations.find(
+              (s) => s.kind === 'diagnosis' && s.unlocked && s.orderId === null,
+            );
+            if (diag && v.targetStationId) {
+              stationById(state, v.targetStationId).orderId = null;
+              diag.orderId = order.id;
+              order.stationId = diag.id;
+              v.state = 'driving_in';
+              OrderSystem.dispatchVehicle(ctx, v, diag);
+            }
+          } else {
+            OrderSystem.placeAtRepairStation(ctx, order);
+          }
           break;
+        }
         default:
           break;
       }
@@ -289,7 +312,7 @@ export class OrderSystem {
   }
 
   /** Nach der Reparatur: Fahrzeug auf einen freien Abhol-Parkplatz stellen. */
-  static tryPickupParking(ctx: SimContext, order: RepairOrder, v: Vehicle): void {
+  static tryMoveToParking(ctx: SimContext, order: RepairOrder, v: Vehicle): void {
     const { state } = ctx;
     if (v.state !== 'at_lift' && v.state !== 'at_diagnosis') return;
     const park = state.stations.find(
@@ -474,6 +497,7 @@ export class OrderSystem {
           ? 'Kunde droht abzulehnen – im Fahrzeug-Detail Rabatt anbieten oder Preis bestehen.'
           : 'Kunde prüft den Kostenvoranschlag.';
       case 'waiting_for_parts': {
+        const vp = vehicleById(state, order.vehicleId);
         const missing = order.partsNeeded.filter(
           (n) => InventorySystem.available(state.inventory, n.partId) < n.quantity,
         );
@@ -488,9 +512,11 @@ export class OrderSystem {
         );
         if (open.length > 0) {
           const eta = Math.min(...open.map((d) => d.arriveAtMinute)) - state.totalMinutes;
-          return `Wartet auf Ersatzteile: ${names} (Lieferung in ${(Math.max(0, eta) / 60).toFixed(1)} h).`;
+          const parkNote = vp.state === 'waiting' ? 'Fahrzeug wartet auf dem Parkplatz. ' : '';
+          return `${parkNote}Wartet auf Ersatzteile: ${names} (Lieferung in ${(Math.max(0, eta) / 60).toFixed(1)} h).`;
         }
-        return `Wartet auf Ersatzteile: ${names} – noch nicht bestellt!`;
+        const parkNote2 = vp.state === 'waiting' ? 'Fahrzeug wartet auf dem Parkplatz. ' : '';
+        return `${parkNote2}Wartet auf Ersatzteile: ${names} – noch nicht bestellt!`;
       }
       case 'ready_for_repair':
         if (v?.state === 'driving_to_lift') return 'Fahrzeug fährt zur Hebebühne.';
@@ -622,7 +648,7 @@ export class OrderSystem {
     // Kunde holt verzögert ab: erst auf den Parkplatz, dann random warten
     order.pickupAtMinute = state.totalMinutes + ctx.rng.intRange(60, 240);
     const v = vehicleById(state, order.vehicleId);
-    OrderSystem.tryPickupParking(ctx, order, v);
+    OrderSystem.tryMoveToParking(ctx, order, v);
     ctx.bus.emit('order:completed', order.id);
     ctx.bus.emit('invoice:paid', { orderId: order.id, amountCents: invoice });
   }

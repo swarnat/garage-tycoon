@@ -130,6 +130,7 @@ const actions: UIActions = {
   acceptBudget: (id) => { game.acceptBudget(id); },
   buyParking: () => { game.buyParking(); },
   setOrderRate: (v) => { game.setOrderRate(v); },
+  setAllAuto: (on) => { game.setAllAutoReorder(on); },
   insistPrice: (id) => { game.insistPrice(id); },
   buyTool: (id) => { game.buyTool(id); },
   takeLoan: (cents) => { game.takeLoan(cents); },
