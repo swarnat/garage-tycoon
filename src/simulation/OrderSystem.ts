@@ -7,18 +7,19 @@ import type {
 } from '../entities/types';
 import { DIAGNOSIS_FEE_CENTS } from '../entities/types';
 import type { SimContext } from './context';
-import { notify, stationById, vehicleById } from './context';
+import { notify, repairDef, stationById, vehicleById } from './context';
 import { InventorySystem } from './InventorySystem';
 import { RepairSystem } from './RepairSystem';
 import { EconomySystem } from './EconomySystem';
 import { WorkerSystem } from './WorkerSystem';
+import { SKILL_LABELS } from './PersonnelSystem';
 import { findPath } from '../world/Pathfinding';
 
 const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   incoming: ['accepted', 'cancelled'],
   accepted: ['waiting_for_diagnosis', 'cancelled'],
   waiting_for_diagnosis: ['diagnosing', 'cancelled'],
-  diagnosing: ['waiting_for_approval', 'cancelled'],
+  diagnosing: ['waiting_for_approval', 'waiting_for_diagnosis', 'cancelled'],
   waiting_for_approval: ['ready_for_repair', 'waiting_for_parts', 'cancelled'],
   waiting_for_parts: ['ready_for_repair', 'cancelled'],
   ready_for_repair: ['repairing', 'cancelled'],
@@ -71,6 +72,12 @@ export class OrderSystem {
         }
         case 'waiting_for_approval':
           OrderSystem.decideApproval(ctx, order);
+          break;
+        case 'diagnosing':
+          // Selbstheilung: verwaiste Diagnose (z. B. nach Entlassung) neu vergeben
+          if (!order.assignedWorkerId) {
+            OrderSystem.setStatus(state, order, 'waiting_for_diagnosis');
+          }
           break;
         case 'waiting_for_parts':
           if (InventorySystem.reserve(state.inventory, order.partsNeeded)) {
@@ -282,6 +289,98 @@ export class OrderSystem {
     OrderSystem.setStatus(state, order, 'cancelled');
     state.statistics.ordersCancelled += 1;
     ctx.bus.emit('order:cancelled', { orderId: order.id, reason });
+  }
+
+  /** Beschreibt, worauf ein Auftrag aktuell wartet (null = läuft normal). */
+  static waitReason(ctx: SimContext, order: RepairOrder): string | null {
+    const { state } = ctx;
+    const v = state.vehicles.find((x) => x.id === order.vehicleId);
+    const m = state.totalMinutes % 1440;
+    const onDuty = (w: (typeof state.workers)[number]): boolean =>
+      m >= w.shiftStartMinute && m < w.shiftEndMinute;
+    const freeWorkers = state.workers.filter(
+      (w) => !w.task && w.trainingMinutes <= 0 && onDuty(w),
+    );
+    const worker = order.assignedWorkerId
+      ? state.workers.find((w) => w.id === order.assignedWorkerId)
+      : null;
+    switch (order.status) {
+      case 'accepted':
+        if (v?.state === 'driving_in') return 'Fahrzeug fährt in die Werkstatt.';
+        if (v?.state === 'waiting') return 'Wartet auf einen freien Diagnoseplatz.';
+        return null;
+      case 'waiting_for_diagnosis':
+        if (state.workers.length > 0 && state.workers.every((w) => w.trainingMinutes > 0)) {
+          return 'Alle Mitarbeiter sind in Weiterbildung.';
+        }
+        if (freeWorkers.length === 0) {
+          return state.workers.some(onDuty)
+            ? 'Wartet auf freien Mitarbeiter für die Diagnose (alle gebunden).'
+            : 'Außerhalb der Arbeitszeit (08:00–18:00).';
+        }
+        return 'Wartet auf freien Mitarbeiter für die Diagnose.';
+      case 'diagnosing':
+        if (order.diagnosisExtended) return 'Nachuntersuchung läuft – unerfahrene Diagnose.';
+        if (!worker) return 'Wartet auf Mitarbeiter für die Diagnose.';
+        return null;
+      case 'waiting_for_approval':
+        return 'Kunde prüft den Kostenvoranschlag.';
+      case 'waiting_for_parts': {
+        const missing = order.partsNeeded.filter(
+          (n) => InventorySystem.available(state.inventory, n.partId) < n.quantity,
+        );
+        const names = missing
+          .map((n) => {
+            const p = ctx.defs.parts.find((x) => x.id === n.partId);
+            return `${n.quantity}× ${p?.name ?? n.partId}`;
+          })
+          .join(', ');
+        const open = state.deliveries.filter(
+          (d) => !d.done && missing.some((n) => n.partId === d.partId),
+        );
+        if (open.length > 0) {
+          const eta = Math.min(...open.map((d) => d.arriveAtMinute)) - state.totalMinutes;
+          return `Wartet auf Ersatzteile: ${names} (Lieferung in ${(Math.max(0, eta) / 60).toFixed(1)} h).`;
+        }
+        return `Wartet auf Ersatzteile: ${names} – noch nicht bestellt!`;
+      }
+      case 'ready_for_repair':
+        if (v?.state === 'driving_to_lift') return 'Fahrzeug fährt zur Hebebühne.';
+        if (
+          RepairSystem.orderNeedsLift(ctx, order) &&
+          !state.stations.some((s) => s.kind === 'lift' && s.unlocked && s.orderId === null)
+        ) {
+          return 'Wartet auf eine freie Hebebühne.';
+        }
+        return null;
+      case 'repairing': {
+        if (!worker) {
+          const job = RepairSystem.currentJob(order);
+          if (job) {
+            const def = repairDef(ctx, job.repairId);
+            const qualified = state.workers.filter(
+              (w) => w.skills[def.requiredSkill] >= def.minimumSkillLevel,
+            );
+            if (qualified.length === 0) {
+              return `Kein Mitarbeiter qualifiziert: ${SKILL_LABELS[def.requiredSkill]} ≥ ${def.minimumSkillLevel} benötigt.`;
+            }
+            return `Wartet auf freien Mitarbeiter (${SKILL_LABELS[def.requiredSkill]}).`;
+          }
+          return 'Wartet auf Mitarbeiter.';
+        }
+        if (worker.task?.phase === 'to_storage') return 'Mitarbeiter holt Ersatzteile aus dem Lager.';
+        if (worker.task?.phase === 'to_station') return 'Mitarbeiter ist unterwegs zum Fahrzeug.';
+        return null;
+      }
+      case 'quality_check':
+        if (!worker) return 'Wartet auf Mitarbeiter für die Qualitätskontrolle.';
+        if (worker.task?.phase === 'to_station') return 'Mitarbeiter ist unterwegs zur Qualitätskontrolle.';
+        return null;
+      case 'completed':
+        return 'Fahrzeug verlässt die Werkstatt.';
+      default:
+        return null;
+    }
   }
 
   /** Qualitätskontrolle bestanden → Rechnung (genau einmal) → Auslieferung. */

@@ -3,6 +3,7 @@ import type { RepairOrder, Worker } from '../entities/types';
 import type { Selection } from '../rendering/Renderer';
 import { InventorySystem } from '../simulation/InventorySystem';
 import { EconomySystem } from '../simulation/EconomySystem';
+import { OrderSystem } from '../simulation/OrderSystem';
 
 export type PanelId =
   | 'workshop'
@@ -450,6 +451,7 @@ export class UI {
           ${o.revealed ? `<div class="meta">${o.jobs.map((j) => game.defs.repairs.find((r) => r.id === j.repairId)?.name ?? j.repairId).join(', ')}</div>` : `<div class="meta muted">Defekte noch unbekannt – Diagnose nötig</div>`}
           ${o.jobs.length > 0 ? `<div class="meta">Fortschritt: ${jobsDone}/${o.jobs.length} Reparaturen · ${dueLabel(o, s.totalMinutes)}</div>` : `<div class="meta">${dueLabel(o, s.totalMinutes)}</div>`}
           ${worker ? `<div class="meta">Mitarbeiter: ${esc(worker.name)}</div>` : ''}
+          ${(() => { const wr = OrderSystem.waitReason(game.ctx, o); return wr ? `<div class="meta wait-reason">⏳ ${esc(wr)}</div>` : ''; })()}
           ${o.status === 'waiting_for_parts' ? `<div class="btn-row"><button class="btn warn" data-action="order-missing" data-id="${o.id}">Fehlende Teile bestellen</button></div>` : ''}
         </div>`;
     }
@@ -712,6 +714,7 @@ export class UI {
       <div class="complaint">„${esc(o.complaint)}“</div>
       <div>${statusChip(o.status)} ${o.priority > 1 ? '<span class="chip prio">Priorität hoch</span>' : ''}</div>
       ${o.status === 'diagnosing' && o.diagnosisExtended ? '<div class="meta overdue">Nachuntersuchung läuft – der Diagnostiker ist unerfahren.</div>' : ''}
+      ${(() => { const wr = OrderSystem.waitReason(game.ctx, o); return wr ? `<div class="card compact warn-card wait-card">⏳ ${esc(wr)}</div>` : ''; })()}
       <div class="meta">${dueLabel(o, s.totalMinutes)}${worker ? ` · Mitarbeiter: ${esc(worker.name)}` : ''}</div>
     </div>`;
     if (o.revealed) {

@@ -7,11 +7,14 @@ import { notify, repairDef } from './context';
 
 /** Diagnose: Kundenmeldung ≠ Ursache; Diagnose deckt tatsächliche Defekte auf. */
 export class DiagnosisSystem {
-  static start(ctx: SimContext, order: RepairOrder, worker: Worker): void {
-    OrderSystem.setStatus(ctx.state, order, 'diagnosing');
-    order.diagnosisRemainingMinutes =
-      DIAGNOSIS_BASE_MINUTES *
-      RepairSystem.durationFactor(worker.skills.diagnosis);
+  static start(ctx: SimContext, order: RepairOrder): void {
+    if (order.status === 'waiting_for_diagnosis') {
+      OrderSystem.setStatus(ctx.state, order, 'diagnosing');
+    }
+    // Fortschritt bewahren (Basisminuten); nur initial auf die Basiszeit setzen
+    if (order.diagnosisRemainingMinutes <= 0) {
+      order.diagnosisRemainingMinutes = DIAGNOSIS_BASE_MINUTES;
+    }
   }
 
   /**

@@ -175,7 +175,8 @@ export class WorkerSystem {
     WorkerSystem.releaseWorker(ctx, order);
   }
 
-  /** Zentrale, atomare Aufgabenverteilung: QC > Reparatur > Diagnose. */
+  /** Zentrale Aufgabenverteilung: bester freier Mitarbeiter je Auftrag,
+   *  bei hoher Priorität wird von niedriger Priorität durchgewechselt. */
   private static schedule(ctx: SimContext): void {
     const { state } = ctx;
     const candidates = state.orders
@@ -191,27 +192,69 @@ export class WorkerSystem {
       })
       .sort((a, b) => b.priority - a.priority || a.dueAtMinute - b.dueAtMinute);
 
-    for (const w of state.workers) {
-      if (w.task || w.trainingMinutes > 0 || !isOnDuty(state, w) || w.state === 'off_duty') continue;
-      for (const order of candidates) {
-        if (order.assignedWorkerId) continue;
+    const isFree = (w: Worker): boolean =>
+      !w.task && w.trainingMinutes <= 0 && isOnDuty(state, w) && w.state !== 'off_duty';
+    const free = state.workers.filter(isFree);
+    const distance = (w: Worker, order: RepairOrder): number => {
+      const st = order.stationId ? stationById(state, order.stationId) : null;
+      return st ? Math.abs(w.pos.x - st.interact.x) + Math.abs(w.pos.y - st.interact.y) : 0;
+    };
+    const bestFor = (order: RepairOrder, pool: Worker[]): Worker | null => {
+      if (pool.length === 0) return null;
+      if (order.status === 'repairing') {
+        const job = RepairSystem.currentJob(order);
+        if (!job) return null;
+        const def = repairDef(ctx, job.repairId);
+        const qualified = pool.filter((w) => RepairSystem.canWorkerDo(w, def));
+        if (qualified.length === 0) return null;
+        return [...qualified].sort(
+          (a, b) =>
+            b.skills[def.requiredSkill] - a.skills[def.requiredSkill] ||
+            distance(a, order) - distance(b, order),
+        )[0] as Worker;
+      }
+      // Diagnose und Qualitätskontrolle: höchste Diagnose-Kompetenz
+      return [...pool].sort(
+        (a, b) => b.skills.diagnosis - a.skills.diagnosis || distance(a, order) - distance(b, order),
+      )[0] as Worker;
+    };
+    const assign = (w: Worker, order: RepairOrder): void => {
+      if (order.status === 'repairing') WorkerSystem.assignRepair(ctx, w, order);
+      else if (order.status === 'quality_check') WorkerSystem.assignQualityCheck(ctx, w, order);
+      else WorkerSystem.assignDiagnosis(ctx, w, order);
+    };
+
+    for (const order of candidates) {
+      if (order.assignedWorkerId) continue;
+      const w = bestFor(order, free);
+      if (!w) continue;
+      free.splice(free.indexOf(w), 1);
+      assign(w, order);
+    }
+
+    // Durchwechseln: Auftrag mit hoher Priorität bekommt den besten Mitarbeiter
+    // von einem Auftrag mit niedrigerer Priorität (Fortschritt bleibt erhalten).
+    for (const order of candidates) {
+      if (order.assignedWorkerId || order.priority <= 1) continue;
+      const busy = state.workers.filter(
+        (w) => w.task && w.trainingMinutes <= 0 && isOnDuty(state, w),
+      );
+      const eligible = busy.filter((w) => {
+        const cur = state.orders.find((o) => o.id === w.task!.orderId);
+        if (!cur || cur.priority >= order.priority) return false;
         if (order.status === 'repairing') {
           const job = RepairSystem.currentJob(order);
-          if (!job) continue;
-          const def = repairDef(ctx, job.repairId);
-          if (!RepairSystem.canWorkerDo(w, def)) continue;
-          WorkerSystem.assignRepair(ctx, w, order);
-          break;
+          if (!job) return false;
+          return RepairSystem.canWorkerDo(w, repairDef(ctx, job.repairId));
         }
-        if (order.status === 'quality_check') {
-          WorkerSystem.assignQualityCheck(ctx, w, order);
-          break;
-        }
-        if (order.status === 'waiting_for_diagnosis') {
-          WorkerSystem.assignDiagnosis(ctx, w, order);
-          break;
-        }
-      }
+        return true;
+      });
+      const pick = bestFor(order, eligible);
+      if (!pick || !pick.task) continue;
+      const cur = state.orders.find((o) => o.id === pick.task!.orderId);
+      if (!cur) continue;
+      WorkerSystem.releaseWorker(ctx, cur);
+      assign(pick, order);
     }
   }
 
@@ -220,7 +263,7 @@ export class WorkerSystem {
     w: Worker,
     order: RepairOrder,
   ): void {
-    DiagnosisSystem.start(ctx, order, w);
+    DiagnosisSystem.start(ctx, order);
     const station = stationById(ctx.state, order.stationId!);
     order.assignedWorkerId = w.id;
     w.task = {
@@ -228,7 +271,9 @@ export class WorkerSystem {
       orderId: order.id,
       stationId: station.id,
       phase: 'to_station',
-      remainingMinutes: order.diagnosisRemainingMinutes,
+      remainingMinutes:
+        order.diagnosisRemainingMinutes *
+        RepairSystem.durationFactor(w.skills.diagnosis),
     };
     w.path = findPath(ctx.map, w.pos, station.interact) ?? [];
     w.state = 'moving';
@@ -256,7 +301,7 @@ export class WorkerSystem {
       stationId: station.id,
       phase: needsFetch ? 'to_storage' : 'to_station',
       remainingMinutes:
-        step.durationMinutes *
+        job.stepRemainingMinutes *
         RepairSystem.durationFactor(w.skills[def.requiredSkill]),
     };
     w.path = findPath(ctx.map, w.pos, target) ?? [];
@@ -284,11 +329,33 @@ export class WorkerSystem {
     w.state = 'moving';
   }
 
+  /** Gibt den Mitarbeiter frei und konserviert den Arbeitsfortschritt im Auftrag. */
   static releaseWorker(ctx: SimContext, order: RepairOrder): void {
     if (!order.assignedWorkerId) return;
     const w = ctx.state.workers.find((x) => x.id === order.assignedWorkerId);
     order.assignedWorkerId = null;
     if (!w) return;
+    const task = w.task;
+    if (task && task.orderId === order.id && task.remainingMinutes > 0) {
+      // Zurückrechnen auf Basisminuten (ohne Qualifikationsfaktor)
+      if (task.kind === 'diagnose') {
+        order.diagnosisRemainingMinutes =
+          task.remainingMinutes / RepairSystem.durationFactor(w.skills.diagnosis);
+        if (order.status === 'diagnosing') {
+          OrderSystem.setStatus(ctx.state, order, 'waiting_for_diagnosis');
+        }
+      } else if (task.kind === 'repair') {
+        const job = RepairSystem.currentJob(order);
+        if (job) {
+          const def = repairDef(ctx, job.repairId);
+          job.stepRemainingMinutes =
+            task.remainingMinutes / RepairSystem.durationFactor(w.skills[def.requiredSkill]);
+        }
+      } else {
+        order.qcRemainingMinutes =
+          task.remainingMinutes / RepairSystem.durationFactor(w.skills.diagnosis);
+      }
+    }
     w.task = null;
     w.path = [];
     w.state = isOnDuty(ctx.state, w) ? 'idle' : 'off_duty';

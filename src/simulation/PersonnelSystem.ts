@@ -2,6 +2,7 @@ import type { Candidate, SkillId } from '../entities/types';
 import type { SimContext } from './context';
 import { notify } from './context';
 import { EconomySystem } from './EconomySystem';
+import { WorkerSystem } from './WorkerSystem';
 
 const FIRST_NAMES = [
   'Lena', 'Murat', 'Sven', 'Aylin', 'Dennis', 'Miriam', 'Tobias', 'Elif',
@@ -114,10 +115,10 @@ export class PersonnelSystem {
     const idx = state.workers.findIndex((w) => w.id === workerId);
     if (idx < 0) return false;
     const w = state.workers[idx] as (typeof state.workers)[number];
-    // Laufende Aufgabe sauber an den Pool zurückgeben
+    // Laufende Aufgabe sauber an den Pool zurückgeben (Fortschritt bleibt erhalten)
     if (w.task) {
       const order = state.orders.find((o) => o.id === w.task!.orderId);
-      if (order) order.assignedWorkerId = null;
+      if (order) WorkerSystem.releaseWorker(ctx, order);
     }
     const day = Math.floor(state.totalMinutes / 1440) + 1;
     EconomySystem.book(state.economy, {
