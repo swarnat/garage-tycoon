@@ -310,6 +310,8 @@ export class OrderSystem {
     if (invoice > order.budgetCents * 1.15) satisfaction -= 15;
     satisfaction = Math.max(20, Math.min(100, satisfaction));
     order.satisfaction = satisfaction;
+    const customer = state.customers.find((c) => c.id === order.customerId);
+    if (customer) customer.lastSatisfaction = satisfaction;
     state.reputation = Math.max(
       0,
       Math.min(100, state.reputation + (satisfaction - 60) / 25),

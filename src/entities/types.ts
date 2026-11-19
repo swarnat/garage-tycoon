@@ -178,6 +178,7 @@ export interface RepairOrder {
   assignedWorkerId: string | null;
   stationId: string | null;
   diagnosisRemainingMinutes: number;
+  diagnosisExtended: boolean;
   qcRemainingMinutes: number;
   billed: boolean;
   laborMinutesActual: number;
@@ -217,6 +218,7 @@ export interface Customer {
   name: string;
   profile: CustomerProfile;
   visits: number;
+  lastSatisfaction: number | null;
 }
 
 export interface Station {
@@ -342,7 +344,7 @@ export interface GameDefs {
   suppliers: SupplierDef[];
 }
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 export const MINUTES_PER_DAY = 1440;
 export const GAME_MINUTES_PER_REAL_SECOND = 6;
 export const SIM_STEP_MINUTES = 0.25;

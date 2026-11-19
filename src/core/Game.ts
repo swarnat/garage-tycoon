@@ -329,6 +329,29 @@ export class Game {
     return true;
   }
 
+  buyDiagnosisBay(): boolean {
+    const bay = this.state.stations.find((s) => s.id === 'diag2');
+    if (!bay || bay.unlocked) return false;
+    const cost = 500000;
+    if (this.state.economy.balanceCents < cost) {
+      notify(this.ctx, 'danger', 'Zweiter Diagnoseplatz: Kontostand reicht nicht (5.000 €).');
+      return false;
+    }
+    EconomySystem.book(this.state.economy, {
+      id: 'upgrade-diag2',
+      day: Math.floor(this.state.totalMinutes / 1440) + 1,
+      atMinute: this.state.totalMinutes,
+      amountCents: -cost,
+      category: 'investment',
+      label: 'Zweiter Diagnoseplatz',
+    });
+    bay.unlocked = true;
+    this.map = new TileMap(26, 18, this.state.stations);
+    this.bus.emit('upgrade:purchased', 'diag2');
+    notify(this.ctx, 'success', 'Zweiter Diagnoseplatz installiert!');
+    return true;
+  }
+
   expandStorage(): boolean {
     const cost = 250000;
     if (this.state.economy.balanceCents < cost) {

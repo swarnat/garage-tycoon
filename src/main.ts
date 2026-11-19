@@ -105,6 +105,7 @@ const actions: UIActions = {
     });
   },
   buyLift: () => { game.buyLift(); },
+  buyDiagnosisBay: () => { game.buyDiagnosisBay(); },
   expandStorage: () => { game.expandStorage(); },
   setHourlyRate: (v) => { game.setHourlyRate(v); },
   setPartsMarkup: (v) => { game.setPartsMarkup(v); },

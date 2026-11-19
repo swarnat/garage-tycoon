@@ -14,7 +14,27 @@ export class DiagnosisSystem {
       RepairSystem.durationFactor(worker.skills.diagnosis);
   }
 
-  static complete(ctx: SimContext, order: RepairOrder): void {
+  /**
+   * Schließt die Diagnose ab. Liefert false, wenn eine Nachuntersuchung
+   * nötig ist (unerfahrene Diagnostiker, einmal pro Auftrag).
+   */
+  static complete(ctx: SimContext, order: RepairOrder, worker: Worker): boolean {
+    if (!order.diagnosisExtended && worker.skills.diagnosis < 40) {
+      const chance = 0.5 - worker.skills.diagnosis / 100;
+      if (ctx.rng.chance(chance)) {
+        order.diagnosisExtended = true;
+        order.diagnosisRemainingMinutes =
+          DIAGNOSIS_BASE_MINUTES *
+          0.75 *
+          RepairSystem.durationFactor(worker.skills.diagnosis);
+        notify(
+          ctx,
+          'warning',
+          `Nachuntersuchung nötig (${order.id}): ${worker.name} ist in Diagnose unerfahren und braucht mehr Zeit.`,
+        );
+        return false;
+      }
+    }
     order.revealed = true;
     order.jobs = order.defectRepairIds.map((id) =>
       RepairSystem.buildJob(repairDef(ctx, id)),
@@ -44,5 +64,6 @@ export class DiagnosisSystem {
       'info',
       `Diagnose abgeschlossen (${order.id}: ${names}). Kostenvoranschlag ${(order.estimateCents / 100).toFixed(2)} €`,
     );
+    return true;
   }
 }

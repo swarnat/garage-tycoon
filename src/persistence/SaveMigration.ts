@@ -1,4 +1,5 @@
 import { SAVE_VERSION } from '../entities/types';
+import { TileMap } from '../world/TileMap';
 import { SaveError } from './SaveValidation';
 
 /** Versionierte Migrationen: jede Stufe hebt die Version um 1 an. */
@@ -35,6 +36,11 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     version = 3;
     raw.version = version;
   }
+  if (version === 3) {
+    // v3 → v4: erweiterte Diagnosen, Stammkunden, zweiter Diagnoseplatz
+    version = 4;
+    raw.version = version;
+  }
   // Idempotente Normalisierung neuer Felder (auch für aktuelle Version)
   const inv = raw.inventory as Record<string, unknown> | undefined;
   if (inv && typeof inv === 'object') {
@@ -52,6 +58,23 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     for (const w of raw.workers as Record<string, unknown>[]) {
       if (typeof w.trainingMinutes !== 'number') w.trainingMinutes = 0;
       if (w.pendingTraining === undefined) w.pendingTraining = null;
+    }
+  }
+  if (Array.isArray(raw.orders)) {
+    for (const o of raw.orders as Record<string, unknown>[]) {
+      if (typeof o.diagnosisExtended !== 'boolean') o.diagnosisExtended = false;
+    }
+  }
+  if (Array.isArray(raw.customers)) {
+    for (const c of raw.customers as Record<string, unknown>[]) {
+      if (c.lastSatisfaction === undefined) c.lastSatisfaction = null;
+    }
+  }
+  if (Array.isArray(raw.stations)) {
+    const stations = raw.stations as Record<string, unknown>[];
+    if (!stations.some((s) => s.id === 'diag2')) {
+      const diag2 = TileMap.defaultStations().find((s) => s.id === 'diag2');
+      if (diag2) stations.push(JSON.parse(JSON.stringify(diag2)));
     }
   }
   if (version !== SAVE_VERSION) {

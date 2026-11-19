@@ -97,13 +97,24 @@ export class CustomerSystem {
       ['price_sensitive', 'quality_oriented', 'time_critical', 'regular', 'business'],
       [25, 20, 15, 25, 15],
     );
-    const customer: Customer = {
-      id: `c${state.nextId++}`,
-      name: `${rng.pick(FIRST_NAMES)} ${rng.pick(LAST_NAMES)}`,
-      profile,
-      visits: 1,
-    };
-    state.customers.push(customer);
+    // Stammkunden: zufriedene Kunden (>= 80) kommen mit 25 % wieder
+    const returningPool = state.customers.filter(
+      (c) => (c.lastSatisfaction ?? 0) >= 80,
+    );
+    let customer: Customer;
+    if (returningPool.length > 0 && rng.chance(0.25)) {
+      customer = rng.pick(returningPool);
+      customer.visits += 1;
+    } else {
+      customer = {
+        id: `c${state.nextId++}`,
+        name: `${rng.pick(FIRST_NAMES)} ${rng.pick(LAST_NAMES)}`,
+        profile,
+        visits: 1,
+        lastSatisfaction: null,
+      };
+      state.customers.push(customer);
+    }
     if (state.customers.length > 120) {
       const activeIds = new Set(
         state.orders
@@ -172,6 +183,7 @@ export class CustomerSystem {
       assignedWorkerId: null,
       stationId: null,
       diagnosisRemainingMinutes: 0,
+      diagnosisExtended: false,
       qcRemainingMinutes: 0,
       billed: false,
       laborMinutesActual: 0,

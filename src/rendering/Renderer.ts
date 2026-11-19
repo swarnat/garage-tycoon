@@ -184,6 +184,15 @@ export class Renderer {
       c.addChild(this.label('(Ausbau)', px + pw / 2, py + ph / 2 + 2, 9, 0x5a6170));
       return c;
     }
+    if (s.kind === 'diagnosis' && !s.unlocked) {
+      const g = new Graphics();
+      g.rect(px + 3, py + 3, pw - 6, ph - 6).fill({ color: 0x1b1e24, alpha: 0.5 });
+      g.rect(px + 3, py + 3, pw - 6, ph - 6).stroke({ width: 2, color: 0x3a3f4a, alpha: 0.8 });
+      c.addChild(g);
+      c.addChild(this.label('DIAGNOSE 2', px + pw / 2, py + ph / 2 - 14, 10, 0x5a6170));
+      c.addChild(this.label('(Ausbau)', px + pw / 2, py + ph / 2 + 2, 9, 0x5a6170));
+      return c;
+    }
     const spriteKeys: Partial<Record<Station['kind'], string>> = {
       lift: 'lift',
       diagnosis: 'diagnosis',
@@ -207,7 +216,7 @@ export class Renderer {
         c.addChild(this.label(s.id === 'lift1' ? 'BÜHNE 1' : s.id === 'lift2' ? 'BÜHNE 2' : 'BÜHNE 3', px + pw / 2, py + ph + 2, 9, 0xd9a441));
         break;
       case 'diagnosis':
-        c.addChild(this.label('DIAGNOSE', px + pw / 2, py + ph + 2, 9, 0x4fc3f7));
+        c.addChild(this.label(s.id === 'diag2' ? 'DIAGNOSE 2' : 'DIAGNOSE', px + pw / 2, py + ph + 2, 9, 0x4fc3f7));
         break;
       case 'storage':
         c.addChild(this.label('ERSATZTEILLAGER', px + pw / 2, py + ph + 2, 9, 0xc98a4b));

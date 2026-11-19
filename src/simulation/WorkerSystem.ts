@@ -147,8 +147,12 @@ export class WorkerSystem {
     if (task.remainingMinutes > 0) return;
 
     if (task.kind === 'diagnose') {
-      DiagnosisSystem.complete(ctx, order);
-      WorkerSystem.releaseWorker(ctx, order);
+      const finished = DiagnosisSystem.complete(ctx, order, w);
+      if (finished) {
+        WorkerSystem.releaseWorker(ctx, order);
+      } else {
+        task.remainingMinutes = order.diagnosisRemainingMinutes;
+      }
       return;
     }
     if (task.kind === 'repair') {

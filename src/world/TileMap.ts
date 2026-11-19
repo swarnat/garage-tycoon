@@ -28,7 +28,7 @@ export class TileMap {
     this.unblock(width - 1, 15);
     for (const s of stations) {
       if (s.kind === 'entry' || s.kind === 'exit' || s.kind === 'parking') continue;
-      if (s.kind === 'lift' && !s.unlocked) continue;
+      if (!s.unlocked) continue; // gesperrte Ausbauplätze bleiben begehbarer Boden
       for (let dy = 0; dy < s.rect.h; dy++) {
         for (let dx = 0; dx < s.rect.w; dx++) {
           this.block(s.rect.x + dx, s.rect.y + dy);
@@ -64,6 +64,7 @@ export class TileMap {
       { id: 'break_room', kind: 'break_room', rect: { x: 2, y: 10, w: 3, h: 2 }, interact: { x: 3, y: 12 }, orderId: null, unlocked: true },
       { id: 'storage', kind: 'storage', rect: { x: 20, y: 2, w: 4, h: 3 }, interact: { x: 21, y: 5 }, orderId: null, unlocked: true },
       { id: 'diag1', kind: 'diagnosis', rect: { x: 9, y: 3, w: 3, h: 2 }, interact: { x: 10, y: 5 }, orderId: null, unlocked: true },
+      { id: 'diag2', kind: 'diagnosis', rect: { x: 14, y: 3, w: 3, h: 2 }, interact: { x: 15, y: 5 }, orderId: null, unlocked: false },
       { id: 'lift1', kind: 'lift', rect: { x: 8, y: 9, w: 3, h: 2 }, interact: { x: 9, y: 11 }, orderId: null, unlocked: true },
       { id: 'lift2', kind: 'lift', rect: { x: 13, y: 9, w: 3, h: 2 }, interact: { x: 14, y: 11 }, orderId: null, unlocked: true },
       { id: 'lift3', kind: 'lift', rect: { x: 18, y: 9, w: 3, h: 2 }, interact: { x: 19, y: 11 }, orderId: null, unlocked: false },

@@ -28,6 +28,7 @@ export interface UIActions {
   importSave(file: File): void;
   resetGame(): void;
   buyLift(): void;
+  buyDiagnosisBay(): void;
   expandStorage(): void;
   setHourlyRate(v: number): void;
   setPartsMarkup(v: number): void;
@@ -293,6 +294,7 @@ export class UI {
       case 'import': this.fileInput.click(); break;
       case 'reset': this.actions.resetGame(); break;
       case 'buy-lift': this.actions.buyLift(); break;
+      case 'buy-diag': this.actions.buyDiagnosisBay(); break;
       case 'expand-storage': this.actions.expandStorage(); break;
       case 'reset-camera': this.actions.resetCamera(); break;
       default: break;
@@ -639,6 +641,14 @@ export class UI {
         : `<div class="btn-row"><button class="btn primary" data-action="buy-lift">Kaufen</button></div>`}
     </div>`;
     html += `<div class="card">
+      <div class="card-title">Zweiter Diagnoseplatz</div>
+      <div class="meta">Diagnosen parallel statt im Nadelöhr – besonders mit mehreren Mitarbeitern sinnvoll.</div>
+      <div class="meta">Kosten: ${eur(500000)}</div>
+      ${s.stations.find((x) => x.id === 'diag2')?.unlocked
+        ? '<div class="chip st-delivered">Bereits installiert</div>'
+        : `<div class="btn-row"><button class="btn primary" data-action="buy-diag">Kaufen</button></div>`}
+    </div>`;
+    html += `<div class="card">
       <div class="card-title">Lagererweiterung (+60 Teile)</div>
       <div class="meta">Aktuelle Kapazität: ${s.inventory.capacity} Teile. Mehr Lager vermeidet Wartezeiten, bindet aber Kapital.</div>
       <div class="meta">Kosten: ${eur(250000)}</div>
@@ -701,6 +711,7 @@ export class UI {
       <div class="meta">Kunde: ${c ? esc(c.name) : '?'} (${c ? PROFILE_LABELS[c.profile] ?? '' : ''})</div>
       <div class="complaint">„${esc(o.complaint)}“</div>
       <div>${statusChip(o.status)} ${o.priority > 1 ? '<span class="chip prio">Priorität hoch</span>' : ''}</div>
+      ${o.status === 'diagnosing' && o.diagnosisExtended ? '<div class="meta overdue">Nachuntersuchung läuft – der Diagnostiker ist unerfahren.</div>' : ''}
       <div class="meta">${dueLabel(o, s.totalMinutes)}${worker ? ` · Mitarbeiter: ${esc(worker.name)}` : ''}</div>
     </div>`;
     if (o.revealed) {

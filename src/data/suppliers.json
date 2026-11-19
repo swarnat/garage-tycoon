@@ -1,4 +1,5 @@
 [
   { "id": "teileprofi", "name": "TeileProfi", "leadMinutes": 480, "priceFactor": 1.0, "shippingCents": 990 },
-  { "id": "expressparts", "name": "ExpressParts", "leadMinutes": 60, "priceFactor": 1.35, "shippingCents": 1990 }
+  { "id": "expressparts", "name": "ExpressParts", "leadMinutes": 60, "priceFactor": 1.35, "shippingCents": 1990 },
+  { "id": "budgetteile", "name": "BudgetTeile", "leadMinutes": 1440, "priceFactor": 0.85, "shippingCents": 490 }
 ]

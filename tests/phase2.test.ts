@@ -208,7 +208,7 @@ describe('Save-Migration v2 → v3', () => {
       delete w.pendingTraining;
     }
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(3);
+    expect(migrated.version).toBe(4);
     expect(migrated.inventory.autoReorder).toEqual({});
     expect(migrated.inventory.autoSupplierId).toBe('teileprofi');
     expect(Array.isArray(migrated.candidates)).toBe(true);

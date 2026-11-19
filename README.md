@@ -25,11 +25,13 @@ Du führst eine Kfz-Werkstatt: Aufträge annehmen, Mitarbeiter diagnostizieren u
 - 10 Fahrzeugmodelle, 23 datengetriebene Reparaturen, 23 Ersatzteile
 - Diagnosesystem: Kundenmeldung ≠ tatsächliche Ursache
 - Kostenvoranschläge mit Kundenfreigabe nach Budget und Kundenprofil
-- Lager mit Reservierungen, zwei Lieferanten (Standard / Express), **Auto-Nachbestellung** unter Mindestmenge (Lager als Modal)
+- Lager mit Reservierungen, drei Lieferanten (Standard / Express / Budget), **Auto-Nachbestellung** unter Mindestmenge (Lager als Modal)
 - **Personalverwaltung**: Kandidaten einstellen/entlassen (max. 6), **Weiterbildung** (+5 Skill für 150 €, 2 h)
+- **Erweiterte Diagnosen**: unerfahrene Diagnostiker brauchen ggf. eine Nachuntersuchung
+- **Stammkunden**: zufriedene Kunden (≥ 80) kommen mit 25 % Wahrscheinlichkeit wieder
 - Finanzsystem in Cent-Beträgen mit Doppelbuchungsschutz, Gehältern, Fixkosten, Dashboard mit Tagesübersicht
 - Reputation, Kundenzufriedenheit, Terminplanung
-- Ausbau: dritte Hebebühne, Lagererweiterung
+- Ausbau: dritte Hebebühne, zweiter Diagnoseplatz, Lagererweiterung
 - Pause / 1× / 2× / 4× / 8×, Autosave, Savegame-Export/-Import, versionierte Migrationen
 
 ## Architektur
@@ -46,7 +48,7 @@ Strikte Trennung von Simulation und Rendering:
 - `src/data/` – JSON-Definitionen (Fahrzeuge, Teile, Reparaturen, Lieferanten)
 - `tests/` – Vitest: Statusmaschine, Reservierungen, Buchungen, Determinismus, Save-Roundtrip u. v. m.
 
-Das vollständige Spielkonzept liegt in [`konzept.md`](konzept.md). Umgesetzt sind Phase 1 (spielbarer MVP) und die Kernfeatures von Phase 2 (Personalrekrutierung, Weiterbildung, automatische Lagerbestellungen, detaillierte Finanzübersichten).
+Das vollständige Spielkonzept liegt in [`konzept.md`](konzept.md). Umgesetzt sind Phase 1 (spielbarer MVP) und Phase 2 (Wirtschaft & Management) vollständig. Offen: Phase 3 (erweiterte Simulation).
 
 ## Releases
 
