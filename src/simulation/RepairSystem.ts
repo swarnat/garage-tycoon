@@ -15,8 +15,21 @@ export class RepairSystem {
     return Math.max(0.5, 1.5 - skill / 100);
   }
 
+  /** Tatsächliche Arbeitsrate inkl. Motivation (0.9–1.1). */
+  static workRate(skill: number, motivation: number): number {
+    return RepairSystem.durationFactor(skill) * (0.9 + motivation / 500);
+  }
+
   static canWorkerDo(worker: Worker, def: RepairDef): boolean {
     return worker.skills[def.requiredSkill] >= def.minimumSkillLevel;
+  }
+
+  static toolsAvailable(ctx: SimContext, def: RepairDef): boolean {
+    return (def.requiredTools ?? []).every((t) => ctx.state.ownedTools.includes(t));
+  }
+
+  static missingTools(ctx: SimContext, def: RepairDef): string[] {
+    return (def.requiredTools ?? []).filter((t) => !ctx.state.ownedTools.includes(t));
   }
 
   static buildJob(def: RepairDef): RepairJob {
@@ -45,7 +58,7 @@ export class RepairSystem {
     for (const n of order.partsNeeded) {
       const p = ctx.defs.parts.find((x) => x.id === n.partId);
       if (!p) throw new Error(`Teil ${n.partId} fehlt in Definitionen`);
-      sum += EconomySystem.sellPrice(p.buyCents, ctx.state.economy.partsMarkupPct) * n.quantity;
+      sum += EconomySystem.sellPrice(EconomySystem.marketBuyCents(ctx.state, p), ctx.state.economy.partsMarkupPct) * n.quantity;
     }
     return sum;
   }
@@ -53,19 +66,20 @@ export class RepairSystem {
   static laborEstimateCents(ctx: SimContext, order: RepairOrder): number {
     const minutes = order.jobs.reduce((sum, j) => {
       const def = repairDef(ctx, j.repairId);
-      return sum + def.baseDurationMinutes;
+      return sum + def.baseDurationMinutes * (def.requiredWorkers ?? 1);
     }, 0);
     return Math.round((minutes / 60) * ctx.state.economy.hourlyRateCents);
   }
 
   /**
    * Schließt den aktuellen Schritt ab und rückt zum nächsten vor.
+   * Schrittzeiten werden in Basisminuten geführt (Faktor pro Mitarbeiter).
    * Liefert true, wenn damit alle Reparaturen des Auftrags fertig sind.
    */
   static advanceStep(
     ctx: SimContext,
     order: RepairOrder,
-    worker: Worker,
+    _worker: Worker,
   ): boolean {
     const job = RepairSystem.currentJob(order);
     if (!job) return true;
@@ -78,16 +92,12 @@ export class RepairSystem {
       const nextDef = repairDef(ctx, next.repairId);
       const step = nextDef.steps[next.stepIndex];
       if (!step) throw new Error('Schritt fehlt');
-      next.stepRemainingMinutes =
-        step.durationMinutes *
-        RepairSystem.durationFactor(worker.skills[nextDef.requiredSkill]);
+      next.stepRemainingMinutes = step.durationMinutes;
       return false;
     }
     const step = def.steps[job.stepIndex];
     if (!step) throw new Error('Schritt fehlt');
-    job.stepRemainingMinutes =
-      step.durationMinutes *
-      RepairSystem.durationFactor(worker.skills[def.requiredSkill]);
+    job.stepRemainingMinutes = step.durationMinutes;
     return false;
   }
 }

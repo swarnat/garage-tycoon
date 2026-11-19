@@ -1,5 +1,6 @@
 import { SAVE_VERSION } from '../entities/types';
 import { TileMap } from '../world/TileMap';
+import { DEFS } from '../data';
 import { SaveError } from './SaveValidation';
 
 /** Versionierte Migrationen: jede Stufe hebt die Version um 1 an. */
@@ -41,6 +42,11 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     version = 4;
     raw.version = version;
   }
+  if (version === 4) {
+    // v4 → v5: Werkzeuge, Marktpreise, Kredite, Motivation, Team-Reparaturen, Qualität
+    version = 5;
+    raw.version = version;
+  }
   // Idempotente Normalisierung neuer Felder (auch für aktuelle Version)
   const inv = raw.inventory as Record<string, unknown> | undefined;
   if (inv && typeof inv === 'object') {
@@ -76,6 +82,35 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> {
       const diag2 = TileMap.defaultStations().find((s) => s.id === 'diag2');
       if (diag2) stations.push(JSON.parse(JSON.stringify(diag2)));
     }
+  }
+  if (!Array.isArray(raw.ownedTools)) raw.ownedTools = ['brake_bleeder'];
+  if (typeof raw.marketPriceFactors !== 'object' || raw.marketPriceFactors === null) {
+    raw.marketPriceFactors = {};
+  }
+  const factors = raw.marketPriceFactors as Record<string, unknown>;
+  for (const p of DEFS.parts) {
+    if (typeof factors[p.id] !== 'number') factors[p.id] = 1;
+  }
+  if (!Array.isArray(raw.loans)) raw.loans = [];
+  if (Array.isArray(raw.workers)) {
+    for (const w of raw.workers as Record<string, unknown>[]) {
+      if (typeof w.motivation !== 'number') w.motivation = 80;
+      if (typeof w.dailyWorkedMinutes !== 'number') w.dailyWorkedMinutes = 0;
+      if (typeof w.dailyOnDutyMinutes !== 'number') w.dailyOnDutyMinutes = 0;
+    }
+  }
+  if (Array.isArray(raw.orders)) {
+    for (const o of raw.orders as Record<string, unknown>[]) {
+      if (!Array.isArray(o.crewIds)) o.crewIds = [];
+      if (typeof o.qualityIssues !== 'number') o.qualityIssues = 0;
+      if (o.qualityScore === undefined) o.qualityScore = null;
+    }
+  }
+  const stats = raw.statistics as Record<string, unknown> | undefined;
+  if (stats && typeof stats === 'object') {
+    if (typeof stats.qcFailures !== 'number') stats.qcFailures = 0;
+    if (typeof stats.complaints !== 'number') stats.complaints = 0;
+    if (typeof stats.repairsByType !== 'object' || stats.repairsByType === null) stats.repairsByType = {};
   }
   if (version !== SAVE_VERSION) {
     throw new SaveError(`Keine Migration für Version ${version} verfügbar`);

@@ -100,6 +100,9 @@ export class PersonnelSystem {
       onDutyMinutes: 0,
       trainingMinutes: 0,
       pendingTraining: null,
+      motivation: 80,
+      dailyWorkedMinutes: 0,
+      dailyOnDutyMinutes: 0,
     });
     state.candidates.splice(idx, 1);
     notify(ctx, 'success', `${cand.name} eingestellt (${(cand.salaryCentsPerDay / 100).toFixed(2)} €/Tag).`);
@@ -118,7 +121,7 @@ export class PersonnelSystem {
     // Laufende Aufgabe sauber an den Pool zurückgeben (Fortschritt bleibt erhalten)
     if (w.task) {
       const order = state.orders.find((o) => o.id === w.task!.orderId);
-      if (order) WorkerSystem.releaseWorker(ctx, order);
+      if (order) WorkerSystem.releaseSpecific(ctx, order, w);
     }
     const day = Math.floor(state.totalMinutes / 1440) + 1;
     EconomySystem.book(state.economy, {
@@ -132,6 +135,19 @@ export class PersonnelSystem {
     state.workers.splice(idx, 1);
     notify(ctx, 'warning', `${w.name} entlassen (Abfindung: ${(w.salaryCentsPerDay / 100).toFixed(2)} €).`);
     return true;
+  }
+
+  /** Tagesreview: Motivation aus Auslastung, Tageszähler zurücksetzen. */
+  static dailyReview(ctx: SimContext): void {
+    for (const w of ctx.state.workers) {
+      const util = w.dailyOnDutyMinutes > 0 ? w.dailyWorkedMinutes / w.dailyOnDutyMinutes : 0;
+      if (util > 0.85) w.motivation -= 10;
+      else if (util < 0.4) w.motivation += 5;
+      else w.motivation += 1;
+      w.motivation = Math.max(0, Math.min(100, w.motivation));
+      w.dailyWorkedMinutes = 0;
+      w.dailyOnDutyMinutes = 0;
+    }
   }
 
   static train(ctx: SimContext, workerId: string, skill: SkillId): boolean {

@@ -24,7 +24,7 @@ const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   waiting_for_parts: ['ready_for_repair', 'cancelled'],
   ready_for_repair: ['repairing', 'cancelled'],
   repairing: ['quality_check', 'cancelled'],
-  quality_check: ['completed', 'cancelled'],
+  quality_check: ['completed', 'repairing', 'cancelled'],
   completed: ['delivered'],
   delivered: [],
   cancelled: [],
@@ -251,6 +251,24 @@ export class OrderSystem {
       if (order.status === 'completed') {
         OrderSystem.setStatus(state, order, 'delivered');
         ctx.bus.emit('order:delivered', order.id);
+        // Reklamation: unwahrscheinlich bei guter Qualität, teuer bei schlechter
+        const complaintChance = Math.max(0, 0.2 - (order.qualityScore ?? 0.8) * 0.15);
+        if (ctx.rng.chance(complaintChance)) {
+          const refund = Math.round((order.invoiceCents ?? 0) * 0.2);
+          EconomySystem.book(state.economy, {
+            id: `complaint-${order.id}`,
+            day: Math.floor(state.totalMinutes / 1440) + 1,
+            atMinute: state.totalMinutes,
+            amountCents: -refund,
+            category: 'other',
+            label: `Reklamation ${order.id} (20 % Erstattung)`,
+            orderId: order.id,
+          });
+          state.statistics.complaints += 1;
+          state.reputation = Math.max(0, state.reputation - 4);
+          order.satisfaction = Math.max(20, (order.satisfaction ?? 80) - 25);
+          notify(ctx, 'danger', `Reklamation zu ${order.id}: ${(refund / 100).toFixed(2)} € erstattet, Reputation −4.`);
+        }
         notify(
           ctx,
           'success',
@@ -274,6 +292,7 @@ export class OrderSystem {
     if (order.assignedWorkerId) {
       WorkerSystem.releaseWorker(ctx, order);
     }
+    order.crewIds = [];
     if (order.stationId) {
       stationById(state, order.stationId).orderId = null;
       order.stationId = null;
@@ -354,8 +373,21 @@ export class OrderSystem {
         }
         return null;
       case 'repairing': {
+        const job = RepairSystem.currentJob(order);
+        if (job) {
+          const def = repairDef(ctx, job.repairId);
+          if (!RepairSystem.toolsAvailable(ctx, def)) {
+            const names = RepairSystem.missingTools(ctx, def)
+              .map((t) => ctx.defs.tools.find((x) => x.id === t)?.name ?? t)
+              .join(', ');
+            return `Benötigt Spezialwerkzeug: ${names} (im Ausbau kaufen).`;
+          }
+          const needed = def.requiredWorkers ?? 1;
+          if (order.crewIds.length > 0 && order.crewIds.length < needed) {
+            return `Wartet auf zweiten Mitarbeiter (Team-Reparatur, ${order.crewIds.length}/${needed}).`;
+          }
+        }
         if (!worker) {
-          const job = RepairSystem.currentJob(order);
           if (job) {
             const def = repairDef(ctx, job.repairId);
             const qualified = state.workers.filter(
@@ -368,6 +400,7 @@ export class OrderSystem {
           }
           return 'Wartet auf Mitarbeiter.';
         }
+        if (worker.state === 'waiting') return 'Wartet auf Team-Kollegen an der Hebebühne.';
         if (worker.task?.phase === 'to_storage') return 'Mitarbeiter holt Ersatzteile aus dem Lager.';
         if (worker.task?.phase === 'to_station') return 'Mitarbeiter ist unterwegs zum Fahrzeug.';
         return null;
@@ -384,7 +417,7 @@ export class OrderSystem {
   }
 
   /** Qualitätskontrolle bestanden → Rechnung (genau einmal) → Auslieferung. */
-  static completeAndInvoice(ctx: SimContext, order: RepairOrder): void {
+  static completeAndInvoice(ctx: SimContext, order: RepairOrder, qcSkill = 50): void {
     const { state } = ctx;
     if (order.billed) return;
     const laborCents = Math.round(
@@ -404,6 +437,10 @@ export class OrderSystem {
     if (!booked) return;
     order.invoiceCents = invoice;
     order.billed = true;
+    order.qualityScore = Math.max(
+      0.2,
+      Math.min(1, 0.6 + qcSkill / 250 - order.qualityIssues * 0.15),
+    );
     let satisfaction = 95;
     if (state.totalMinutes > order.dueAtMinute) satisfaction -= 30;
     if (invoice > order.budgetCents * 1.15) satisfaction -= 15;

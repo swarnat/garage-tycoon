@@ -81,6 +81,11 @@ export class EconomySystem {
     return Math.round(buyCents * (1 + markupPct / 100));
   }
 
+  /** Aktueller Markteinkaufspreis (Basispreis × Marktfaktor). */
+  static marketBuyCents(state: GameState, part: { id: string; buyCents: number }): number {
+    return Math.round(part.buyCents * (state.marketPriceFactors[part.id] ?? 1));
+  }
+
   /** Tagesabschluss: Gehälter + Fixkosten, Statistik. */
   static closeDay(state: GameState, day: number): void {
     const eco = state.economy;
@@ -105,6 +110,20 @@ export class EconomySystem {
       label: 'Miete & Betriebskosten',
     });
     state.statistics.totalFixedCostCents += fixed;
+    // Kreditzinsen (Basispunkte pro Tag auf die Restschuld)
+    for (const loan of state.loans) {
+      const interest = Math.ceil((loan.remainingCents * loan.interestBpPerDay) / 10000);
+      if (interest > 0) {
+        EconomySystem.book(eco, {
+          id: `loan-interest-${loan.id}-d${day}`,
+          day,
+          atMinute: state.totalMinutes,
+          amountCents: -interest,
+          category: 'other',
+          label: `Kreditzinsen (${(loan.remainingCents / 100).toFixed(0)} € Restschuld)`,
+        });
+      }
+    }
     const d = EconomySystem.dailyFor(eco, day);
     d.balanceEndCents = eco.balanceCents;
   }

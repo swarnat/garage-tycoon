@@ -130,6 +130,7 @@ describe('Stammkunden', () => {
     stockEverything(game);
     const offer = game.generateOffer()!;
     offer.budgetCents = 5_000_000;
+    offer.defectRepairIds = ['replace_brake_pads'];
     game.acceptOrder(offer.id);
     const limit = game.state.totalMinutes + 6 * 1440;
     while (game.state.totalMinutes < limit && offer.status !== 'delivered') {
@@ -140,7 +141,8 @@ describe('Stammkunden', () => {
     const happyId = offer.customerId;
     const customer = game.state.customers.find((c) => c.id === happyId)!;
     expect(customer.lastSatisfaction).toBe(offer.satisfaction);
-    // Rückkehr-Wahrscheinlichkeit erzwingen
+    // Rückkehr-Wahrscheinlichkeit erzwingen; Anfragen-Cap leeren
+    for (const o of game.state.orders.filter((x) => x.status === 'incoming')) game.declineOrder(o.id);
     game.rng.chance = () => true;
     const next = game.generateOffer()!;
     expect(next.customerId).toBe(happyId);
@@ -152,6 +154,7 @@ describe('Stammkunden', () => {
     stockEverything(game);
     const offer = game.generateOffer()!;
     offer.budgetCents = 5_000_000;
+    offer.defectRepairIds = ['replace_brake_pads'];
     offer.dueAtMinute = game.state.totalMinutes + 10; // extrem knapp → wird spät
     game.acceptOrder(offer.id);
     const limit = game.state.totalMinutes + 6 * 1440;
@@ -175,7 +178,7 @@ describe('Save-Migration v3 → v4', () => {
     for (const c of raw.customers) delete c.lastSatisfaction;
     raw.stations = raw.stations.filter((s: { id: string }) => s.id !== 'diag2');
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(4);
+    expect(migrated.version).toBe(5);
     expect(migrated.orders[0]!.diagnosisExtended).toBe(false);
     expect(migrated.customers[0]!.lastSatisfaction).toBeNull();
     const diag2 = migrated.stations.find((s) => s.id === 'diag2');

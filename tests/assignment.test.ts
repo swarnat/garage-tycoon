@@ -92,7 +92,7 @@ describe('Kompetenzbasierte Zuweisung', () => {
     const job = low.jobs[0]!;
     const def = game.defs.repairs.find((r) => r.id === job.repairId)!;
     // Zweiter Auftrag mit hoher Priorität, gleiche Qualifikation nötig
-    const high = acceptWithBudget(game, 'replace_brake_discs');
+    const high = acceptWithBudget(game, 'replace_brake_caliper');
     high.priority = 2;
     runUntil(game, () => high.status === 'repairing' && !!high.assignedWorkerId, 1440);
     expect(high.assignedWorkerId).toBe('w1');
@@ -144,13 +144,13 @@ describe('Wartegrund-Anzeige', () => {
     const game = Game.new(322);
     stockEverything(game);
     for (const w of game.state.workers) w.skills.engine = 10;
-    const offer = acceptWithBudget(game, 'replace_water_pump'); // braucht engine >= 50
+    const offer = acceptWithBudget(game, 'replace_accessory_belt'); // braucht engine >= 35, kein Werkzeug
     runUntil(game, () => offer.status === 'repairing', 1440);
     expect(offer.status).toBe('repairing');
     expect(offer.assignedWorkerId).toBeNull();
     const reason = OrderSystem.waitReason(game.ctx, offer);
     expect(reason).toContain('Motor');
-    expect(reason).toContain('50');
+    expect(reason).toContain('35');
   });
 
   it('wartende Diagnose nennt den Mitarbeitermangel', () => {

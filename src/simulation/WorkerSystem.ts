@@ -9,7 +9,7 @@ import { InventorySystem } from './InventorySystem';
 import { SKILL_LABELS } from './PersonnelSystem';
 import { findPath } from '../world/Pathfinding';
 
-/** Bewegung entlang eines Tile-Pfads mit_fractionalem Fortschritt. */
+/** Bewegung entlang eines Tile-Pfads mit fractionalem Fortschritt. */
 export function moveAlongPath(pos: Vec, path: Vec[], distance: number): void {
   let remaining = distance;
   while (remaining > 0 && path.length > 0) {
@@ -43,13 +43,18 @@ function orderAtWorkstation(ctx: SimContext, order: RepairOrder): boolean {
   );
 }
 
-/** Mitarbeiter: Schichten, Bewegung, Aufgabenplanung, Arbeitsausführung. */
+const TEAM_BONUS = 1.15;
+
+/** Mitarbeiter: Schichten, Bewegung, Aufgabenplanung, Team-Reparaturen. */
 export class WorkerSystem {
   static update(ctx: SimContext, dt: number): void {
     const { state } = ctx;
     for (const w of state.workers) {
       const onDuty = isOnDuty(state, w);
-      if (onDuty) w.onDutyMinutes += dt;
+      if (onDuty) {
+        w.onDutyMinutes += dt;
+        w.dailyOnDutyMinutes += dt;
+      }
       // Weiterbildung: blockiert neue Aufgaben, zählt nur während der Schicht
       if (w.trainingMinutes > 0) {
         if (onDuty) {
@@ -61,6 +66,7 @@ export class WorkerSystem {
               const t = w.pendingTraining;
               w.skills[t.skill] = Math.min(100, w.skills[t.skill] + t.amount);
               w.experience += 1;
+              w.motivation = Math.min(100, w.motivation + 5);
               notify(ctx, 'success', `${w.name}: Weiterbildung ${SKILL_LABELS[t.skill]} abgeschlossen (+${t.amount}).`);
               w.pendingTraining = null;
             }
@@ -124,7 +130,8 @@ export class WorkerSystem {
   ): void {
     const task = w.task;
     if (!task) return;
-    const order = ctx.state.orders.find((o) => o.id === task.orderId);
+    const { state } = ctx;
+    const order = state.orders.find((o) => o.id === task.orderId);
     if (!order || order.status === 'cancelled' || order.status === 'delivered') {
       w.task = null;
       w.path = [];
@@ -137,22 +144,21 @@ export class WorkerSystem {
       return;
     }
     if (task.phase === 'to_storage') {
-      InventorySystem.consumeReserved(ctx.state.inventory, order.partsNeeded);
+      InventorySystem.consumeReserved(state.inventory, order.partsNeeded);
       order.partsAtBay = true;
       for (const n of order.partsNeeded) {
-        const stock = ctx.state.inventory.stock[n.partId] ?? 0;
-        const min = ctx.state.inventory.minStock[n.partId] ?? 0;
+        const stock = state.inventory.stock[n.partId] ?? 0;
+        const min = state.inventory.minStock[n.partId] ?? 0;
         if (stock <= min) {
           const p = ctx.defs.parts.find((x) => x.id === n.partId);
           notify(ctx, 'warning', `Lagerbestand niedrig: ${p?.name ?? n.partId} (${stock} Stück)`);
           ctx.bus.emit('parts:low', n.partId);
         }
       }
-      const station = stationById(ctx.state, task.stationId);
+      const station = stationById(state, task.stationId);
       const path = findPath(ctx.map, w.pos, station.interact);
       if (!path) {
-        // Sollte nicht vorkommen; Aufgabe sicher abbrechen
-        WorkerSystem.releaseWorker(ctx, order);
+        WorkerSystem.releaseSpecific(ctx, order, w);
         return;
       }
       w.path = path;
@@ -173,53 +179,121 @@ export class WorkerSystem {
       }
       return;
     }
-    // working
+
+    // ---- working: Reparatur (ggf. im Team) ----
+    if (task.kind === 'repair') {
+      const job = RepairSystem.currentJob(order);
+      if (!job) {
+        WorkerSystem.releaseCrew(ctx, order);
+        return;
+      }
+      const def = repairDef(ctx, job.repairId);
+      const needed = def.requiredWorkers ?? 1;
+      const crew = order.crewIds
+        .map((id) => state.workers.find((x) => x.id === id))
+        .filter((x): x is Worker => !!x && !!x.task && x.task.orderId === order.id);
+      const allWorking =
+        crew.length >= needed && crew.every((c) => c.task!.phase === 'working');
+      if (!allWorking) {
+        w.state = 'waiting';
+        return;
+      }
+      const rate =
+        (crew.reduce(
+          (a, c) => a + RepairSystem.workRate(c.skills[def.requiredSkill], c.motivation),
+          0,
+        ) /
+          crew.length) *
+        (needed > 1 ? TEAM_BONUS : 1);
+      job.stepRemainingMinutes -= dt * rate;
+      order.laborMinutesActual += dt;
+      w.workedMinutes += dt;
+      w.dailyWorkedMinutes += dt;
+      task.remainingMinutes =
+        Math.max(0, job.stepRemainingMinutes) *
+        RepairSystem.durationFactor(w.skills[def.requiredSkill]);
+      if (job.stepRemainingMinutes <= 0) {
+        const allDone = RepairSystem.advanceStep(ctx, order, w);
+        if (allDone) {
+          for (const j of order.jobs) {
+            state.statistics.repairsByType[j.repairId] =
+              (state.statistics.repairsByType[j.repairId] ?? 0) + 1;
+          }
+          OrderSystem.setStatus(state, order, 'quality_check');
+          order.qcRemainingMinutes = QC_BASE_MINUTES;
+          ctx.bus.emit('repair:completed', order.id);
+          notify(ctx, 'info', `Reparatur abgeschlossen (${order.id}). Qualitätskontrolle steht an.`);
+          WorkerSystem.releaseCrew(ctx, order);
+        } else {
+          task.remainingMinutes =
+            job.stepRemainingMinutes *
+            RepairSystem.durationFactor(w.skills[def.requiredSkill]);
+        }
+      }
+      return;
+    }
+
+    // ---- working: Diagnose / Qualitätskontrolle ----
     w.workedMinutes += dt;
-    if (task.kind === 'repair') order.laborMinutesActual += dt;
+    w.dailyWorkedMinutes += dt;
     task.remainingMinutes -= dt;
     if (task.remainingMinutes > 0) return;
 
     if (task.kind === 'diagnose') {
       const finished = DiagnosisSystem.complete(ctx, order, w);
       if (finished) {
-        WorkerSystem.releaseWorker(ctx, order);
+        WorkerSystem.releaseSpecific(ctx, order, w);
       } else {
-        task.remainingMinutes = order.diagnosisRemainingMinutes;
+        task.remainingMinutes =
+          order.diagnosisRemainingMinutes *
+          RepairSystem.durationFactor(w.skills.diagnosis);
       }
       return;
     }
-    if (task.kind === 'repair') {
-      const allDone = RepairSystem.advanceStep(ctx, order, w);
-      if (allDone) {
-        OrderSystem.setStatus(ctx.state, order, 'quality_check');
-        order.qcRemainingMinutes = QC_BASE_MINUTES;
-        ctx.bus.emit('repair:completed', order.id);
-        notify(ctx, 'info', `Reparatur abgeschlossen (${order.id}). Qualitätskontrolle steht an.`);
-        WorkerSystem.releaseWorker(ctx, order);
-      } else {
-        const job = RepairSystem.currentJob(order);
-        task.remainingMinutes = job ? job.stepRemainingMinutes : 0;
+
+    // quality_check: kann fehlschlagen → Nacharbeit
+    const failChance = Math.max(0, 0.25 - w.skills.diagnosis / 400);
+    if (ctx.rng.chance(failChance)) {
+      order.qualityIssues += 1;
+      state.statistics.qcFailures += 1;
+      const lastJob = order.jobs[order.jobs.length - 1];
+      if (lastJob) {
+        const d = repairDef(ctx, lastJob.repairId);
+        lastJob.done = false;
+        lastJob.stepIndex = d.steps.length - 1;
+        lastJob.stepRemainingMinutes =
+          0.4 * (d.steps[lastJob.stepIndex]?.durationMinutes ?? 20);
       }
+      OrderSystem.setStatus(state, order, 'repairing');
+      order.crewIds = [];
+      notify(ctx, 'warning', `Qualitätskontrolle fehlgeschlagen (${order.id}) – Nacharbeit nötig.`);
+      WorkerSystem.releaseSpecific(ctx, order, w);
       return;
     }
-    // quality_check
     ctx.bus.emit('quality_check:completed', order.id);
-    OrderSystem.completeAndInvoice(ctx, order);
-    WorkerSystem.releaseWorker(ctx, order);
+    OrderSystem.completeAndInvoice(ctx, order, w.skills.diagnosis);
+    WorkerSystem.releaseSpecific(ctx, order, w);
   }
 
   /** Zentrale Aufgabenverteilung: bester freier Mitarbeiter je Auftrag,
-   *  bei hoher Priorität wird von niedriger Priorität durchgewechselt. */
+   *  Team-Reparaturen werden aufgefüllt, hohe Priorität wechselt durch. */
   private static schedule(ctx: SimContext): void {
     const { state } = ctx;
     const candidates = state.orders
-      .filter((o) => !o.assignedWorkerId)
       .filter((o) => {
-        if (o.status === 'quality_check' || o.status === 'repairing') {
-          return orderAtWorkstation(ctx, o);
+        if (o.status === 'quality_check') {
+          return !o.assignedWorkerId && orderAtWorkstation(ctx, o);
+        }
+        if (o.status === 'repairing') {
+          if (!orderAtWorkstation(ctx, o)) return false;
+          const job = RepairSystem.currentJob(o);
+          if (!job) return false;
+          const def = repairDef(ctx, job.repairId);
+          if (!RepairSystem.toolsAvailable(ctx, def)) return false;
+          return o.crewIds.length < (def.requiredWorkers ?? 1);
         }
         if (o.status === 'waiting_for_diagnosis') {
-          return vehicleById(state, o.vehicleId).state === 'at_diagnosis';
+          return !o.assignedWorkerId && vehicleById(state, o.vehicleId).state === 'at_diagnosis';
         }
         return false;
       })
@@ -256,25 +330,43 @@ export class WorkerSystem {
       else if (order.status === 'quality_check') WorkerSystem.assignQualityCheck(ctx, w, order);
       else WorkerSystem.assignDiagnosis(ctx, w, order);
     };
+    const crewNeeded = (order: RepairOrder): number => {
+      const job = RepairSystem.currentJob(order);
+      if (!job) return 1;
+      return repairDef(ctx, job.repairId).requiredWorkers ?? 1;
+    };
 
     for (const order of candidates) {
-      if (order.assignedWorkerId) continue;
-      const w = bestFor(order, free);
-      if (!w) continue;
-      free.splice(free.indexOf(w), 1);
-      assign(w, order);
+      if (order.status === 'repairing') {
+        while (order.crewIds.length < crewNeeded(order)) {
+          const w = bestFor(order, free);
+          if (!w) break;
+          free.splice(free.indexOf(w), 1);
+          WorkerSystem.assignRepair(ctx, w, order);
+        }
+      } else {
+        if (order.assignedWorkerId) continue;
+        const w = bestFor(order, free);
+        if (!w) continue;
+        free.splice(free.indexOf(w), 1);
+        assign(w, order);
+      }
     }
 
-    // Durchwechseln: Auftrag mit hoher Priorität bekommt den besten Mitarbeiter
-    // von einem Auftrag mit niedrigerer Priorität (Fortschritt bleibt erhalten).
+    // Durchwechseln: hohe Priorität bekommt Mitarbeiter von niedrigerer Priorität
     for (const order of candidates) {
-      if (order.assignedWorkerId || order.priority <= 1) continue;
+      if (order.priority <= 1) continue;
+      const needsWorker =
+        order.status === 'repairing'
+          ? order.crewIds.length < crewNeeded(order)
+          : !order.assignedWorkerId;
+      if (!needsWorker) continue;
       const busy = state.workers.filter(
         (w) => w.task && w.trainingMinutes <= 0 && isOnDuty(state, w),
       );
       const eligible = busy.filter((w) => {
         const cur = state.orders.find((o) => o.id === w.task!.orderId);
-        if (!cur || cur.priority >= order.priority) return false;
+        if (!cur || cur.id === order.id || cur.priority >= order.priority) return false;
         if (order.status === 'repairing') {
           const job = RepairSystem.currentJob(order);
           if (!job) return false;
@@ -286,7 +378,7 @@ export class WorkerSystem {
       if (!pick || !pick.task) continue;
       const cur = state.orders.find((o) => o.id === pick.task!.orderId);
       if (!cur) continue;
-      WorkerSystem.releaseWorker(ctx, cur);
+      WorkerSystem.releaseSpecific(ctx, cur, pick);
       assign(pick, order);
     }
   }
@@ -323,11 +415,14 @@ export class WorkerSystem {
     const step = def.steps[job.stepIndex];
     if (!step) return;
     const station = stationById(ctx.state, order.stationId);
-    const needsFetch = !order.partsAtBay && order.partsNeeded.length > 0;
+    if (!order.crewIds.includes(w.id)) order.crewIds.push(w.id);
+    order.assignedWorkerId = order.crewIds[0] ?? null;
+    // Nur das erste Crew-Mitglied holt die Teile; die anderen warten an der Bühne
+    const needsFetch =
+      !order.partsAtBay && order.partsNeeded.length > 0 && order.crewIds.length === 1;
     const target = needsFetch
       ? ctx.state.stations.find((s) => s.kind === 'storage')!.interact
       : station.interact;
-    order.assignedWorkerId = w.id;
     w.task = {
       kind: 'repair',
       orderId: order.id,
@@ -362,36 +457,53 @@ export class WorkerSystem {
     w.state = 'moving';
   }
 
-  /** Gibt den Mitarbeiter frei und konserviert den Arbeitsfortschritt im Auftrag. */
-  static releaseWorker(ctx: SimContext, order: RepairOrder): void {
-    if (!order.assignedWorkerId) return;
-    const w = ctx.state.workers.find((x) => x.id === order.assignedWorkerId);
-    order.assignedWorkerId = null;
-    if (!w) return;
+  /** Gibt ein bestimmtes Crew-Mitglied frei; Fortschritt bleibt im Auftrag. */
+  static releaseSpecific(ctx: SimContext, order: RepairOrder, w: Worker): void {
+    order.crewIds = order.crewIds.filter((id) => id !== w.id);
+    if (order.assignedWorkerId === w.id) {
+      order.assignedWorkerId = order.crewIds[0] ?? null;
+    }
     const task = w.task;
     if (task && task.orderId === order.id && task.remainingMinutes > 0) {
       // Zurückrechnen auf Basisminuten (ohne Qualifikationsfaktor)
       if (task.kind === 'diagnose') {
         order.diagnosisRemainingMinutes =
           task.remainingMinutes / RepairSystem.durationFactor(w.skills.diagnosis);
-        if (order.status === 'diagnosing') {
+        if (order.status === 'diagnosing' && !order.assignedWorkerId) {
           OrderSystem.setStatus(ctx.state, order, 'waiting_for_diagnosis');
         }
-      } else if (task.kind === 'repair') {
-        const job = RepairSystem.currentJob(order);
-        if (job) {
-          const def = repairDef(ctx, job.repairId);
-          job.stepRemainingMinutes =
-            task.remainingMinutes / RepairSystem.durationFactor(w.skills[def.requiredSkill]);
-        }
-      } else {
+      } else if (task.kind === 'quality_check') {
         order.qcRemainingMinutes =
           task.remainingMinutes / RepairSystem.durationFactor(w.skills.diagnosis);
       }
+      // Reparatur: job.stepRemainingMinutes führt den Basisfortschritt bereits
     }
     w.task = null;
     w.path = [];
     w.state = isOnDuty(ctx.state, w) ? 'idle' : 'off_duty';
     ctx.bus.emit('worker:available', w.id);
+  }
+
+  static releaseWorker(ctx: SimContext, order: RepairOrder): void {
+    const w = ctx.state.workers.find((x) => x.id === order.assignedWorkerId);
+    if (w) {
+      WorkerSystem.releaseSpecific(ctx, order, w);
+    } else {
+      order.assignedWorkerId = null;
+    }
+  }
+
+  /** Komplette Crew freigeben (nach Reparaturabschluss). */
+  static releaseCrew(ctx: SimContext, order: RepairOrder): void {
+    for (const id of [...order.crewIds]) {
+      const w = ctx.state.workers.find((x) => x.id === id);
+      if (!w) continue;
+      w.task = null;
+      w.path = [];
+      w.state = isOnDuty(ctx.state, w) ? 'idle' : 'off_duty';
+      ctx.bus.emit('worker:available', w.id);
+    }
+    order.crewIds = [];
+    order.assignedWorkerId = null;
   }
 }

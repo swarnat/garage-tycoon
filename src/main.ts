@@ -117,6 +117,9 @@ const actions: UIActions = {
     if (w) game.setWorkerSpeed(id, w.speedTilesPerMinute + delta);
   },
   resetCamera: () => renderer.resetCamera(),
+  buyTool: (id) => { game.buyTool(id); },
+  takeLoan: (cents) => { game.takeLoan(cents); },
+  repayLoan: (id, cents) => { game.repayLoan(id, cents); },
   hireCandidate: (id) => { game.hireCandidate(id); },
   fireWorker: (id) => { game.fireWorker(id); },
   trainWorker: (id, skill) => { game.trainWorker(id, skill as Parameters<Game['trainWorker']>[1]); },

@@ -21,6 +21,7 @@ import { VehicleSystem } from '../simulation/VehicleSystem';
 import { SupplierSystem } from '../simulation/SupplierSystem';
 import { InventorySystem } from '../simulation/InventorySystem';
 import { PersonnelSystem } from '../simulation/PersonnelSystem';
+import { MarketSystem } from '../simulation/MarketSystem';
 import type { SkillId } from '../entities/types';
 import { findPath } from '../world/Pathfinding';
 
@@ -62,6 +63,9 @@ function startingWorker(
     onDutyMinutes: 0,
     trainingMinutes: 0,
     pendingTraining: null,
+    motivation: 80,
+    dailyWorkedMinutes: 0,
+    dailyOnDutyMinutes: 0,
   };
 }
 
@@ -69,10 +73,12 @@ export function createNewGame(seed: number): GameState {
   const stock: Record<string, number> = {};
   const reserved: Record<string, number> = {};
   const minStock: Record<string, number> = {};
+  const marketPriceFactors: Record<string, number> = {};
   for (const p of DEFS.parts) {
     stock[p.id] = INITIAL_STOCK[p.id] ?? 0;
     reserved[p.id] = 0;
     minStock[p.id] = INITIAL_STOCK[p.id] ? 2 : 0;
+    marketPriceFactors[p.id] = 1;
   }
   return {
     version: SAVE_VERSION,
@@ -119,6 +125,9 @@ export function createNewGame(seed: number): GameState {
     deliveries: [],
     stations: TileMap.defaultStations(),
     candidates: [],
+    ownedTools: ['brake_bleeder'],
+    marketPriceFactors,
+    loans: [],
     notifications: [],
     statistics: {
       ordersCompleted: 0,
@@ -129,6 +138,9 @@ export function createNewGame(seed: number): GameState {
       totalFixedCostCents: 0,
       totalLaborMinutes: 0,
       satisfactionSum: 0,
+      qcFailures: 0,
+      complaints: 0,
+      repairsByType: {},
     },
     nextOrderAttemptAtMinute: 540,
     nextAutoOrderCheckAtMinute: 540,
@@ -211,6 +223,8 @@ export class Game {
     this.state.totalMinutes = this.clock.totalMinutes;
     for (const d of newDays) {
       EconomySystem.closeDay(this.state, d - 1);
+      MarketSystem.update(this.ctx);
+      PersonnelSystem.dailyReview(this.ctx);
       this.bus.emit('day:started', d);
       notify(this.ctx, 'info', `Tag ${d} beginnt. Gehälter und Fixkosten wurden verbucht.`);
     }
@@ -311,6 +325,75 @@ export class Game {
     if (this.defs.suppliers.some((s) => s.id === supplierId)) {
       this.state.inventory.autoSupplierId = supplierId;
     }
+  }
+
+  buyTool(toolId: string): boolean {
+    const tool = this.defs.tools.find((t) => t.id === toolId);
+    if (!tool || this.state.ownedTools.includes(toolId)) return false;
+    if (this.state.economy.balanceCents < tool.costCents) {
+      notify(this.ctx, 'danger', `${tool.name}: Kontostand reicht nicht (${(tool.costCents / 100).toFixed(2)} €).`);
+      return false;
+    }
+    EconomySystem.book(this.state.economy, {
+      id: `tool-${toolId}`,
+      day: Math.floor(this.state.totalMinutes / 1440) + 1,
+      atMinute: this.state.totalMinutes,
+      amountCents: -tool.costCents,
+      category: 'investment',
+      label: `Spezialwerkzeug: ${tool.name}`,
+    });
+    this.state.ownedTools.push(toolId);
+    this.bus.emit('upgrade:purchased', toolId);
+    notify(this.ctx, 'success', `${tool.name} angeschafft – entsprechende Reparaturen sind jetzt möglich.`);
+    return true;
+  }
+
+  takeLoan(amountCents: number): boolean {
+    if (!Number.isInteger(amountCents) || amountCents <= 0) return false;
+    const debt = this.state.loans.reduce((a, l) => a + l.remainingCents, 0);
+    if (debt + amountCents > 5_000_000) {
+      notify(this.ctx, 'warning', 'Kreditlimit ausgeschöpft (max. 50.000 € Gesamtschulden).');
+      return false;
+    }
+    const id = `loan-${this.state.nextId++}`;
+    EconomySystem.book(this.state.economy, {
+      id: `loan-payout-${id}`,
+      day: Math.floor(this.state.totalMinutes / 1440) + 1,
+      atMinute: this.state.totalMinutes,
+      amountCents,
+      category: 'other',
+      label: `Kreditauszahlung (${(amountCents / 100).toFixed(2)} €)`,
+    });
+    this.state.loans.push({
+      id,
+      principalCents: amountCents,
+      remainingCents: amountCents,
+      interestBpPerDay: 5,
+      takenAtMinute: this.state.totalMinutes,
+    });
+    notify(this.ctx, 'info', `Kredit aufgenommen: ${(amountCents / 100).toFixed(2)} € (0,05 % Zinsen pro Tag).`);
+    return true;
+  }
+
+  repayLoan(loanId: string, amountCents: number): boolean {
+    const loan = this.state.loans.find((l) => l.id === loanId);
+    if (!loan) return false;
+    const pay = Math.min(amountCents, loan.remainingCents, this.state.economy.balanceCents);
+    if (pay <= 0) return false;
+    EconomySystem.book(this.state.economy, {
+      id: `loan-repay-${loanId}-${this.state.nextId++}`,
+      day: Math.floor(this.state.totalMinutes / 1440) + 1,
+      atMinute: this.state.totalMinutes,
+      amountCents: -pay,
+      category: 'other',
+      label: `Kreditstilgung (${(pay / 100).toFixed(2)} €)`,
+    });
+    loan.remainingCents -= pay;
+    if (loan.remainingCents <= 0) {
+      this.state.loans = this.state.loans.filter((l) => l.id !== loanId);
+      notify(this.ctx, 'success', 'Kredit vollständig getilgt.');
+    }
+    return true;
   }
 
   setWorkerSpeed(workerId: string, value: number): void {

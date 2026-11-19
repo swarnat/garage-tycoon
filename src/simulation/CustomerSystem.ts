@@ -91,6 +91,17 @@ export class CustomerSystem {
       }
     }
 
+    // Komplexe Defekte: Folgeschäden mit definierter Wahrscheinlichkeit
+    for (const id of [...defectIds]) {
+      const def = ctx.defs.repairs.find((r) => r.id === id);
+      for (const f of def?.followUps ?? []) {
+        if (defectIds.length >= 3) break;
+        if (!defectIds.includes(f.repairId) && rng.chance(f.chance)) {
+          defectIds.push(f.repairId);
+        }
+      }
+    }
+
     const firstDef = ctx.defs.repairs.find((r) => r.id === defectIds[0])!;
     const complaint = rng.pick(firstDef.complaints);
     const profile = rng.weighted<CustomerProfile>(
@@ -143,14 +154,14 @@ export class CustomerSystem {
       targetStationId: null,
     };
 
-    // Fairer Referenzpreis für das Kundenbudget
+    // Fairer Referenzpreis für das Kundenbudget (Team-Reparaturen kosten mehr)
     let fair = DIAGNOSIS_FEE_CENTS;
     for (const id of defectIds) {
       const def = ctx.defs.repairs.find((r) => r.id === id)!;
-      fair += Math.round((def.baseDurationMinutes / 60) * state.economy.hourlyRateCents);
+      fair += Math.round(((def.baseDurationMinutes * (def.requiredWorkers ?? 1)) / 60) * state.economy.hourlyRateCents);
       for (const p of def.requiredParts) {
         const part = ctx.defs.parts.find((x) => x.id === p.partId)!;
-        fair += EconomySystem.sellPrice(part.buyCents, state.economy.partsMarkupPct) * p.quantity;
+        fair += EconomySystem.sellPrice(EconomySystem.marketBuyCents(state, part), state.economy.partsMarkupPct) * p.quantity;
       }
     }
     const budgetCents = Math.round(
@@ -188,6 +199,9 @@ export class CustomerSystem {
       billed: false,
       laborMinutesActual: 0,
       expiresAtMinute: state.totalMinutes + 360,
+      crewIds: [],
+      qualityIssues: 0,
+      qualityScore: null,
       statusLog: [{ atMinute: state.totalMinutes, status: 'incoming' }],
     };
     vehicle.orderId = order.id;

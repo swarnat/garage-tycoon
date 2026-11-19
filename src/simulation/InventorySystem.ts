@@ -49,8 +49,8 @@ export class InventorySystem {
   }
 
   /**
-   * Stündliche Prüfung: Auto-Nachbestellung auf 2× Mindestmenge,
-   * wenn verfügbarer Bestand (ohne Reservierungen) <= Mindestmenge
+   * Stündliche Prüfung: Auto-Nachbestellung exakt auf den Mindestbestand,
+   * wenn verfügbarer Bestand (ohne Reservierungen) darunter liegt
    * und keine Lieferung des Teils offen ist.
    */
   static update(ctx: SimContext): void {
@@ -63,9 +63,10 @@ export class InventorySystem {
       if (!inv.autoReorder[p.id]) continue;
       const min = inv.minStock[p.id] ?? 0;
       if (min <= 0) continue;
-      if (InventorySystem.available(inv, p.id) > min) continue;
+      const available = InventorySystem.available(inv, p.id);
+      if (available >= min) continue;
       if (s.deliveries.some((d) => !d.done && d.partId === p.id)) continue;
-      const qty = Math.max(1, min * 2 - (inv.stock[p.id] ?? 0));
+      const qty = min - available;
       if (!SupplierSystem.orderParts(ctx, p.id, qty, inv.autoSupplierId, true)) {
         failed = true;
       }

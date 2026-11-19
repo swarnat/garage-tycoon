@@ -18,7 +18,7 @@ export class SupplierSystem {
       return false;
     }
     const cost =
-      Math.round(part.buyCents * supplier.priceFactor) * quantity +
+      Math.round(EconomySystem.marketBuyCents(ctx.state, part) * supplier.priceFactor) * quantity +
       supplier.shippingCents;
     if (ctx.state.economy.balanceCents < cost) {
       if (!auto) notify(ctx, 'danger', `Bestellung ${part.name}: Kontostand reicht nicht.`);

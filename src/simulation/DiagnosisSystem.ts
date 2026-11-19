@@ -26,10 +26,7 @@ export class DiagnosisSystem {
       const chance = 0.5 - worker.skills.diagnosis / 100;
       if (ctx.rng.chance(chance)) {
         order.diagnosisExtended = true;
-        order.diagnosisRemainingMinutes =
-          DIAGNOSIS_BASE_MINUTES *
-          0.75 *
-          RepairSystem.durationFactor(worker.skills.diagnosis);
+        order.diagnosisRemainingMinutes = DIAGNOSIS_BASE_MINUTES * 0.75;
         notify(
           ctx,
           'warning',

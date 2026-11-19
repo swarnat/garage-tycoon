@@ -3,6 +3,7 @@ import vehiclesJson from './vehicles.json';
 import partsJson from './parts.json';
 import repairsJson from './repairs.json';
 import suppliersJson from './suppliers.json';
+import toolsJson from './tools.json';
 
 /** Statische Spieldefinitionen – werden nicht im Savegame gespeichert. */
 export const DEFS: GameDefs = {
@@ -10,4 +11,5 @@ export const DEFS: GameDefs = {
   parts: partsJson as GameDefs['parts'],
   repairs: repairsJson as unknown as GameDefs['repairs'],
   suppliers: suppliersJson as GameDefs['suppliers'],
+  tools: toolsJson as GameDefs['tools'],
 };

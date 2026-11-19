@@ -1,249 +1,963 @@
 [
   {
-    "id": "replace_brake_pads", "name": "Bremsbeläge wechseln", "category": "brakes",
-    "baseDurationMinutes": 90, "requiredSkill": "brakes", "minimumSkillLevel": 20, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "brake_pads", "quantity": 1 }],
-    "steps": [
-      { "id": "remove_wheels", "name": "Räder demontieren", "durationMinutes": 20 },
-      { "id": "replace_pads", "name": "Bremsbeläge austauschen", "durationMinutes": 45, "dependsOn": ["remove_wheels"] },
-      { "id": "mount_wheels", "name": "Räder montieren", "durationMinutes": 25, "dependsOn": ["replace_pads"] }
+    "id": "replace_brake_pads",
+    "name": "Bremsbeläge wechseln",
+    "category": "brakes",
+    "baseDurationMinutes": 90,
+    "requiredSkill": "brakes",
+    "minimumSkillLevel": 20,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "brake_pads",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Beim Bremsen quietscht es vorne.", "Die Bremsen greifen erst spät.", "Schleifgeräusch beim Bremsen."]
+    "steps": [
+      {
+        "id": "remove_wheels",
+        "name": "Räder demontieren",
+        "durationMinutes": 20
+      },
+      {
+        "id": "replace_pads",
+        "name": "Bremsbeläge austauschen",
+        "durationMinutes": 45,
+        "dependsOn": [
+          "remove_wheels"
+        ]
+      },
+      {
+        "id": "mount_wheels",
+        "name": "Räder montieren",
+        "durationMinutes": 25,
+        "dependsOn": [
+          "replace_pads"
+        ]
+      }
+    ],
+    "complaints": [
+      "Beim Bremsen quietscht es vorne.",
+      "Die Bremsen greifen erst spät.",
+      "Schleifgeräusch beim Bremsen."
+    ]
   },
   {
-    "id": "replace_brake_discs", "name": "Bremsscheiben erneuern", "category": "brakes",
-    "baseDurationMinutes": 120, "requiredSkill": "brakes", "minimumSkillLevel": 35, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "brake_discs", "quantity": 2 }, { "partId": "brake_pads", "quantity": 1 }],
-    "steps": [
-      { "id": "remove_wheels", "name": "Räder demontieren", "durationMinutes": 20 },
-      { "id": "replace_discs", "name": "Scheiben und Beläge tauschen", "durationMinutes": 75, "dependsOn": ["remove_wheels"] },
-      { "id": "mount_wheels", "name": "Räder montieren", "durationMinutes": 25, "dependsOn": ["replace_discs"] }
+    "id": "replace_brake_discs",
+    "name": "Bremsscheiben erneuern",
+    "category": "brakes",
+    "baseDurationMinutes": 120,
+    "requiredSkill": "brakes",
+    "minimumSkillLevel": 35,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "brake_discs",
+        "quantity": 2
+      },
+      {
+        "partId": "brake_pads",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Das Lenkrad vibriert beim Bremsen.", "Die Bremsleistung lässt nach."]
+    "steps": [
+      {
+        "id": "remove_wheels",
+        "name": "Räder demontieren",
+        "durationMinutes": 20
+      },
+      {
+        "id": "replace_discs",
+        "name": "Scheiben und Beläge tauschen",
+        "durationMinutes": 75,
+        "dependsOn": [
+          "remove_wheels"
+        ]
+      },
+      {
+        "id": "mount_wheels",
+        "name": "Räder montieren",
+        "durationMinutes": 25,
+        "dependsOn": [
+          "replace_discs"
+        ]
+      }
+    ],
+    "complaints": [
+      "Das Lenkrad vibriert beim Bremsen.",
+      "Die Bremsleistung lässt nach."
+    ],
+    "requiredWorkers": 2
   },
   {
-    "id": "replace_brake_caliper", "name": "Bremssattel ersetzen", "category": "brakes",
-    "baseDurationMinutes": 100, "requiredSkill": "brakes", "minimumSkillLevel": 40, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "brake_caliper", "quantity": 1 }, { "partId": "brake_fluid", "quantity": 1 }],
-    "steps": [
-      { "id": "remove_wheel", "name": "Rad demontieren", "durationMinutes": 15 },
-      { "id": "replace_caliper", "name": "Sattel tauschen", "durationMinutes": 60, "dependsOn": ["remove_wheel"] },
-      { "id": "bleed_brakes", "name": "Bremsen entlüften", "durationMinutes": 25, "dependsOn": ["replace_caliper"] }
+    "id": "replace_brake_caliper",
+    "name": "Bremssattel ersetzen",
+    "category": "brakes",
+    "baseDurationMinutes": 100,
+    "requiredSkill": "brakes",
+    "minimumSkillLevel": 40,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "brake_caliper",
+        "quantity": 1
+      },
+      {
+        "partId": "brake_fluid",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Das Auto zieht beim Bremsen zur Seite.", "Ein Rad wird beim Fahren heiß."]
+    "steps": [
+      {
+        "id": "remove_wheel",
+        "name": "Rad demontieren",
+        "durationMinutes": 15
+      },
+      {
+        "id": "replace_caliper",
+        "name": "Sattel tauschen",
+        "durationMinutes": 60,
+        "dependsOn": [
+          "remove_wheel"
+        ]
+      },
+      {
+        "id": "bleed_brakes",
+        "name": "Bremsen entlüften",
+        "durationMinutes": 25,
+        "dependsOn": [
+          "replace_caliper"
+        ]
+      }
+    ],
+    "complaints": [
+      "Das Auto zieht beim Bremsen zur Seite.",
+      "Ein Rad wird beim Fahren heiß."
+    ],
+    "requiredTools": [
+      "brake_bleeder"
+    ]
   },
   {
-    "id": "replace_brake_fluid", "name": "Bremsflüssigkeit wechseln", "category": "brakes",
-    "baseDurationMinutes": 45, "requiredSkill": "brakes", "minimumSkillLevel": 15, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "brake_fluid", "quantity": 1 }],
-    "steps": [
-      { "id": "drain", "name": "Alte Flüssigkeit ablassen", "durationMinutes": 20 },
-      { "id": "refill_bleed", "name": "Auffüllen und entlüften", "durationMinutes": 25, "dependsOn": ["drain"] }
+    "id": "replace_brake_fluid",
+    "name": "Bremsflüssigkeit wechseln",
+    "category": "brakes",
+    "baseDurationMinutes": 45,
+    "requiredSkill": "brakes",
+    "minimumSkillLevel": 15,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "brake_fluid",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Das Bremspedal fühlt sich weich an.", "Die Bremsflüssigkeit ist laut Prüfstelle alt."]
+    "steps": [
+      {
+        "id": "drain",
+        "name": "Alte Flüssigkeit ablassen",
+        "durationMinutes": 20
+      },
+      {
+        "id": "refill_bleed",
+        "name": "Auffüllen und entlüften",
+        "durationMinutes": 25,
+        "dependsOn": [
+          "drain"
+        ]
+      }
+    ],
+    "complaints": [
+      "Das Bremspedal fühlt sich weich an.",
+      "Die Bremsflüssigkeit ist laut Prüfstelle alt."
+    ]
   },
   {
-    "id": "replace_spark_plugs", "name": "Zündkerzen wechseln", "category": "engine",
-    "baseDurationMinutes": 60, "requiredSkill": "engine", "minimumSkillLevel": 20, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "spark_plugs", "quantity": 4 }],
-    "steps": [
-      { "id": "access", "name": "Zugang freilegen", "durationMinutes": 15 },
-      { "id": "replace_plugs", "name": "Kerzen tauschen", "durationMinutes": 35, "dependsOn": ["access"] },
-      { "id": "test_run", "name": "Probelauf", "durationMinutes": 10, "dependsOn": ["replace_plugs"] }
+    "id": "replace_spark_plugs",
+    "name": "Zündkerzen wechseln",
+    "category": "engine",
+    "baseDurationMinutes": 60,
+    "requiredSkill": "engine",
+    "minimumSkillLevel": 20,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "spark_plugs",
+        "quantity": 4
+      }
     ],
-    "complaints": ["Der Motor ruckelt beim Beschleunigen.", "Unrunder Leerlauf."]
+    "steps": [
+      {
+        "id": "access",
+        "name": "Zugang freilegen",
+        "durationMinutes": 15
+      },
+      {
+        "id": "replace_plugs",
+        "name": "Kerzen tauschen",
+        "durationMinutes": 35,
+        "dependsOn": [
+          "access"
+        ]
+      },
+      {
+        "id": "test_run",
+        "name": "Probelauf",
+        "durationMinutes": 10,
+        "dependsOn": [
+          "replace_plugs"
+        ]
+      }
+    ],
+    "complaints": [
+      "Der Motor ruckelt beim Beschleunigen.",
+      "Unrunder Leerlauf."
+    ]
   },
   {
-    "id": "replace_ignition_coil", "name": "Zündspule ersetzen", "category": "engine",
-    "baseDurationMinutes": 70, "requiredSkill": "engine", "minimumSkillLevel": 35, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "ignition_coil", "quantity": 1 }],
-    "steps": [
-      { "id": "diagnose_cylinder", "name": "Zylinder eingrenzen", "durationMinutes": 20 },
-      { "id": "replace_coil", "name": "Spule tauschen", "durationMinutes": 40, "dependsOn": ["diagnose_cylinder"] },
-      { "id": "test_run", "name": "Probelauf", "durationMinutes": 10, "dependsOn": ["replace_coil"] }
+    "id": "replace_ignition_coil",
+    "name": "Zündspule ersetzen",
+    "category": "engine",
+    "baseDurationMinutes": 70,
+    "requiredSkill": "engine",
+    "minimumSkillLevel": 35,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "ignition_coil",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Motorkontrollleuchte blinkt, Motor ruckelt.", "Zündaussetzer bei Last."]
+    "steps": [
+      {
+        "id": "diagnose_cylinder",
+        "name": "Zylinder eingrenzen",
+        "durationMinutes": 20
+      },
+      {
+        "id": "replace_coil",
+        "name": "Spule tauschen",
+        "durationMinutes": 40,
+        "dependsOn": [
+          "diagnose_cylinder"
+        ]
+      },
+      {
+        "id": "test_run",
+        "name": "Probelauf",
+        "durationMinutes": 10,
+        "dependsOn": [
+          "replace_coil"
+        ]
+      }
+    ],
+    "complaints": [
+      "Motorkontrollleuchte blinkt, Motor ruckelt.",
+      "Zündaussetzer bei Last."
+    ],
+    "followUps": [
+      {
+        "repairId": "replace_spark_plugs",
+        "chance": 0.4
+      }
+    ]
   },
   {
-    "id": "oil_change", "name": "Ölwechsel mit Filter", "category": "engine",
-    "baseDurationMinutes": 40, "requiredSkill": "engine", "minimumSkillLevel": 10, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "oil_filter", "quantity": 1 }, { "partId": "motor_oil", "quantity": 1 }],
-    "steps": [
-      { "id": "drain_oil", "name": "Öl ablassen", "durationMinutes": 15 },
-      { "id": "replace_filter", "name": "Filter tauschen", "durationMinutes": 10, "dependsOn": ["drain_oil"] },
-      { "id": "refill", "name": "Öl auffüllen", "durationMinutes": 15, "dependsOn": ["replace_filter"] }
+    "id": "oil_change",
+    "name": "Ölwechsel mit Filter",
+    "category": "engine",
+    "baseDurationMinutes": 40,
+    "requiredSkill": "engine",
+    "minimumSkillLevel": 10,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "oil_filter",
+        "quantity": 1
+      },
+      {
+        "partId": "motor_oil",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Der Ölwechsel ist fällig.", "Ölstand und Farbe sehen schlecht aus."]
+    "steps": [
+      {
+        "id": "drain_oil",
+        "name": "Öl ablassen",
+        "durationMinutes": 15
+      },
+      {
+        "id": "replace_filter",
+        "name": "Filter tauschen",
+        "durationMinutes": 10,
+        "dependsOn": [
+          "drain_oil"
+        ]
+      },
+      {
+        "id": "refill",
+        "name": "Öl auffüllen",
+        "durationMinutes": 15,
+        "dependsOn": [
+          "replace_filter"
+        ]
+      }
+    ],
+    "complaints": [
+      "Der Ölwechsel ist fällig.",
+      "Ölstand und Farbe sehen schlecht aus."
+    ]
   },
   {
-    "id": "replace_air_filter", "name": "Luftfilter wechseln", "category": "engine",
-    "baseDurationMinutes": 25, "requiredSkill": "engine", "minimumSkillLevel": 10, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "air_filter", "quantity": 1 }],
-    "steps": [
-      { "id": "open_housing", "name": "Filtergehäuse öffnen", "durationMinutes": 10 },
-      { "id": "replace_filter", "name": "Filter einsetzen", "durationMinutes": 15, "dependsOn": ["open_housing"] }
+    "id": "replace_air_filter",
+    "name": "Luftfilter wechseln",
+    "category": "engine",
+    "baseDurationMinutes": 25,
+    "requiredSkill": "engine",
+    "minimumSkillLevel": 10,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "air_filter",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Der Motor wirkt schlapp.", "Erhöhter Verbrauch, Luftfilter wohl dicht."]
+    "steps": [
+      {
+        "id": "open_housing",
+        "name": "Filtergehäuse öffnen",
+        "durationMinutes": 10
+      },
+      {
+        "id": "replace_filter",
+        "name": "Filter einsetzen",
+        "durationMinutes": 15,
+        "dependsOn": [
+          "open_housing"
+        ]
+      }
+    ],
+    "complaints": [
+      "Der Motor wirkt schlapp.",
+      "Erhöhter Verbrauch, Luftfilter wohl dicht."
+    ]
   },
   {
-    "id": "replace_accessory_belt", "name": "Keilriemen wechseln", "category": "engine",
-    "baseDurationMinutes": 90, "requiredSkill": "engine", "minimumSkillLevel": 35, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "accessory_belt", "quantity": 1 }],
-    "steps": [
-      { "id": "release_tension", "name": "Spannung lösen", "durationMinutes": 25 },
-      { "id": "replace_belt", "name": "Riemen tauschen", "durationMinutes": 45, "dependsOn": ["release_tension"] },
-      { "id": "check_run", "name": "Lauf prüfen", "durationMinutes": 20, "dependsOn": ["replace_belt"] }
+    "id": "replace_accessory_belt",
+    "name": "Keilriemen wechseln",
+    "category": "engine",
+    "baseDurationMinutes": 90,
+    "requiredSkill": "engine",
+    "minimumSkillLevel": 35,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "accessory_belt",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Quietschen aus dem Motorraum beim Start.", "Der Riemen sieht rissig aus."]
+    "steps": [
+      {
+        "id": "release_tension",
+        "name": "Spannung lösen",
+        "durationMinutes": 25
+      },
+      {
+        "id": "replace_belt",
+        "name": "Riemen tauschen",
+        "durationMinutes": 45,
+        "dependsOn": [
+          "release_tension"
+        ]
+      },
+      {
+        "id": "check_run",
+        "name": "Lauf prüfen",
+        "durationMinutes": 20,
+        "dependsOn": [
+          "replace_belt"
+        ]
+      }
+    ],
+    "complaints": [
+      "Quietschen aus dem Motorraum beim Start.",
+      "Der Riemen sieht rissig aus."
+    ],
+    "followUps": [
+      {
+        "repairId": "replace_water_pump",
+        "chance": 0.3
+      }
+    ]
   },
   {
-    "id": "replace_water_pump", "name": "Wasserpumpe ersetzen", "category": "engine",
-    "baseDurationMinutes": 150, "requiredSkill": "engine", "minimumSkillLevel": 50, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "water_pump", "quantity": 1 }],
-    "steps": [
-      { "id": "drain_coolant", "name": "Kühlwasser ablassen", "durationMinutes": 30 },
-      { "id": "replace_pump", "name": "Pumpe tauschen", "durationMinutes": 90, "dependsOn": ["drain_coolant"] },
-      { "id": "refill_bleed", "name": "Auffüllen und entlüften", "durationMinutes": 30, "dependsOn": ["replace_pump"] }
+    "id": "replace_water_pump",
+    "name": "Wasserpumpe ersetzen",
+    "category": "engine",
+    "baseDurationMinutes": 150,
+    "requiredSkill": "engine",
+    "minimumSkillLevel": 50,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "water_pump",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Kühlwasserverlust, Pfütze unter dem Motor.", "Motor wird schnell heiß."]
+    "steps": [
+      {
+        "id": "drain_coolant",
+        "name": "Kühlwasser ablassen",
+        "durationMinutes": 30
+      },
+      {
+        "id": "replace_pump",
+        "name": "Pumpe tauschen",
+        "durationMinutes": 90,
+        "dependsOn": [
+          "drain_coolant"
+        ]
+      },
+      {
+        "id": "refill_bleed",
+        "name": "Auffüllen und entlüften",
+        "durationMinutes": 30,
+        "dependsOn": [
+          "replace_pump"
+        ]
+      }
+    ],
+    "complaints": [
+      "Kühlwasserverlust, Pfütze unter dem Motor.",
+      "Motor wird schnell heiß."
+    ],
+    "requiredTools": [
+      "timing_tool"
+    ],
+    "followUps": [
+      {
+        "repairId": "replace_thermostat",
+        "chance": 0.5
+      }
+    ]
   },
   {
-    "id": "replace_thermostat", "name": "Thermostat ersetzen", "category": "engine",
-    "baseDurationMinutes": 80, "requiredSkill": "engine", "minimumSkillLevel": 30, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "thermostat", "quantity": 1 }],
-    "steps": [
-      { "id": "drain_coolant", "name": "Kühlwasser ablassen", "durationMinutes": 25 },
-      { "id": "replace_thermostat", "name": "Thermostat tauschen", "durationMinutes": 40, "dependsOn": ["drain_coolant"] },
-      { "id": "refill", "name": "Auffüllen", "durationMinutes": 15, "dependsOn": ["replace_thermostat"] }
+    "id": "replace_thermostat",
+    "name": "Thermostat ersetzen",
+    "category": "engine",
+    "baseDurationMinutes": 80,
+    "requiredSkill": "engine",
+    "minimumSkillLevel": 30,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "thermostat",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Die Heizung bleibt kalt.", "Die Temperaturanzeige schwankt stark."]
+    "steps": [
+      {
+        "id": "drain_coolant",
+        "name": "Kühlwasser ablassen",
+        "durationMinutes": 25
+      },
+      {
+        "id": "replace_thermostat",
+        "name": "Thermostat tauschen",
+        "durationMinutes": 40,
+        "dependsOn": [
+          "drain_coolant"
+        ]
+      },
+      {
+        "id": "refill",
+        "name": "Auffüllen",
+        "durationMinutes": 15,
+        "dependsOn": [
+          "replace_thermostat"
+        ]
+      }
+    ],
+    "complaints": [
+      "Die Heizung bleibt kalt.",
+      "Die Temperaturanzeige schwankt stark."
+    ]
   },
   {
-    "id": "replace_battery", "name": "Batterie ersetzen", "category": "electrical",
-    "baseDurationMinutes": 30, "requiredSkill": "electrical", "minimumSkillLevel": 10, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "battery", "quantity": 1 }],
-    "steps": [
-      { "id": "test_battery", "name": "Batterie prüfen", "durationMinutes": 10 },
-      { "id": "replace_battery", "name": "Batterie tauschen", "durationMinutes": 20, "dependsOn": ["test_battery"] }
+    "id": "replace_battery",
+    "name": "Batterie ersetzen",
+    "category": "electrical",
+    "baseDurationMinutes": 30,
+    "requiredSkill": "electrical",
+    "minimumSkillLevel": 10,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "battery",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Das Fahrzeug startet schlecht.", "Morgens springt der Wagen nicht an."]
+    "steps": [
+      {
+        "id": "test_battery",
+        "name": "Batterie prüfen",
+        "durationMinutes": 10
+      },
+      {
+        "id": "replace_battery",
+        "name": "Batterie tauschen",
+        "durationMinutes": 20,
+        "dependsOn": [
+          "test_battery"
+        ]
+      }
+    ],
+    "complaints": [
+      "Das Fahrzeug startet schlecht.",
+      "Morgens springt der Wagen nicht an."
+    ]
   },
   {
-    "id": "replace_alternator", "name": "Lichtmaschine ersetzen", "category": "electrical",
-    "baseDurationMinutes": 110, "requiredSkill": "electrical", "minimumSkillLevel": 45, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "alternator", "quantity": 1 }],
-    "steps": [
-      { "id": "measure_charging", "name": "Ladespannung messen", "durationMinutes": 20 },
-      { "id": "replace_alternator", "name": "Lichtmaschine tauschen", "durationMinutes": 70, "dependsOn": ["measure_charging"] },
-      { "id": "verify", "name": "Ladespannung prüfen", "durationMinutes": 20, "dependsOn": ["replace_alternator"] }
+    "id": "replace_alternator",
+    "name": "Lichtmaschine ersetzen",
+    "category": "electrical",
+    "baseDurationMinutes": 110,
+    "requiredSkill": "electrical",
+    "minimumSkillLevel": 45,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "alternator",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Batterieleuchte brennt während der Fahrt.", "Das Fahrzeug startet schlecht, Licht flackert."]
+    "steps": [
+      {
+        "id": "measure_charging",
+        "name": "Ladespannung messen",
+        "durationMinutes": 20
+      },
+      {
+        "id": "replace_alternator",
+        "name": "Lichtmaschine tauschen",
+        "durationMinutes": 70,
+        "dependsOn": [
+          "measure_charging"
+        ]
+      },
+      {
+        "id": "verify",
+        "name": "Ladespannung prüfen",
+        "durationMinutes": 20,
+        "dependsOn": [
+          "replace_alternator"
+        ]
+      }
+    ],
+    "complaints": [
+      "Batterieleuchte brennt während der Fahrt.",
+      "Das Fahrzeug startet schlecht, Licht flackert."
+    ]
   },
   {
-    "id": "replace_starter", "name": "Anlasser ersetzen", "category": "electrical",
-    "baseDurationMinutes": 120, "requiredSkill": "electrical", "minimumSkillLevel": 45, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "starter", "quantity": 1 }],
-    "steps": [
-      { "id": "test_start", "name": "Startverhalten prüfen", "durationMinutes": 20 },
-      { "id": "replace_starter", "name": "Anlasser tauschen", "durationMinutes": 80, "dependsOn": ["test_start"] },
-      { "id": "verify", "name": "Starttest", "durationMinutes": 20, "dependsOn": ["replace_starter"] }
+    "id": "replace_starter",
+    "name": "Anlasser ersetzen",
+    "category": "electrical",
+    "baseDurationMinutes": 120,
+    "requiredSkill": "electrical",
+    "minimumSkillLevel": 45,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "starter",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Beim Starten nur Klicken.", "Der Anlasser dreht manchmal nicht."]
+    "steps": [
+      {
+        "id": "test_start",
+        "name": "Startverhalten prüfen",
+        "durationMinutes": 20
+      },
+      {
+        "id": "replace_starter",
+        "name": "Anlasser tauschen",
+        "durationMinutes": 80,
+        "dependsOn": [
+          "test_start"
+        ]
+      },
+      {
+        "id": "verify",
+        "name": "Starttest",
+        "durationMinutes": 20,
+        "dependsOn": [
+          "replace_starter"
+        ]
+      }
+    ],
+    "complaints": [
+      "Beim Starten nur Klicken.",
+      "Der Anlasser dreht manchmal nicht."
+    ]
   },
   {
-    "id": "replace_sensor", "name": "Sensor ersetzen", "category": "electrical",
-    "baseDurationMinutes": 50, "requiredSkill": "electrical", "minimumSkillLevel": 30, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "sensor", "quantity": 1 }],
-    "steps": [
-      { "id": "read_codes", "name": "Fehlerspeicher auslesen", "durationMinutes": 15 },
-      { "id": "replace_sensor", "name": "Sensor tauschen", "durationMinutes": 25, "dependsOn": ["read_codes"] },
-      { "id": "clear_verify", "name": "Fehler löschen, prüfen", "durationMinutes": 10, "dependsOn": ["replace_sensor"] }
+    "id": "replace_sensor",
+    "name": "Sensor ersetzen",
+    "category": "electrical",
+    "baseDurationMinutes": 50,
+    "requiredSkill": "electrical",
+    "minimumSkillLevel": 30,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "sensor",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Motorkontrollleuchte an.", "Das Fahrzeug startet schlecht und geht manchmal aus."]
+    "steps": [
+      {
+        "id": "read_codes",
+        "name": "Fehlerspeicher auslesen",
+        "durationMinutes": 15
+      },
+      {
+        "id": "replace_sensor",
+        "name": "Sensor tauschen",
+        "durationMinutes": 25,
+        "dependsOn": [
+          "read_codes"
+        ]
+      },
+      {
+        "id": "clear_verify",
+        "name": "Fehler löschen, prüfen",
+        "durationMinutes": 10,
+        "dependsOn": [
+          "replace_sensor"
+        ]
+      }
+    ],
+    "complaints": [
+      "Motorkontrollleuchte an.",
+      "Das Fahrzeug startet schlecht und geht manchmal aus."
+    ]
   },
   {
-    "id": "replace_shock_absorbers", "name": "Stoßdämpfer erneuern", "category": "suspension",
-    "baseDurationMinutes": 140, "requiredSkill": "suspension", "minimumSkillLevel": 35, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "shock_absorber", "quantity": 2 }],
-    "steps": [
-      { "id": "remove_wheels", "name": "Räder demontieren", "durationMinutes": 20 },
-      { "id": "replace_shocks", "name": "Dämpfer tauschen", "durationMinutes": 95, "dependsOn": ["remove_wheels"] },
-      { "id": "mount_wheels", "name": "Räder montieren", "durationMinutes": 25, "dependsOn": ["replace_shocks"] }
+    "id": "replace_shock_absorbers",
+    "name": "Stoßdämpfer erneuern",
+    "category": "suspension",
+    "baseDurationMinutes": 140,
+    "requiredSkill": "suspension",
+    "minimumSkillLevel": 35,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "shock_absorber",
+        "quantity": 2
+      }
     ],
-    "complaints": ["Das Auto schaukelt stark nach.", "Poltern über Bodenwellen."]
+    "steps": [
+      {
+        "id": "remove_wheels",
+        "name": "Räder demontieren",
+        "durationMinutes": 20
+      },
+      {
+        "id": "replace_shocks",
+        "name": "Dämpfer tauschen",
+        "durationMinutes": 95,
+        "dependsOn": [
+          "remove_wheels"
+        ]
+      },
+      {
+        "id": "mount_wheels",
+        "name": "Räder montieren",
+        "durationMinutes": 25,
+        "dependsOn": [
+          "replace_shocks"
+        ]
+      }
+    ],
+    "complaints": [
+      "Das Auto schaukelt stark nach.",
+      "Poltern über Bodenwellen."
+    ]
   },
   {
-    "id": "replace_springs", "name": "Federn erneuern", "category": "suspension",
-    "baseDurationMinutes": 130, "requiredSkill": "suspension", "minimumSkillLevel": 40, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "spring", "quantity": 2 }],
-    "steps": [
-      { "id": "remove_wheels", "name": "Räder demontieren", "durationMinutes": 20 },
-      { "id": "replace_springs", "name": "Federn tauschen", "durationMinutes": 85, "dependsOn": ["remove_wheels"] },
-      { "id": "mount_wheels", "name": "Räder montieren", "durationMinutes": 25, "dependsOn": ["replace_springs"] }
+    "id": "replace_springs",
+    "name": "Federn erneuern",
+    "category": "suspension",
+    "baseDurationMinutes": 130,
+    "requiredSkill": "suspension",
+    "minimumSkillLevel": 40,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "spring",
+        "quantity": 2
+      }
     ],
-    "complaints": ["Das Fahrzeug steht schief.", "Eine Feder ist gebrochen, sagt der TÜV."]
+    "steps": [
+      {
+        "id": "remove_wheels",
+        "name": "Räder demontieren",
+        "durationMinutes": 20
+      },
+      {
+        "id": "replace_springs",
+        "name": "Federn tauschen",
+        "durationMinutes": 85,
+        "dependsOn": [
+          "remove_wheels"
+        ]
+      },
+      {
+        "id": "mount_wheels",
+        "name": "Räder montieren",
+        "durationMinutes": 25,
+        "dependsOn": [
+          "replace_springs"
+        ]
+      }
+    ],
+    "complaints": [
+      "Das Fahrzeug steht schief.",
+      "Eine Feder ist gebrochen, sagt der TÜV."
+    ],
+    "requiredTools": [
+      "spring_compressor"
+    ],
+    "requiredWorkers": 2
   },
   {
-    "id": "replace_control_arm", "name": "Querlenker ersetzen", "category": "suspension",
-    "baseDurationMinutes": 120, "requiredSkill": "suspension", "minimumSkillLevel": 40, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "control_arm", "quantity": 1 }],
-    "steps": [
-      { "id": "inspect_play", "name": "Spiel prüfen", "durationMinutes": 20 },
-      { "id": "replace_arm", "name": "Lenker tauschen", "durationMinutes": 75, "dependsOn": ["inspect_play"] },
-      { "id": "align_check", "name": "Spur prüfen", "durationMinutes": 25, "dependsOn": ["replace_arm"] }
+    "id": "replace_control_arm",
+    "name": "Querlenker ersetzen",
+    "category": "suspension",
+    "baseDurationMinutes": 120,
+    "requiredSkill": "suspension",
+    "minimumSkillLevel": 40,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "control_arm",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Knacken beim Lenken.", "Das Auto zieht beim Fahren zur Seite."]
+    "steps": [
+      {
+        "id": "inspect_play",
+        "name": "Spiel prüfen",
+        "durationMinutes": 20
+      },
+      {
+        "id": "replace_arm",
+        "name": "Lenker tauschen",
+        "durationMinutes": 75,
+        "dependsOn": [
+          "inspect_play"
+        ]
+      },
+      {
+        "id": "align_check",
+        "name": "Spur prüfen",
+        "durationMinutes": 25,
+        "dependsOn": [
+          "replace_arm"
+        ]
+      }
+    ],
+    "complaints": [
+      "Knacken beim Lenken.",
+      "Das Auto zieht beim Fahren zur Seite."
+    ]
   },
   {
-    "id": "replace_wheel_bearing", "name": "Radlager ersetzen", "category": "suspension",
-    "baseDurationMinutes": 100, "requiredSkill": "suspension", "minimumSkillLevel": 35, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "wheel_bearing", "quantity": 1 }],
-    "steps": [
-      { "id": "locate_noise", "name": "Geräusch lokalisieren", "durationMinutes": 20 },
-      { "id": "replace_bearing", "name": "Lager tauschen", "durationMinutes": 60, "dependsOn": ["locate_noise"] },
-      { "id": "test_drive", "name": "Probefahrt", "durationMinutes": 20, "dependsOn": ["replace_bearing"] }
+    "id": "replace_wheel_bearing",
+    "name": "Radlager ersetzen",
+    "category": "suspension",
+    "baseDurationMinutes": 100,
+    "requiredSkill": "suspension",
+    "minimumSkillLevel": 35,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "wheel_bearing",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Mahlendes Geräusch, das mit der Geschwindigkeit lauter wird.", "Brummen aus Richtung eines Rads."]
+    "steps": [
+      {
+        "id": "locate_noise",
+        "name": "Geräusch lokalisieren",
+        "durationMinutes": 20
+      },
+      {
+        "id": "replace_bearing",
+        "name": "Lager tauschen",
+        "durationMinutes": 60,
+        "dependsOn": [
+          "locate_noise"
+        ]
+      },
+      {
+        "id": "test_drive",
+        "name": "Probefahrt",
+        "durationMinutes": 20,
+        "dependsOn": [
+          "replace_bearing"
+        ]
+      }
+    ],
+    "complaints": [
+      "Mahlendes Geräusch, das mit der Geschwindigkeit lauter wird.",
+      "Brummen aus Richtung eines Rads."
+    ]
   },
   {
-    "id": "replace_muffler", "name": "Auspuff erneuern", "category": "exhaust",
-    "baseDurationMinutes": 90, "requiredSkill": "engine", "minimumSkillLevel": 25, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "muffler", "quantity": 1 }],
-    "steps": [
-      { "id": "inspect_exhaust", "name": "Auspuff prüfen", "durationMinutes": 20 },
-      { "id": "replace_muffler", "name": "Endschalldämpfer tauschen", "durationMinutes": 55, "dependsOn": ["inspect_exhaust"] },
-      { "id": "leak_test", "name": "Dichtheit prüfen", "durationMinutes": 15, "dependsOn": ["replace_muffler"] }
+    "id": "replace_muffler",
+    "name": "Auspuff erneuern",
+    "category": "exhaust",
+    "baseDurationMinutes": 90,
+    "requiredSkill": "engine",
+    "minimumSkillLevel": 25,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "muffler",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Das Auto ist viel zu laut.", "Es dröhnt unter dem Fahrzeug."]
+    "steps": [
+      {
+        "id": "inspect_exhaust",
+        "name": "Auspuff prüfen",
+        "durationMinutes": 20
+      },
+      {
+        "id": "replace_muffler",
+        "name": "Endschalldämpfer tauschen",
+        "durationMinutes": 55,
+        "dependsOn": [
+          "inspect_exhaust"
+        ]
+      },
+      {
+        "id": "leak_test",
+        "name": "Dichtheit prüfen",
+        "durationMinutes": 15,
+        "dependsOn": [
+          "replace_muffler"
+        ]
+      }
+    ],
+    "complaints": [
+      "Das Auto ist viel zu laut.",
+      "Es dröhnt unter dem Fahrzeug."
+    ]
   },
   {
-    "id": "transmission_service", "name": "Getriebeöl wechseln", "category": "transmission",
-    "baseDurationMinutes": 60, "requiredSkill": "transmission", "minimumSkillLevel": 25, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "transmission_oil", "quantity": 1 }],
-    "steps": [
-      { "id": "drain", "name": "Öl ablassen", "durationMinutes": 25 },
-      { "id": "refill", "name": "Auffüllen", "durationMinutes": 35, "dependsOn": ["drain"] }
+    "id": "transmission_service",
+    "name": "Getriebeöl wechseln",
+    "category": "transmission",
+    "baseDurationMinutes": 60,
+    "requiredSkill": "transmission",
+    "minimumSkillLevel": 25,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "transmission_oil",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Die Schaltung hakelt.", "Das Getriebeöl ist fällig."]
+    "steps": [
+      {
+        "id": "drain",
+        "name": "Öl ablassen",
+        "durationMinutes": 25
+      },
+      {
+        "id": "refill",
+        "name": "Auffüllen",
+        "durationMinutes": 35,
+        "dependsOn": [
+          "drain"
+        ]
+      }
+    ],
+    "complaints": [
+      "Die Schaltung hakelt.",
+      "Das Getriebeöl ist fällig."
+    ],
+    "requiredTools": [
+      "transmission_jack"
+    ]
   },
   {
-    "id": "ac_service", "name": "Klimaservice", "category": "electrical",
-    "baseDurationMinutes": 60, "requiredSkill": "electrical", "minimumSkillLevel": 20, "requiredWorkstation": "lift",
-    "requiredParts": [{ "partId": "refrigerant", "quantity": 1 }],
-    "steps": [
-      { "id": "recover", "name": "Kältemittel absaugen", "durationMinutes": 25 },
-      { "id": "vacuum_refill", "name": "Vakuum prüfen, auffüllen", "durationMinutes": 35, "dependsOn": ["recover"] }
+    "id": "ac_service",
+    "name": "Klimaservice",
+    "category": "electrical",
+    "baseDurationMinutes": 60,
+    "requiredSkill": "electrical",
+    "minimumSkillLevel": 20,
+    "requiredWorkstation": "lift",
+    "requiredParts": [
+      {
+        "partId": "refrigerant",
+        "quantity": 1
+      }
     ],
-    "complaints": ["Die Klimaanlage kühlt nicht mehr.", "Aus den Düsen kommt nur warme Luft."]
+    "steps": [
+      {
+        "id": "recover",
+        "name": "Kältemittel absaugen",
+        "durationMinutes": 25
+      },
+      {
+        "id": "vacuum_refill",
+        "name": "Vakuum prüfen, auffüllen",
+        "durationMinutes": 35,
+        "dependsOn": [
+          "recover"
+        ]
+      }
+    ],
+    "complaints": [
+      "Die Klimaanlage kühlt nicht mehr.",
+      "Aus den Düsen kommt nur warme Luft."
+    ],
+    "requiredTools": [
+      "ac_station"
+    ]
   },
   {
-    "id": "inspection", "name": "Inspektion nach Checkliste", "category": "diagnosis",
-    "baseDurationMinutes": 45, "requiredSkill": "diagnosis", "minimumSkillLevel": 15, "requiredWorkstation": "diagnosis",
+    "id": "inspection",
+    "name": "Inspektion nach Checkliste",
+    "category": "diagnosis",
+    "baseDurationMinutes": 45,
+    "requiredSkill": "diagnosis",
+    "minimumSkillLevel": 15,
+    "requiredWorkstation": "diagnosis",
     "requiredParts": [],
     "steps": [
-      { "id": "checklist", "name": "Checkliste abarbeiten", "durationMinutes": 30 },
-      { "id": "report", "name": "Bericht erstellen", "durationMinutes": 15, "dependsOn": ["checklist"] }
+      {
+        "id": "checklist",
+        "name": "Checkliste abarbeiten",
+        "durationMinutes": 30
+      },
+      {
+        "id": "report",
+        "name": "Bericht erstellen",
+        "durationMinutes": 15,
+        "dependsOn": [
+          "checklist"
+        ]
+      }
     ],
-    "complaints": ["Bitte eine komplette Inspektion vor der HU.", "Das Fahrzeug soll durchgecheckt werden."]
+    "complaints": [
+      "Bitte eine komplette Inspektion vor der HU.",
+      "Das Fahrzeug soll durchgecheckt werden."
+    ]
   }
 ]

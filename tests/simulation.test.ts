@@ -169,6 +169,7 @@ describe('Reparaturlogik', () => {
     const game = Game.new(9);
     stockEverything(game.state);
     const offer = game.generateOffer()!;
+    offer.defectRepairIds = ['replace_brake_pads'];
     offer.budgetCents = 5_000_000;
     game.acceptOrder(offer.id);
     const limit = game.state.totalMinutes + 3 * 1440;
@@ -253,6 +254,7 @@ describe('Vertikaler Gameplay-Durchlauf (Definition of Done)', () => {
     const game = Game.new(42);
     stockEverything(game.state);
     const offer = game.generateOffer()!;
+    offer.defectRepairIds = ['replace_brake_pads'];
     expect(game.acceptOrder(offer.id)).toBe(true);
     offer.budgetCents = 5_000_000; // Freigabe für den Loop-Test sicherstellen
     const balanceBefore = game.state.economy.balanceCents;
@@ -292,6 +294,7 @@ describe('Vertikaler Gameplay-Durchlauf (Definition of Done)', () => {
   it('Auftrag mit fehlenden Teilen wartet auf Lieferung und wird dann fertig', () => {
     const game = Game.new(42);
     const offer = game.generateOffer()!;
+    offer.defectRepairIds = ['replace_brake_caliper'];
     // Lager leeren, bevor reserviert werden kann
     for (const k of Object.keys(game.state.inventory.stock)) {
       game.state.inventory.stock[k] = 0;
@@ -317,6 +320,7 @@ describe('Vertikaler Gameplay-Durchlauf (Definition of Done)', () => {
     const ids: string[] = [];
     for (let i = 0; i < 3; i++) {
       const o = game.generateOffer();
+      if (o) o.defectRepairIds = ['replace_brake_pads'];
       if (o && game.acceptOrder(o.id)) {
         o.budgetCents = 5_000_000;
         ids.push(o.id);

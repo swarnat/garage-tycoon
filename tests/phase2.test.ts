@@ -20,7 +20,7 @@ describe('Automatische Nachbestellung', () => {
     game.tick(61);
     const deliveries = game.state.deliveries.filter((d) => d.partId === 'brake_pads');
     expect(deliveries).toHaveLength(1);
-    expect(deliveries[0]!.quantity).toBe(4); // Ziel 2× Mindestmenge = 6, Bestand 2
+    expect(deliveries[0]!.quantity).toBe(1); // Ziel Mindestmenge 3, Bestand 2
     expect(game.state.economy.balanceCents).toBeLessThan(balanceBefore);
   });
 
@@ -43,7 +43,7 @@ describe('Automatische Nachbestellung', () => {
     game.tick(61);
     // Verbrauch simulieren: Lieferung ankommen lassen, dann Bestand leeren
     game.tick(500);
-    expect(inv.stock['brake_pads']).toBeGreaterThanOrEqual(6);
+    expect(inv.stock['brake_pads']).toBeGreaterThanOrEqual(3);
     inv.stock['brake_pads'] = 0;
     game.tick(61);
     const all = game.state.deliveries.filter((d) => d.partId === 'brake_pads');
@@ -123,6 +123,7 @@ describe('Personal: Einstellen und Entlassen', () => {
     stockEverything(game);
     const offer = game.generateOffer()!;
     offer.budgetCents = 5_000_000;
+    offer.defectRepairIds = ['replace_brake_pads'];
     game.acceptOrder(offer.id);
     const limit = game.state.totalMinutes + 1440;
     while (game.state.totalMinutes < limit && offer.status !== 'repairing') game.tick(10);
@@ -208,7 +209,7 @@ describe('Save-Migration v2 → v3', () => {
       delete w.pendingTraining;
     }
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(4);
+    expect(migrated.version).toBe(5);
     expect(migrated.inventory.autoReorder).toEqual({});
     expect(migrated.inventory.autoSupplierId).toBe('teileprofi');
     expect(Array.isArray(migrated.candidates)).toBe(true);

@@ -132,6 +132,9 @@ export interface Worker {
   onDutyMinutes: number;
   trainingMinutes: number;
   pendingTraining: PendingTraining | null;
+  motivation: number;
+  dailyWorkedMinutes: number;
+  dailyOnDutyMinutes: number;
 }
 
 export interface Candidate {
@@ -183,6 +186,9 @@ export interface RepairOrder {
   billed: boolean;
   laborMinutesActual: number;
   expiresAtMinute: number | null;
+  crewIds: string[];
+  qualityIssues: number;
+  qualityScore: number | null;
   statusLog: { atMinute: number; status: OrderStatus }[];
 }
 
@@ -257,6 +263,14 @@ export interface GameNotification {
   text: string;
 }
 
+export interface Loan {
+  id: string;
+  principalCents: number;
+  remainingCents: number;
+  interestBpPerDay: number;
+  takenAtMinute: number;
+}
+
 export interface GameStatistics {
   ordersCompleted: number;
   ordersCancelled: number;
@@ -266,6 +280,9 @@ export interface GameStatistics {
   totalFixedCostCents: number;
   totalLaborMinutes: number;
   satisfactionSum: number;
+  qcFailures: number;
+  complaints: number;
+  repairsByType: Record<string, number>;
 }
 
 export interface GameState {
@@ -284,6 +301,9 @@ export interface GameState {
   deliveries: Delivery[];
   stations: Station[];
   candidates: Candidate[];
+  ownedTools: string[];
+  marketPriceFactors: Record<string, number>;
+  loans: Loan[];
   notifications: GameNotification[];
   statistics: GameStatistics;
   nextOrderAttemptAtMinute: number;
@@ -309,8 +329,18 @@ export interface RepairDef {
   minimumSkillLevel: number;
   requiredWorkstation: 'lift' | 'diagnosis' | 'floor';
   requiredParts: PartNeed[];
+  requiredTools?: string[];
+  requiredWorkers?: number;
+  followUps?: { repairId: string; chance: number }[];
   steps: RepairStepDef[];
   complaints: string[];
+}
+
+export interface ToolDef {
+  id: string;
+  name: string;
+  costCents: number;
+  description: string;
 }
 
 export interface PartDef {
@@ -342,9 +372,10 @@ export interface GameDefs {
   parts: PartDef[];
   repairs: RepairDef[];
   suppliers: SupplierDef[];
+  tools: ToolDef[];
 }
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 export const MINUTES_PER_DAY = 1440;
 export const GAME_MINUTES_PER_REAL_SECOND = 6;
 export const SIM_STEP_MINUTES = 0.25;

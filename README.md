@@ -28,6 +28,14 @@ Du führst eine Kfz-Werkstatt: Aufträge annehmen, Mitarbeiter diagnostizieren u
 - Lager mit Reservierungen, drei Lieferanten (Standard / Express / Budget), **Auto-Nachbestellung** unter Mindestmenge (Lager als Modal)
 - **Personalverwaltung**: Kandidaten einstellen/entlassen (max. 6), **Weiterbildung** (+5 Skill für 150 €, 2 h)
 - **Erweiterte Diagnosen**: unerfahrene Diagnostiker brauchen ggf. eine Nachuntersuchung
+- **Spezialwerkzeuge** (Ausbau): Federspanner, Steuerzeiten-Werkzeug, Klimastation, Getriebeheber – bestimmte Reparaturen brauchen sie
+- **Team-Reparaturen**: manche Jobs brauchen 2 Mitarbeiter (mit Team-Bonus); Fortschritt bleibt bei Wechsel erhalten
+- **Qualität & Reklamationen**: QC kann fehlschlagen (Nacharbeit), schlechte Qualität führt zu Reklamationen (20 % Erstattung, Reputation −4)
+- **Dynamische Marktpreise**: Teilepreise schwanken täglich ±15 % (Trendanzeige im Lager)
+- **Kredite**: bis 50.000 € Schulden, 0,05 % Zinsen/Tag, manuelle Tilgung
+- **Motivation**: steigt bei Erholung/Weiterbildung, sinkt bei Überlastung; beeinflusst Arbeitsgeschwindigkeit
+- **Komplexe Defekte**: Folgeschäden (z. B. Wasserpumpe → Thermostat)
+- **Statistik-Panel**: Reparaturen nach Typ, Mitarbeiter-Ranking, Qualität, Kostenstruktur
 - **Stammkunden**: zufriedene Kunden (≥ 80) kommen mit 25 % Wahrscheinlichkeit wieder
 - Finanzsystem in Cent-Beträgen mit Doppelbuchungsschutz, Gehältern, Fixkosten, Dashboard mit Tagesübersicht
 - Reputation, Kundenzufriedenheit, Terminplanung
@@ -48,7 +56,7 @@ Strikte Trennung von Simulation und Rendering:
 - `src/data/` – JSON-Definitionen (Fahrzeuge, Teile, Reparaturen, Lieferanten)
 - `tests/` – Vitest: Statusmaschine, Reservierungen, Buchungen, Determinismus, Save-Roundtrip u. v. m.
 
-Das vollständige Spielkonzept liegt in [`konzept.md`](konzept.md). Umgesetzt sind Phase 1 (spielbarer MVP) und Phase 2 (Wirtschaft & Management) vollständig. Offen: Phase 3 (erweiterte Simulation).
+Das vollständige Spielkonzept liegt in [`konzept.md`](konzept.md). Umgesetzt sind Phase 1 (MVP), Phase 2 (Wirtschaft & Management) und der Großteil von Phase 3. Offen aus Phase 3: freie Flächenplanung, zusätzliche Gebäudebereiche, Krankheit/Überstunden.
 
 ## Releases
 

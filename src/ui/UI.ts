@@ -11,6 +11,7 @@ export type PanelId =
   | 'workers'
   | 'inventory'
   | 'finance'
+  | 'statistics'
   | 'upgrades'
   | 'settings'
   | 'messages';
@@ -36,6 +37,9 @@ export interface UIActions {
   setMinStock(partId: string, v: number): void;
   setWorkerSpeed(id: string, delta: number): void;
   resetCamera(): void;
+  buyTool(id: string): void;
+  takeLoan(cents: number): void;
+  repayLoan(id: string, cents: number): void;
   hireCandidate(id: string): void;
   fireWorker(id: string): void;
   trainWorker(id: string, skill: string): void;
@@ -176,6 +180,7 @@ export class UI {
           <button data-panel="workers">Mitarbeiter</button>
           <button data-panel="inventory">Lager</button>
           <button data-panel="finance">Finanzen</button>
+          <button data-panel="statistics">Statistiken</button>
           <button data-panel="upgrades">Ausbau</button>
           <button data-panel="messages">Meldungen</button>
           <button data-panel="settings">Einstellungen</button>
@@ -298,6 +303,9 @@ export class UI {
       case 'reset': this.actions.resetGame(); break;
       case 'buy-lift': this.actions.buyLift(); break;
       case 'buy-diag': this.actions.buyDiagnosisBay(); break;
+      case 'buy-tool': this.actions.buyTool(id); break;
+      case 'take-loan': this.actions.takeLoan(Number(btn.dataset.amount ?? '0')); break;
+      case 'repay-loan': this.actions.repayLoan(id, Number(btn.dataset.amount ?? '0')); break;
       case 'expand-storage': this.actions.expandStorage(); break;
       case 'reset-camera': this.actions.resetCamera(); break;
       default: break;
@@ -400,6 +408,7 @@ export class UI {
       case 'workers': return this.renderWorkers();
       case 'inventory': return this.renderInventory();
       case 'finance': return this.renderFinance();
+      case 'statistics': return this.renderStatistics();
       case 'upgrades': return this.renderUpgrades();
       case 'settings': return this.renderSettings();
       case 'messages': return this.renderMessages();
@@ -510,6 +519,7 @@ export class UI {
         <button class="btn small" data-action="worker-speed" data-id="${w.id}" data-delta="-0.05" title="langsamer">−</button>
         <button class="btn small" data-action="worker-speed" data-id="${w.id}" data-delta="0.05" title="schneller">+</button>
         <span class="muted">(0.20–0.60)</span></div>`;
+      html += `<div class="skill-row"><span>Motivation</span><div class="bar"><div style="width:${w.motivation}%; background:${w.motivation < 40 ? 'var(--neg)' : w.motivation < 70 ? 'var(--warn)' : 'var(--pos)'}"></div></div><span class="num">${Math.round(w.motivation)}</span></div>`;
       if (w.task) {
         html += `<div class="meta">Aktivität: ${WORKER_STATE_LABELS[w.state]} · Schritt verbleibend ca. ${Math.ceil(w.task.remainingMinutes)} Spielminuten</div>`;
       }
@@ -534,7 +544,7 @@ export class UI {
     </div>`;
     html += `<div class="supplier-row">Auto-Nachbestellung bei ≤ Mindestmenge → Lieferant:
       ${game.defs.suppliers.map((sup) => `<button class="btn small ${inv.autoSupplierId === sup.id ? 'primary' : ''}" data-action="auto-supplier" data-id="${sup.id}">${esc(sup.name)}</button>`).join('')}
-      <span class="muted">Zielbestand: 2× Mindestmenge</span>
+      <span class="muted">Zielbestand: Mindestbestand</span>
     </div>`;
     html += `<table class="parts-table"><thead><tr><th>Teil</th><th>Bestand</th><th>Reserv.</th><th>Min</th><th>Auto</th><th>EK</th><th>VK</th><th>Bestellen</th></tr></thead><tbody>`;
     for (const p of game.defs.parts) {
@@ -544,14 +554,18 @@ export class UI {
       const low = stock <= min;
       const highlight = this.highlightParts.has(p.id);
       const auto = !!inv.autoReorder[p.id];
+      const market = EconomySystem.marketBuyCents(s, p);
+      const factor = s.marketPriceFactors[p.id] ?? 1;
+      const trend = factor > 1.02 ? '▲' : factor < 0.98 ? '▼' : '·';
+      const trendClass = factor > 1.02 ? 'trend-up' : factor < 0.98 ? 'trend-down' : 'muted';
       html += `<tr class="${highlight ? 'highlight' : ''} ${low ? 'low' : ''}">
         <td>${esc(p.name)}</td>
         <td class="num">${stock}</td>
         <td class="num">${reserved}</td>
         <td><input class="min-input" type="number" min="0" max="20" value="${min}" data-field="minstock" data-part="${p.id}"></td>
         <td><button class="btn small ${auto ? 'primary' : ''}" data-action="toggle-auto" data-part="${p.id}" title="Automatisch nachbestellen">${auto ? 'AN' : 'AUS'}</button></td>
-        <td class="num">${eur(p.buyCents)}</td>
-        <td class="num">${eur(EconomySystem.sellPrice(p.buyCents, s.economy.partsMarkupPct))}</td>
+        <td class="num" title="Marktpreis (Basis ${eur(p.buyCents)}, Faktor ${factor.toFixed(2)})">${eur(market)} <span class="${trendClass}">${trend}</span></td>
+        <td class="num">${eur(EconomySystem.sellPrice(market, s.economy.partsMarkupPct))}</td>
         <td class="btn-cell">
           <button class="btn small" data-action="order-part" data-part="${p.id}" data-qty="1">+1</button>
           <button class="btn small" data-action="order-part" data-part="${p.id}" data-qty="5">+5</button>
@@ -628,6 +642,19 @@ export class UI {
       }
       html += `</tbody></table>`;
     }
+    html += `<h3 class="section">Kredite</h3>`;
+    const debt = s.loans.reduce((a, l) => a + l.remainingCents, 0);
+    html += `<div class="meta">Gesamtschulden: <strong class="${debt > 0 ? 'neg' : ''}">${eur(debt)}</strong> · Limit 50.000 € · Zinsen 0,05 %/Tag</div>`;
+    html += `<div class="btn-row">
+      <button class="btn small" data-action="take-loan" data-amount="500000">+5.000 €</button>
+      <button class="btn small" data-action="take-loan" data-amount="1000000">+10.000 €</button>
+      <button class="btn small" data-action="take-loan" data-amount="2000000">+20.000 €</button>
+    </div>`;
+    for (const l of s.loans) {
+      html += `<div class="card compact">${eur(l.remainingCents)} Restschuld (von ${eur(l.principalCents)})
+        <div class="btn-row"><button class="btn small" data-action="repay-loan" data-id="${l.id}" data-amount="100000">1.000 € tilgen</button>
+        <button class="btn small" data-action="repay-loan" data-id="${l.id}" data-amount="${l.remainingCents}">Komplett tilgen</button></div></div>`;
+    }
     html += `<h3 class="section">Letzte Buchungen</h3><div class="tx-list">`;
     for (const t of [...s.economy.transactions].slice(-14).reverse()) {
       html += `<div class="tx"><span class="tx-label">${esc(t.label)}</span><span class="${t.amountCents >= 0 ? 'pos' : 'neg'}">${t.amountCents >= 0 ? '+' : ''}${eur(t.amountCents)}</span></div>`;
@@ -636,8 +663,50 @@ export class UI {
     return html;
   }
 
+  private renderStatistics(): string {
+    const game = this.getGame();
+    const s = game.state;
+    const st = s.statistics;
+    const avgOrder = st.ordersCompleted > 0 ? Math.round(st.totalRevenueCents / st.ordersCompleted) : 0;
+    const avgSat = st.ordersCompleted > 0 ? Math.round(st.satisfactionSum / st.ordersCompleted) : 0;
+    let html = `<div class="drawer-head"><h2>Statistiken</h2></div>`;
+    html += `<div class="finance-grid">
+      <div><label>Abgeschlossen</label><strong>${st.ordersCompleted}</strong></div>
+      <div><label>Storniert</label><strong>${st.ordersCancelled}</strong></div>
+      <div><label>Umsatz gesamt</label><strong>${eur(st.totalRevenueCents)}</strong></div>
+      <div><label>Ø Auftragswert</label><strong>${eur(avgOrder)}</strong></div>
+      <div><label>Ø Zufriedenheit</label><strong>${avgSat}%</strong></div>
+      <div><label>QC-Fehlschläge</label><strong class="${st.qcFailures > 0 ? 'neg' : ''}">${st.qcFailures}</strong></div>
+      <div><label>Reklamationen</label><strong class="${st.complaints > 0 ? 'neg' : ''}">${st.complaints}</strong></div>
+      <div><label>Arbeitsstunden</label><strong>${(st.totalLaborMinutes / 60).toFixed(1)} h</strong></div>
+    </div>`;
+    const topRepairs = Object.entries(st.repairsByType).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    html += `<h3 class="section">Häufigste Reparaturen</h3>`;
+    if (topRepairs.length === 0) html += `<p class="empty">Noch keine Reparaturen abgeschlossen.</p>`;
+    for (const [id, count] of topRepairs) {
+      const name = game.defs.repairs.find((r) => r.id === id)?.name ?? id;
+      html += `<div class="card compact">${esc(name)} <span class="muted">· ${count}×</span></div>`;
+    }
+    html += `<h3 class="section">Mitarbeiter-Ranking</h3><table class="parts-table"><thead><tr><th>Name</th><th>Stunden</th><th>Motivation</th><th>Auslastung</th></tr></thead><tbody>`;
+    const ranking = [...s.workers].sort((a, b) => b.workedMinutes - a.workedMinutes);
+    for (const w of ranking) {
+      const util = w.onDutyMinutes > 0 ? Math.round((w.workedMinutes / w.onDutyMinutes) * 100) : 0;
+      html += `<tr><td>${esc(w.name)}</td><td class="num">${(w.workedMinutes / 60).toFixed(1)}</td><td class="num">${Math.round(w.motivation)}%</td><td class="num">${util}%</td></tr>`;
+    }
+    html += `</tbody></table>`;
+    html += `<h3 class="section">Kostenstruktur (gesamt)</h3>
+      <div class="finance-grid">
+        <div><label>Ersatzteile</label><strong>${eur(st.totalPartsCostCents)}</strong></div>
+        <div><label>Personal</label><strong>${eur(st.totalSalaryCents)}</strong></div>
+        <div><label>Fixkosten</label><strong>${eur(st.totalFixedCostCents)}</strong></div>
+        <div><label>Reputation</label><strong>${Math.round(s.reputation)} / 100</strong></div>
+      </div>`;
+    return html;
+  }
+
   private renderUpgrades(): string {
-    const s = this.getGame().state;
+    const game = this.getGame();
+    const s = game.state;
     const lift3 = s.stations.find((x) => x.id === 'lift3');
     let html = `<div class="drawer-head"><h2>Werkstattausbau</h2></div>`;
     html += `<div class="card">
@@ -662,6 +731,18 @@ export class UI {
       <div class="meta">Kosten: ${eur(250000)}</div>
       <div class="btn-row"><button class="btn primary" data-action="expand-storage">Kaufen</button></div>
     </div>`;
+    html += `<h3 class="section">Spezialwerkzeuge</h3>`;
+    for (const t of game.defs.tools) {
+      const owned = s.ownedTools.includes(t.id);
+      html += `<div class="card">
+        <div class="card-title">${esc(t.name)}</div>
+        <div class="meta">${esc(t.description)}</div>
+        <div class="meta">Kosten: ${eur(t.costCents)}</div>
+        ${owned
+          ? '<div class="chip st-delivered">Im Besitz</div>'
+          : `<div class="btn-row"><button class="btn primary" data-action="buy-tool" data-id="${t.id}">Kaufen</button></div>`}
+      </div>`;
+    }
     return html;
   }
 
@@ -752,6 +833,8 @@ export class UI {
         ${o.estimateCents !== null ? `<div class="meta">Kostenvoranschlag: <strong>${eur(o.estimateCents)}</strong></div>` : ''}
         ${o.invoiceCents !== null ? `<div class="meta">Rechnung: <strong>${eur(o.invoiceCents)}</strong></div>` : ''}
         ${o.satisfaction !== null ? `<div class="meta">Kundenzufriedenheit: ${o.satisfaction}%</div>` : ''}
+        ${o.qualityScore !== null ? `<div class="meta">Qualitäts-score: ${(o.qualityScore * 100).toFixed(0)}%${o.qualityIssues > 0 ? ` · ${o.qualityIssues} Nacharbeit(en)` : ''}</div>` : ''}
+        ${o.crewIds.length > 1 ? `<div class="meta">Team-Reparatur: ${o.crewIds.map((id) => esc(s.workers.find((w) => w.id === id)?.name ?? id)).join(', ')}</div>` : ''}
         <div class="meta muted">Tatsächliche Arbeitszeit: ${Math.round(o.laborMinutesActual)} min</div>
       </div>`;
     } else {
