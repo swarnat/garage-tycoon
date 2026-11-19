@@ -34,6 +34,7 @@ export interface UIActions {
   setHourlyRate(v: number): void;
   setPartsMarkup(v: number): void;
   setMinStock(partId: string, v: number): void;
+  setWorkerSpeed(id: string, delta: number): void;
   resetCamera(): void;
   hireCandidate(id: string): void;
   fireWorker(id: string): void;
@@ -281,6 +282,7 @@ export class UI {
       case 'hire': this.actions.hireCandidate(id); break;
       case 'fire': this.actions.fireWorker(id); break;
       case 'train': this.actions.trainWorker(id, btn.dataset.skill ?? ''); break;
+      case 'worker-speed': this.actions.setWorkerSpeed(id, Number(btn.dataset.delta ?? '0')); break;
       case 'refresh-candidates': this.actions.refreshCandidates(); break;
       case 'order-missing': {
         const order = this.getGame().state.orders.find((o) => o.id === id);
@@ -504,6 +506,10 @@ export class UI {
           <button class="btn small" data-action="train" data-id="${w.id}" data-skill="${skill}" ${busy || val >= 100 ? 'disabled' : ''} title="Weiterbildung: +5 für 150 €, dauert 2 h">+5</button></div>`;
       }
       html += `</div><div class="meta muted">Weiterbildung: +5 Punkte für 150 €, Mitarbeiter ist 2 h nicht einsetzbar.</div>`;
+      html += `<div class="meta speed-row">Lauftempo: <strong>${w.speedTilesPerMinute.toFixed(2)}</strong>
+        <button class="btn small" data-action="worker-speed" data-id="${w.id}" data-delta="-0.05" title="langsamer">−</button>
+        <button class="btn small" data-action="worker-speed" data-id="${w.id}" data-delta="0.05" title="schneller">+</button>
+        <span class="muted">(0.20–0.60)</span></div>`;
       if (w.task) {
         html += `<div class="meta">Aktivität: ${WORKER_STATE_LABELS[w.state]} · Schritt verbleibend ca. ${Math.ceil(w.task.remainingMinutes)} Spielminuten</div>`;
       }
@@ -675,6 +681,7 @@ export class UI {
       <div class="card">
         <div class="card-title">Spielstand</div>
         <div class="meta">Automatische Speicherung alle 30 Sekunden und nach wichtigen Ereignissen. Primär IndexedDB (großer Browserspeicher), Fallback localStorage. Kein Server.</div>
+        <div class="meta muted">Bei 8× wird die Nacht (18:00–08:00) automatisch übersprungen. Untätige Mitarbeiter warten im Pausenraum, nach Feierabend werden sie ausgeblendet.</div>
         <div class="btn-row">
           <button class="btn primary" data-action="save">Jetzt speichern</button>
           <button class="btn" data-action="export">Export (JSON)</button>

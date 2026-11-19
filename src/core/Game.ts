@@ -1,6 +1,7 @@
 import type { GameState, RepairOrder, Worker } from '../entities/types';
 import {
   GAME_MINUTES_PER_REAL_SECOND,
+  MINUTES_PER_DAY,
   SAVE_VERSION,
   SIM_STEP_MINUTES,
 } from '../entities/types';
@@ -42,6 +43,7 @@ function startingWorker(
   name: string,
   skills: Worker['skills'],
   pos: { x: number; y: number },
+  speed: number,
 ): Worker {
   return {
     id,
@@ -55,7 +57,7 @@ function startingWorker(
     task: null,
     shiftStartMinute: 480,
     shiftEndMinute: 1080,
-    speedTilesPerMinute: 0.35,
+    speedTilesPerMinute: speed,
     workedMinutes: 0,
     onDutyMinutes: 0,
     trainingMinutes: 0,
@@ -93,12 +95,14 @@ export function createNewGame(seed: number): GameState {
         'Alex Krause',
         { engine: 65, electrical: 45, suspension: 55, brakes: 70, transmission: 40, diagnosis: 60 },
         { x: 4, y: 6 },
+        0.35,
       ),
       startingWorker(
         'w2',
         'Jonas Weber',
         { engine: 45, electrical: 70, suspension: 60, brakes: 50, transmission: 55, diagnosis: 50 },
         { x: 6, y: 7 },
+        0.32,
       ),
     ],
     vehicles: [],
@@ -172,13 +176,31 @@ export class Game {
     };
   }
 
-  /** Rückt die Simulation in festen Schritten vor (FPS-unabhängig). */
+  /** Rückt die Simulation in festen Schritten vor (FPS-unabhängig).
+   *  Bei 8× wird die Nacht (18:00–08:00) automatisch übersprungen. */
   tick(minutes: number): void {
+    if (this.state.speed === 0) return;
     this.acc += minutes;
+    if (this.state.speed === 8) {
+      const m = this.state.totalMinutes % MINUTES_PER_DAY;
+      if (m >= 1080 || m < 480) {
+        const target = m >= 1080 ? MINUTES_PER_DAY + 480 : 480;
+        const jump = target - m;
+        if (jump > 0) {
+          this.acc += jump;
+          notify(this.ctx, 'info', 'Nacht übersprungen (8×): weiter um 08:00 Uhr.');
+        }
+      }
+    }
     let guard = 0;
-    while (this.acc >= SIM_STEP_MINUTES - 1e-9 && guard++ < 40000) {
-      this.step(SIM_STEP_MINUTES);
-      this.acc -= SIM_STEP_MINUTES;
+    while (guard++ < 40000) {
+      const m = this.state.totalMinutes % MINUTES_PER_DAY;
+      const night = this.state.speed === 8 && (m >= 1080 || m < 480);
+      // Nachts grobe Schritte: Ereignisse (Lieferungen, Tagesabschluss) bleiben erhalten
+      const step = night ? 60 : SIM_STEP_MINUTES;
+      if (this.acc < step - 1e-9) break;
+      this.step(step);
+      this.acc -= step;
     }
   }
 
@@ -288,6 +310,13 @@ export class Game {
   setAutoSupplier(supplierId: string): void {
     if (this.defs.suppliers.some((s) => s.id === supplierId)) {
       this.state.inventory.autoSupplierId = supplierId;
+    }
+  }
+
+  setWorkerSpeed(workerId: string, value: number): void {
+    const w = this.state.workers.find((x) => x.id === workerId);
+    if (w) {
+      w.speedTilesPerMinute = Math.max(0.2, Math.min(0.6, Math.round(value * 100) / 100));
     }
   }
 

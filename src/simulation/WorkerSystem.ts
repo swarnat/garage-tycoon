@@ -78,9 +78,42 @@ export class WorkerSystem {
       if (onDuty && w.state === 'off_duty') w.state = 'idle';
       if (w.task) {
         WorkerSystem.progressTask(ctx, w, dt, onDuty);
+      } else if (onDuty) {
+        WorkerSystem.goToBreak(ctx, w, dt);
       }
     }
     WorkerSystem.schedule(ctx);
+  }
+
+  /** Untätige Mitarbeiter sammeln sich im Pausenraum (mit persönlichem Platz). */
+  private static goToBreak(ctx: SimContext, w: Worker, dt: number): void {
+    const br = ctx.state.stations.find((s) => s.kind === 'break_room');
+    if (!br) {
+      w.state = 'idle';
+      return;
+    }
+    const idx = ctx.state.workers.indexOf(w);
+    const target = {
+      x: br.interact.x + ((idx % 3) - 1) * 0.7,
+      y: br.interact.y + Math.floor(idx / 3) * 0.6,
+    };
+    const dInteract = Math.hypot(w.pos.x - br.interact.x, w.pos.y - br.interact.y);
+    if (w.path.length === 0 && dInteract > 1.0) {
+      w.path = findPath(ctx.map, w.pos, br.interact) ?? [];
+    }
+    if (w.path.length > 0) {
+      moveAlongPath(w.pos, w.path, w.speedTilesPerMinute * dt);
+    } else {
+      const dx = target.x - w.pos.x;
+      const dy = target.y - w.pos.y;
+      const d = Math.hypot(dx, dy);
+      if (d > 0.05) {
+        const step = Math.min(w.speedTilesPerMinute * dt, d);
+        w.pos.x += (dx / d) * step;
+        w.pos.y += (dy / d) * step;
+      }
+    }
+    w.state = 'break';
   }
 
   private static progressTask(

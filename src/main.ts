@@ -112,6 +112,10 @@ const actions: UIActions = {
   setMinStock: (partId, v) => {
     game.state.inventory.minStock[partId] = Math.max(0, Math.min(20, Math.round(v)));
   },
+  setWorkerSpeed: (id, delta) => {
+    const w = game.state.workers.find((x) => x.id === id);
+    if (w) game.setWorkerSpeed(id, w.speedTilesPerMinute + delta);
+  },
   resetCamera: () => renderer.resetCamera(),
   hireCandidate: (id) => { game.hireCandidate(id); },
   fireWorker: (id) => { game.fireWorker(id); },

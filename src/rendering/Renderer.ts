@@ -398,9 +398,10 @@ export class Renderer {
       }
     }
 
-    // Mitarbeiter
+    // Mitarbeiter (Feierabend = ausgeblendet)
     const seenW = new Set<string>();
     for (const w of state.workers) {
+      if (w.state === 'off_duty') continue;
       seenW.add(w.id);
       let sprite = this.workerSprites.get(w.id);
       if (!sprite) {

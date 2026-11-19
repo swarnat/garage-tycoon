@@ -9,7 +9,14 @@ function stockEverything(game: Game, qty = 20): void {
 }
 
 function acceptWithBudget(game: Game, defectId?: string) {
-  const offer = game.generateOffer()!;
+  let offer = game.generateOffer();
+  if (!offer) {
+    // Anfragen-Cap voll: offene Angebote ablehnen, dann neues erzeugen
+    for (const o of game.state.orders.filter((x) => x.status === 'incoming')) {
+      game.declineOrder(o.id);
+    }
+    offer = game.generateOffer()!;
+  }
   offer.budgetCents = 5_000_000;
   if (defectId) offer.defectRepairIds = [defectId];
   game.acceptOrder(offer.id);

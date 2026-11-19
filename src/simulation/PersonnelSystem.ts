@@ -95,7 +95,7 @@ export class PersonnelSystem {
       task: null,
       shiftStartMinute: 480,
       shiftEndMinute: 1080,
-      speedTilesPerMinute: 0.35,
+      speedTilesPerMinute: Math.round(ctx.rng.range(0.28, 0.45) * 100) / 100,
       workedMinutes: 0,
       onDutyMinutes: 0,
       trainingMinutes: 0,
