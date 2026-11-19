@@ -22,11 +22,17 @@ npm run build:single  # eine einzelne HTML-Datei nach dist-single/
 
 Du führst eine Kfz-Werkstatt: Aufträge annehmen, Mitarbeiter diagnostizieren und reparieren lassen, Ersatzteile beschaffen, Rechnungen schreiben und die Werkstatt ausbauen. Die Mitarbeiter handeln autonom (A*-Wegfindung, Aufgabenplanung nach Qualifikation/Priorität/Termin); du übernimmst Planung und Wirtschaft.
 
-- 10 Fahrzeugmodelle, 23 datengetriebene Reparaturen, 23 Ersatzteile
+- 13 Fahrzeugmodelle (inkl. Sportwagen), 25 datengetriebene Reparaturen, 144 Teile-Varianten in 25 Kategorien
 - Diagnosesystem: Kundenmeldung ≠ tatsächliche Ursache
 - Kostenvoranschläge mit Kundenfreigabe nach Budget und Kundenprofil
 - Lager mit Reservierungen, drei Lieferanten (Standard / Express / Budget), **Auto-Nachbestellung** unter Mindestmenge (Lager als Modal), „Alle Auto AN/AUS"
 - **Lager-Verbrauchsstatistik**: Spalten 24h/48h zeigen den Teileverbrauch je Artikel; Legende erklärt Markierungen (gelb = Bestand ≤ Mindestbestand)
+- **Teilevarianten & Kompatibilität**: jedes Modell hat feste Specs (Reifengröße, Bremsscheibengröße, Öl-Spec, Batterie …); Diagnose löst Defekte auf konkrete Varianten auf; Qualitätsklassen Budget/Standard/Premium folgen dem Kundenprofil
+- **Reifen & Felgen**: Reifenwechsel (4 Stück) und Felgenersatz brauchen die Reifenmontagemaschine (Ausbau); Felgen in Stahl/Alu/Premium-Alu je Größe
+- **Teile-fehlt-Modal**: bei fehlendem Bestand nach der Diagnose – „Um Aufschub bitten & bestellen" (profilabhängige Akzeptanz-Chance, +6 h bis +1 Tag), „Ohne Aufschub bestellen" oder „Abweisen"; Express-Aufpreis zahlt die Werkstatt
+- **Entscheidungs-Modals pausieren das Spiel** und sind minimierbar (Mini-Leiste, Spiel läuft weiter, Öffnen pausiert erneut)
+- **Lager-Modal neu**: Kategorien-Navigation, Variantentabelle mit 24h/48h-Verbrauch, Letzte Bestellung, Ladenhüter-Badge + Verkauf zu 60 % Marktpreis, Sichtbarkeitsregel (0/0/0 ausgeblendet), Suche je Gruppe, Pin, „Alle Varianten"
+- **Termine**: alle Deadlines um 18:00 (Überfälligkeit erst zum Feierabend); Kleinaufträge nach 11 Uhr probabilistisch +1/+2 Tage, große Arbeiten 1–3 Tage
 - **Personalverwaltung**: Kandidaten einstellen/entlassen (max. 6), **Weiterbildung** (+5 Skill für 150 €, 2 h)
 - **Erweiterte Diagnosen**: unerfahrene Diagnostiker brauchen ggf. eine Nachuntersuchung
 - **Spezialwerkzeuge** (Ausbau): Federspanner, Steuerzeiten-Werkzeug, Klimastation, Getriebeheber – bestimmte Reparaturen brauchen sie
