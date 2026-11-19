@@ -188,7 +188,7 @@ describe('Save-Migration v4 → v5', () => {
     delete raw.statistics.complaints;
     delete raw.statistics.repairsByType;
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(11);
+    expect(migrated.version).toBe(12);
     expect(Array.isArray(migrated.ownedTools)).toBe(true);
     expect(Array.isArray(migrated.loans)).toBe(true);
     expect(migrated.workers[0]!.motivation).toBe(80);

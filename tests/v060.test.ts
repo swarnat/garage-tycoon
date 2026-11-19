@@ -118,7 +118,7 @@ describe('Save-Migration v6 → v7', () => {
     const br = stations.find((s) => s.id === 'break_room')!;
     br.interact = { x: 3, y: 12 }; // alter Punkt wäre jetzt eine Wand
     const migrated = migrate(raw);
-    expect(migrated.version).toBe(11);
+    expect(migrated.version).toBe(12);
     expect((migrated.orders as Array<Record<string, unknown>>)[0]!.toolPromptShown).toBe(false);
     const mbr = (migrated.stations as Array<Record<string, unknown>>).find((s) => s.id === 'break_room')!;
     expect(mbr.interact).toEqual({ x: 3, y: 9 });

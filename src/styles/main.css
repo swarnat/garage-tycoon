@@ -139,6 +139,9 @@ body {
 .st-off_duty { background: #22252c; color: #565d6b; }
 .st-training { background: #33284a; color: #b39ddb; }
 .chip.prio { background: #4a1f1f; color: var(--neg); }
+.role-mechanic { background: #2a2f3a; color: #aab3c5; }
+.role-warehouse { background: #4a3413; color: var(--accent); }
+.role-assistant { background: #173a4a; color: var(--info); }
 
 .btn-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .btn {

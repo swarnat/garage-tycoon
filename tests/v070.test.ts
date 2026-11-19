@@ -207,7 +207,7 @@ describe('Neues Spiel & Migration mit Varianten', () => {
     delete inv.pinned;
     raw.deliveries = [{ id: 'd1', partId: 'brake_pads__M__standard', quantity: 1, supplierId: 'teileprofi', orderedAtMinute: 0, arriveAtMinute: 480, costCents: 100, done: false }];
     const migrated = migrate(raw);
-    expect(migrated.version).toBe(11);
+    expect(migrated.version).toBe(12);
     const mi = migrated.inventory as Record<string, Record<string, unknown>>;
     expect(mi.stock!['brake_pads__M__standard']).toBe(5);
     expect(mi.stock!['motor_oil__5W30__standard']).toBe(2);

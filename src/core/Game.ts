@@ -17,6 +17,7 @@ import { EconomySystem } from '../simulation/EconomySystem';
 import { OrderSystem } from '../simulation/OrderSystem';
 import { CustomerSystem } from '../simulation/CustomerSystem';
 import { WorkerSystem } from '../simulation/WorkerSystem';
+import { AssistantSystem } from '../simulation/AssistantSystem';
 import { VehicleSystem } from '../simulation/VehicleSystem';
 import { SupplierSystem } from '../simulation/SupplierSystem';
 import { InventorySystem } from '../simulation/InventorySystem';
@@ -78,6 +79,7 @@ function startingWorker(
   return {
     id,
     name,
+    role: 'mechanic',
     salaryCentsPerDay: 16000,
     skills,
     experience: 0,
@@ -170,6 +172,8 @@ export function createNewGame(seed: number): GameState {
     orderRateFactor: 1,
     ownedTools: ['brake_bleeder'],
     marketPriceFactors,
+    assistantAlertedAt: {},
+    assistantNextScanAtMinute: 0,
     loans: [],
     notifications: [],
     statistics: {
@@ -286,6 +290,7 @@ export class Game {
     CustomerSystem.update(ctx);
     OrderSystem.update(ctx);
     WorkerSystem.update(ctx, dt);
+    AssistantSystem.update(ctx);
     VehicleSystem.update(ctx, dt);
     this.state.rngState = this.rng.state;
     // Tägliche Liquiditätswarnung um 08:00

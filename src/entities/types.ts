@@ -35,6 +35,8 @@ export type OrderType =
   | 'emergency'
   | 'major';
 
+export type WorkerRole = 'mechanic' | 'warehouse' | 'assistant';
+
 export type WorkerState =
   | 'idle'
   | 'moving'
@@ -102,7 +104,7 @@ export interface EconomyState {
 }
 
 export interface WorkerTask {
-  kind: 'diagnose' | 'repair' | 'quality_check';
+  kind: 'diagnose' | 'repair' | 'quality_check' | 'deliver';
   orderId: string;
   stationId: string;
   phase: 'to_storage' | 'to_station' | 'working';
@@ -118,6 +120,7 @@ export interface PendingTraining {
 export interface Worker {
   id: string;
   name: string;
+  role: WorkerRole;
   salaryCentsPerDay: number;
   skills: Record<SkillId, number>;
   experience: number;
@@ -140,6 +143,7 @@ export interface Worker {
 export interface Candidate {
   id: string;
   name: string;
+  role: WorkerRole;
   skills: Record<SkillId, number>;
   salaryCentsPerDay: number;
   hiringFeeCents: number;
@@ -340,6 +344,9 @@ export interface GameState {
   lastCandidateRefreshDay: number;
   nextId: number;
   nextNotificationId: number;
+  /** Assistent: letzter Alert je Variante (Spielminute) – Cooldown 1 Tag. */
+  assistantAlertedAt: Record<string, number>;
+  assistantNextScanAtMinute: number;
 }
 
 export interface RepairStepDef {
@@ -418,7 +425,7 @@ export interface GameDefs {
   tools: ToolDef[];
 }
 
-export const SAVE_VERSION = 11;
+export const SAVE_VERSION = 12;
 export const MINUTES_PER_DAY = 1440;
 export const GAME_MINUTES_PER_REAL_SECOND = 6;
 export const SIM_STEP_MINUTES = 0.25;

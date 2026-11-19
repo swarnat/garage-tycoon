@@ -456,6 +456,8 @@ export class Renderer {
     const tex = this.textures.get(w.id === 'w2' ? 'mechanic_green' : 'mechanic');
     if (tex) {
       const sp = new Sprite(tex);
+      if (w.role === 'warehouse') sp.tint = 0xffc069;
+      else if (w.role === 'assistant') sp.tint = 0x8ec5ff;
       sp.anchor.set(0.5, 1);
       sp.scale.set(34 / tex.height);
       sp.y = 12;

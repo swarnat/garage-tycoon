@@ -232,6 +232,19 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     if (typeof stats.complaints !== 'number') stats.complaints = 0;
     if (typeof stats.repairsByType !== 'object' || stats.repairsByType === null) stats.repairsByType = {};
   }
+  if (version === 11) {
+    // v11 → v12: Mitarbeiter-Rollen (Mechaniker/Lagerhelfer/Assistent)
+    for (const w of (raw.workers as Array<Record<string, unknown>>) ?? []) {
+      w.role ??= 'mechanic';
+    }
+    for (const c of (raw.candidates as Array<Record<string, unknown>>) ?? []) {
+      c.role ??= 'mechanic';
+    }
+    raw.assistantAlertedAt ??= {};
+    raw.assistantNextScanAtMinute ??= 0;
+    version = 12;
+    raw.version = version;
+  }
   if (version !== SAVE_VERSION) {
     throw new SaveError(`Keine Migration für Version ${version} verfügbar`);
   }

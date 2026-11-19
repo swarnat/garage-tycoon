@@ -35,20 +35,44 @@ export const TRAINING_AMOUNT = 5;
 export class PersonnelSystem {
   static generateCandidates(ctx: SimContext, count = 3): Candidate[] {
     const out: Candidate[] = [];
+    const hasAssistant =
+      ctx.state.workers.some((w) => w.role === 'assistant');
     for (let i = 0; i < count; i++) {
       const skills = {} as Record<SkillId, number>;
-      for (const sk of SKILLS) skills[sk] = ctx.rng.intRange(15, 60);
-      const specialty = ctx.rng.pick(SKILLS);
-      skills[specialty] = Math.min(90, skills[specialty] + ctx.rng.intRange(15, 30));
+      let role: Candidate['role'] = 'mechanic';
+      if (!hasAssistant && !out.some((c) => c.role === 'assistant') && ctx.rng.chance(0.22)) {
+        role = 'assistant';
+      } else if (ctx.rng.chance(0.3)) {
+        role = 'warehouse';
+      }
+      if (role === 'mechanic') {
+        for (const sk of SKILLS) skills[sk] = ctx.rng.intRange(15, 60);
+        const specialty = ctx.rng.pick(SKILLS);
+        skills[specialty] = Math.min(90, skills[specialty] + ctx.rng.intRange(15, 30));
+      } else {
+        for (const sk of SKILLS) skills[sk] = ctx.rng.intRange(8, 25);
+      }
       const avg = SKILLS.reduce((a, sk) => a + skills[sk], 0) / SKILLS.length;
-      const salary = 10000 + Math.round(avg * 130);
+      const salary =
+        role === 'mechanic'
+          ? 10000 + Math.round(avg * 130)
+          : role === 'warehouse'
+            ? 5500 + Math.round(avg * 40)
+            : 6000;
+      const speed =
+        role === 'warehouse'
+          ? ctx.rng.range(0.45, 0.75)
+          : role === 'assistant'
+            ? ctx.rng.range(0.3, 0.5)
+            : ctx.rng.range(0.2, 0.6);
       out.push({
         id: `cand${ctx.state.nextId++}`,
         name: `${ctx.rng.pick(FIRST_NAMES)} ${ctx.rng.pick(LAST_NAMES)}`,
+        role,
         skills,
         salaryCentsPerDay: salary,
         hiringFeeCents: salary * 2,
-        speedTilesPerMinute: Math.round(ctx.rng.range(0.2, 0.6) * 100) / 100,
+        speedTilesPerMinute: Math.round(speed * 100) / 100,
       });
     }
     return out;
@@ -72,6 +96,10 @@ export class PersonnelSystem {
     const idx = state.candidates.findIndex((c) => c.id === candidateId);
     if (idx < 0) return false;
     const cand = state.candidates[idx] as Candidate;
+    if (cand.role === 'assistant' && state.workers.some((w) => w.role === 'assistant')) {
+      notify(ctx, 'warning', 'Es kann nur einen Assistenten geben – der bestehende beobachtet bereits die Marktpreise.');
+      return false;
+    }
     if (state.economy.balanceCents < cand.hiringFeeCents) {
       notify(ctx, 'danger', `Einstellung ${cand.name}: Gebühr ${(cand.hiringFeeCents / 100).toFixed(2)} € nicht verfügbar.`);
       return false;
@@ -87,6 +115,7 @@ export class PersonnelSystem {
     state.workers.push({
       id: `w${state.nextId++}`,
       name: cand.name,
+      role: cand.role,
       salaryCentsPerDay: cand.salaryCentsPerDay,
       skills: { ...cand.skills },
       experience: 0,
@@ -106,7 +135,8 @@ export class PersonnelSystem {
       dailyOnDutyMinutes: 0,
     });
     state.candidates.splice(idx, 1);
-    notify(ctx, 'success', `${cand.name} eingestellt (${(cand.salaryCentsPerDay / 100).toFixed(2)} €/Tag).`);
+    const roleLabel = cand.role === 'warehouse' ? 'Lagerhelfer' : cand.role === 'assistant' ? 'Assistent' : 'Mechaniker';
+    notify(ctx, 'success', `${cand.name} eingestellt (${roleLabel}, ${(cand.salaryCentsPerDay / 100).toFixed(2)} €/Tag).`);
     return true;
   }
 
@@ -156,6 +186,10 @@ export class PersonnelSystem {
     const w = state.workers.find((x) => x.id === workerId);
     if (!w || w.task || w.trainingMinutes > 0) {
       notify(ctx, 'warning', 'Weiterbildung nur möglich, wenn der Mitarbeiter gerade frei ist.');
+      return false;
+    }
+    if (w.role !== 'mechanic') {
+      notify(ctx, 'warning', 'Weiterbildung ist nur für Mechaniker möglich.');
       return false;
     }
     if (w.skills[skill] >= 100) return false;

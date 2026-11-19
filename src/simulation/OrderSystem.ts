@@ -610,6 +610,12 @@ export class OrderSystem {
           }
           return 'Wartet auf Mitarbeiter.';
         }
+        if (order.partsNeeded.length > 0 && !order.partsAtBay) {
+          const delivering = state.workers.some(
+            (w) => w.task?.kind === 'deliver' && w.task.orderId === order.id,
+          );
+          if (delivering) return 'Lagerhelfer bringt die Ersatzteile zur Bühne.';
+        }
         if (worker.state === 'waiting') return 'Wartet auf Team-Kollegen an der Hebebühne.';
         if (worker.task?.phase === 'to_storage') return 'Mitarbeiter holt Ersatzteile aus dem Lager.';
         if (worker.task?.phase === 'to_station') return 'Mitarbeiter ist unterwegs zum Fahrzeug.';

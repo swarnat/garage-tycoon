@@ -74,6 +74,12 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Storniert',
 };
 
+const ROLE_LABELS: Record<string, string> = {
+  mechanic: 'Mechaniker',
+  warehouse: 'Lagerhelfer',
+  assistant: 'Assistent',
+};
+
 const WORKER_STATE_LABELS: Record<string, string> = {
   idle: 'Frei',
   moving: 'Unterwegs',
@@ -642,7 +648,7 @@ export class UI {
         Object.values(w.skills).join(','), w.speedTilesPerMinute,
       );
     }
-    for (const c of s.candidates) parts.push(c.id, c.salaryCentsPerDay);
+    for (const c of s.candidates) parts.push(c.id, c.salaryCentsPerDay, c.role);
     for (const pid of Object.keys(s.inventory.stock).sort()) {
       parts.push(
         s.inventory.stock[pid] ?? 0, s.inventory.reserved[pid] ?? 0,
@@ -845,17 +851,24 @@ export class UI {
     for (const w of s.workers) {
       html += this.workerCard(w, false);
     }
-    html += `<p class="empty">Schicht 08:00–18:00 · Klick für Details &amp; Weiterbildung <button type="button" class="help" data-help="Gehälter werden täglich verbucht. Aufgaben werden automatisch nach Qualifikation, Priorität und Termin verteilt – der beste freie Mitarbeiter übernimmt.">?</button></p>`;
+    html += `<p class="empty">Schicht 08:00–18:00 · Klick für Details &amp; Weiterbildung <button type="button" class="help" data-help="Gehälter werden täglich verbucht. Aufgaben werden automatisch nach Qualifikation, Priorität und Termin verteilt – der beste freie Mechaniker übernimmt. Lagerhelfer bringen Teile zur Bühne, der Assistent (max. 1) meldet günstige Marktpreise.">?</button></p>`;
     html += `<h3 class="section">Kandidaten (${s.candidates.length})</h3>`;
     html += `<div class="btn-row"><button class="btn small" data-action="refresh-candidates">Neue Kandidaten anzeigen</button><span class="muted">Pool erneuert sich täglich · max. 6 Mitarbeiter</span></div>`;
+    const hasAssistant = s.workers.some((w) => w.role === 'assistant');
     for (const c of s.candidates) {
       const top = Object.entries(c.skills).sort((a, b) => b[1] - a[1]).slice(0, 3);
+      const roleInfo = c.role === 'warehouse'
+        ? 'Bringt Ersatzteile vom Lager zu den Mechanikern – schnell zu Fuß.'
+        : c.role === 'assistant'
+          ? 'Beobachtet die Marktpreise und meldet Schnäppchen. Nur 1 anstellbar.'
+          : `Stärken: ${top.map(([sk, v]) => `${SKILL_LABELS[sk] ?? sk} ${v}`).join(' · ')}`;
+      const blocked = s.workers.length >= 6 || (c.role === 'assistant' && hasAssistant);
       html += `<div class="card">
-        <div class="card-title">${esc(c.name)}</div>
-        <div class="meta">Stärken: ${top.map(([sk, v]) => `${SKILL_LABELS[sk] ?? sk} ${v}`).join(' · ')}</div>
+        <div class="card-title">${esc(c.name)} <span class="chip role-${c.role}">${ROLE_LABELS[c.role] ?? c.role}</span></div>
+        <div class="meta">${roleInfo}</div>
         <div class="meta">Gehalt: ${eur(c.salaryCentsPerDay)}/Tag · Einstellungsgebühr: ${eur(c.hiringFeeCents)}</div>
         <div class="meta">Lauftempo: ${c.speedTilesPerMinute.toFixed(2)} (${tempoLabel(c.speedTilesPerMinute)})</div>
-        <div class="btn-row"><button class="btn primary" data-action="hire" data-id="${c.id}" ${s.workers.length >= 6 ? 'disabled' : ''}>Einstellen</button></div>
+        <div class="btn-row"><button class="btn primary" data-action="hire" data-id="${c.id}" ${blocked ? 'disabled' : ''} ${c.role === 'assistant' && hasAssistant ? 'title="Es gibt bereits einen Assistenten"' : ''}>Einstellen</button></div>
       </div>`;
     }
     return html;
@@ -867,9 +880,16 @@ export class UI {
     const utilization = w.onDutyMinutes > 0 ? Math.round((w.workedMinutes / w.onDutyMinutes) * 100) : 0;
     let html = `
       <div class="card ${detailed ? '' : 'order-row'}" ${detailed ? '' : `data-action="select-worker" data-id="${w.id}"`}>
-        <div class="card-title">${esc(w.name)} <span class="chip st-${w.state}">${WORKER_STATE_LABELS[w.state] ?? w.state}</span></div>
+        <div class="card-title">${esc(w.name)} <span class="chip role-${w.role}">${ROLE_LABELS[w.role] ?? w.role}</span> <span class="chip st-${w.state}">${WORKER_STATE_LABELS[w.state] ?? w.state}</span></div>
         <div class="meta">${order ? `Auftrag ${order.id}` : w.trainingMinutes > 0 ? `Weiterbildung: noch ${Math.ceil(w.trainingMinutes)} min` : 'Keine Aufgabe'} · Auslastung ${utilization}% · ${eur(w.salaryCentsPerDay)}/Tag</div>`;
-    if (detailed) {
+    if (detailed && w.role !== 'mechanic') {
+      html += `<div class="meta">${w.role === 'warehouse'
+        ? 'Bringt Ersatzteile vom Lager zu den Mechanikern. Schnell zu Fuß – Mechaniker bleiben an der Bühne.'
+        : 'Beobachtet die Marktpreise und meldet Schnäppchen (max. 1 Assistent). Sitzt im Büro.'} ${help(w.role === 'warehouse'
+          ? 'Lagerhelfer übernehmen den Gang vom Lager zur Hebebühne, sobald eine Reparatur Teile braucht. Ist kein Lagerhelfer frei, holt der Mechaniker selbst. Günstiger als Mechaniker (ab ca. 55 €/Tag), aber ohne Reparatur-/Diagnose-Qualifikation.'
+          : 'Der Assistent prüft stündlich die Marktpreise und meldet Varianten, die ≥ 10 % unter Normalpreis liegen (nur relevante Artikel: Bestand, Mindestbestand oder Pin). Je Variante max. eine Meldung pro Tag. Gehalt ca. 60 €/Tag.')}</div>`;
+    }
+    if (detailed && w.role === 'mechanic') {
       html += `<div class="skills">`;
       const busy = !!w.task || w.trainingMinutes > 0;
       for (const [skill, label] of Object.entries(SKILL_LABELS)) {

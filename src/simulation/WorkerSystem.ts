@@ -105,7 +105,7 @@ export class WorkerSystem {
     });
     if (!arriving) return false;
     const free = state.workers.filter(
-      (x) => !x.task && x.trainingMinutes <= 0 && x.state !== 'off_duty',
+      (x) => x.role === 'mechanic' && !x.task && x.trainingMinutes <= 0 && x.state !== 'off_duty',
     );
     const best = [...free].sort((a, b) => b.skills.diagnosis - a.skills.diagnosis)[0];
     if (!best || best.id !== w.id) return false;
@@ -121,7 +121,9 @@ export class WorkerSystem {
 
   /** Untätige Mitarbeiter sammeln sich im Pausenraum (mit persönlichem Platz). */
   private static goToBreak(ctx: SimContext, w: Worker, dt: number): void {
-    const br = ctx.state.stations.find((s) => s.kind === 'break_room');
+    const br = ctx.state.stations.find((s) =>
+      s.kind === (w.role === 'assistant' ? 'office' : 'break_room'),
+    );
     if (!br) {
       w.state = 'idle';
       return;
@@ -166,6 +168,10 @@ export class WorkerSystem {
       w.state = onDuty ? 'idle' : 'off_duty';
       return;
     }
+    if (task.kind === 'deliver' && onDuty) {
+      w.workedMinutes += dt;
+      w.dailyWorkedMinutes += dt;
+    }
     if (w.path.length > 0) {
       moveAlongPath(w.pos, w.path, w.speedTilesPerMinute * dt);
       w.state = task.phase === 'to_storage' ? 'fetching_parts' : 'moving';
@@ -173,7 +179,8 @@ export class WorkerSystem {
     }
     if (task.phase === 'to_storage') {
       InventorySystem.consumeReserved(state.inventory, order.partsNeeded, state.totalMinutes);
-      order.partsAtBay = true;
+      // Lagerhelfer liefern erst an der Bühne ab; Mechaniker tragen selbst.
+      if (task.kind !== 'deliver') order.partsAtBay = true;
       for (const n of order.partsNeeded) {
         const stock = state.inventory.stock[n.partId] ?? 0;
         const min = state.inventory.minStock[n.partId] ?? 0;
@@ -195,6 +202,17 @@ export class WorkerSystem {
       return;
     }
     if (task.phase === 'to_station') {
+      if (task.kind === 'deliver') {
+        order.partsAtBay = true;
+        const station = stationById(state, task.stationId);
+        const stationLabel = station.kind === 'lift' ? 'die Hebebühne' : 'den Diagnoseplatz';
+        notify(ctx, 'info', `Lagerhelfer ${w.name}: Ersatzteile an ${stationLabel} geliefert (${order.id}).`);
+        ctx.bus.emit('parts:delivered', order.id);
+        w.task = null;
+        w.path = [];
+        w.state = onDuty ? 'idle' : 'off_duty';
+        return;
+      }
       task.phase = 'working';
       w.state =
         task.kind === 'diagnose'
@@ -210,6 +228,10 @@ export class WorkerSystem {
 
     // ---- working: Reparatur (ggf. im Team) ----
     if (task.kind === 'repair') {
+      if (order.partsNeeded.length > 0 && !order.partsAtBay) {
+        w.state = 'waiting';
+        return;
+      }
       const job = RepairSystem.currentJob(order);
       if (!job) {
         WorkerSystem.releaseCrew(ctx, order);
@@ -324,6 +346,7 @@ export class WorkerSystem {
       .sort((a, b) => b.priority - a.priority || a.dueAtMinute - b.dueAtMinute);
 
     const isFree = (w: Worker): boolean =>
+      w.role === 'mechanic' &&
       !w.task && w.trainingMinutes <= 0 && isOnDuty(state, w) && w.state !== 'off_duty';
     const free = state.workers.filter(isFree);
     const distance = (w: Worker, order: RepairOrder): number => {
@@ -386,7 +409,7 @@ export class WorkerSystem {
           : !order.assignedWorkerId;
       if (!needsWorker) continue;
       const busy = state.workers.filter(
-        (w) => w.task && w.trainingMinutes <= 0 && isOnDuty(state, w),
+        (w) => w.role === 'mechanic' && w.task && w.trainingMinutes <= 0 && isOnDuty(state, w),
       );
       const eligible = busy.filter((w) => {
         const cur = state.orders.find((o) => o.id === w.task!.orderId);
@@ -441,23 +464,47 @@ export class WorkerSystem {
     const station = stationById(ctx.state, order.stationId);
     if (!order.crewIds.includes(w.id)) order.crewIds.push(w.id);
     order.assignedWorkerId = order.crewIds[0] ?? null;
-    // Nur das erste Crew-Mitglied holt die Teile; die anderen warten an der Bühne
+    // Nur das erste Crew-Mitglied holt die Teile; die anderen warten an der Bühne.
+    // Ist ein Lagerhelfer frei, übernimmt er den Gang zum Lager und zur Bühne.
     const needsFetch =
       !order.partsAtBay && order.partsNeeded.length > 0 && order.crewIds.length === 1;
-    const target = needsFetch
+    const helper = needsFetch
+      ? ctx.state.workers.find(
+          (x) =>
+            x.role === 'warehouse' &&
+            !x.task &&
+            x.trainingMinutes <= 0 &&
+            isOnDuty(ctx.state, x) &&
+            x.state !== 'off_duty',
+        )
+      : undefined;
+    if (helper) {
+      const storage = ctx.state.stations.find((s) => s.kind === 'storage')!;
+      helper.task = {
+        kind: 'deliver',
+        orderId: order.id,
+        stationId: station.id,
+        phase: 'to_storage',
+        remainingMinutes: 0,
+      };
+      helper.path = findPath(ctx.map, helper.pos, storage.interact) ?? [];
+      helper.state = 'fetching_parts';
+    }
+    const selfFetch = needsFetch && !helper;
+    const target = selfFetch
       ? ctx.state.stations.find((s) => s.kind === 'storage')!.interact
       : station.interact;
     w.task = {
       kind: 'repair',
       orderId: order.id,
       stationId: station.id,
-      phase: needsFetch ? 'to_storage' : 'to_station',
+      phase: selfFetch ? 'to_storage' : 'to_station',
       remainingMinutes:
         job.stepRemainingMinutes *
         RepairSystem.durationFactor(w.skills[def.requiredSkill]),
     };
     w.path = findPath(ctx.map, w.pos, target) ?? [];
-    w.state = needsFetch ? 'fetching_parts' : 'moving';
+    w.state = selfFetch ? 'fetching_parts' : 'moving';
   }
 
   private static assignQualityCheck(
