@@ -232,7 +232,7 @@ export class Game {
   }
 
   /** Rückt die Simulation in festen Schritten vor (FPS-unabhängig).
-   *  Nachts läuft sie automatisch mit 8×, zu Arbeitsbeginn mit 1×. */
+   *  Nachts läuft sie automatisch mit 16× (ohne laufende Arbeit), zu Arbeitsbeginn mit 1×. */
   tick(minutes: number): void {
     if (this.state.speed === 0) return;
     // Außerhalb der Arbeitszeit automatisch 16x – aber nie bei laufender Arbeit

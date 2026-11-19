@@ -102,6 +102,11 @@ function tempoLabel(sp: number): string {
   return sp < 0.3 ? 'gemächlich' : sp < 0.45 ? 'normal' : 'flink';
 }
 
+const CLASS_LABELS: Record<string, string> = {
+  kleinwagen: 'Kleinwagen', kompakt: 'Kompakt', mittelklasse: 'Mittelklasse',
+  premium: 'Premium', suv: 'SUV', pickup: 'Pickup', transporter: 'Transporter', sport: 'Sportwagen',
+};
+
 const PROFILE_LABELS: Record<string, string> = {
   price_sensitive: 'preisbewusst',
   quality_oriented: 'qualitätsorientiert',
@@ -210,7 +215,7 @@ export class UI {
           <button data-speed="4">4×</button>
           <button data-speed="8">8×</button>
           <button data-speed="16">16×</button>
-          <button type="button" class="help" data-help="Spieltempo: 1× = 6 Spielminuten pro Sekunde. Nachts (18–08 Uhr) automatisch 8×; bei Auftragseingang und um 08:00 zurück auf 1×. Pause stoppt alles.">?</button>
+          <button type="button" class="help" data-help="Spieltempo: 1× = 6 Spielminuten pro Sekunde. Nachts (18–08 Uhr) automatisch 16×, solange niemand arbeitet; bei Auftragseingang und um 08:00 zurück auf 1×.">?</button>
         </div>
         <div class="save-indicator" id="save-indicator" title="Automatische Speicherung">●</div>
       </header>
@@ -670,8 +675,8 @@ export class UI {
     let html = `<div class="card warn-card">
       <div class="card-title">⚠️ ${esc(c?.name ?? 'Kunde')} droht, das Angebot abzulehnen</div>
       <div class="meta">${v ? `${esc(v.make)} ${esc(v.model)} · ` : ''}Angebot: <strong>${eur(o.estimateCents ?? 0)}</strong> · Budget des Kunden: <strong>${eur(o.budgetCents)}</strong></div>
-      <div class="meta">Kundenhistorie: ${history.length === 0 ? 'Neukunde (keine vergangenen Aufträge)' : `${history.length} Aufträge · Umsatz ${eur(histRevenue)} · Ø Zufriedenheit ${avgSat}%`}${(c?.visits ?? 0) >= 2 ? ' · Stammkunde' : ''}</div>
-      <div class="meta">Ohne Reaktion entscheidet sich der Kunde in ${minsLeft} Spielminuten gegen die Werkstatt. Ein Rabatt-Versuch ist einmalig – lehnt der Kunde ab, geht er (selten akzeptiert er auch Mehrkosten).</div>
+      <div class="meta">Kundenhistorie: ${history.length === 0 ? 'Neukunde' : `${history.length} Aufträge · Umsatz ${eur(histRevenue)} · Ø Zufriedenheit ${avgSat}%`}${(c?.visits ?? 0) >= 2 ? ' · Stammkunde' : ''}</div>
+      <div class="meta">Kunde entscheidet in ${minsLeft} min – ohne Reaktion: Ablehnung. <button type="button" class="help" data-help="Ein Rabatt-Versuch ist einmalig. Lehnt der Kunde ab, geht er endgültig; selten akzeptiert er auch Mehrkosten. Budget akzeptieren hält den Kunden zum Budget-Preis.">?</button></div>
       ${(() => {
         const b = OrderSystem.profitBreakdown(game.ctx, o);
         let t = `<table class="parts-table"><thead><tr><th>Kalkulation</th><th>Kosten</th><th>Erlös</th></tr></thead><tbody>`;
@@ -696,7 +701,7 @@ export class UI {
         <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="25">25 %</button>
       </div>
       <div class="btn-row">
-        <button class="btn primary" data-action="accept-budget" data-id="${o.id}">Budget akzeptieren – Kunde halten (Rechnung = ${eur(o.budgetCents)})</button>
+        <button class="btn primary" data-action="accept-budget" data-id="${o.id}">Budget akzeptieren (${eur(o.budgetCents)})</button>
         <button class="btn danger" data-action="insist-price" data-id="${o.id}">Preis bestehen – Kunde geht</button>
       </div>
     </div>`;
@@ -713,13 +718,13 @@ export class UI {
     let html = `<div class="card warn-card">
       <div class="card-title">⚠️ Diagnose abgeschlossen – Spezialwerkzeug fehlt</div>
       <div class="meta">Auftrag ${o.id}${v ? ` · ${esc(v.make)} ${esc(v.model)}` : ''}: „${esc(o.complaint)}“</div>
-      <div class="meta">Für die erkannten Reparaturen wird folgendes Werkzeug benötigt:</div>`;
+      <div class="meta">Benötigtes Werkzeug:</div>`;
     for (const tid of missing) {
       const t = game.defs.tools.find((x) => x.id === tid);
       if (!t) continue;
       html += `<div class="card compact"><strong>${esc(t.name)}</strong> – ${eur(t.costCents)}<div class="meta muted">${esc(t.description)}</div></div>`;
     }
-    html += `<div class="meta">Der Auftrag wartet, bis das Werkzeug vorhanden ist. Du kannst es jetzt im Ausbau kaufen – oder den Auftrag ablehnen.</div>
+    html += `<div class="meta">Der Auftrag wartet auf das Werkzeug.</div>
       <div class="btn-row">
         <button class="btn primary" data-action="tool-shop">Zum Ausbau – Werkzeug kaufen</button>
         <button class="btn" data-action="tool-wait">Warten – ich kümmere mich später</button>
@@ -781,7 +786,7 @@ export class UI {
       .slice(-6)
       .reverse();
     let html = `<div class="drawer-head"><h2>Aufträge</h2></div>`;
-    html += `<h3 class="section">Neue Anfragen (${incoming.length})</h3>`;
+    html += `<h3 class="section">Neue Anfragen (${incoming.length}) <button type="button" class="help" data-help="Der Auftragswert steht erst nach der Diagnose fest. Angebote laufen nach 6 Stunden ab.">?</button></h3>`;
     if (incoming.length === 0) {
       html += `<p class="empty">Keine neuen Anfragen. Kunden kommen im Laufe des Tages.</p>`;
     }
@@ -795,7 +800,6 @@ export class UI {
           <div class="card-sub">${esc(v.make)} ${esc(v.model)} (${v.year}, ${v.mileageKm.toLocaleString('de-DE')} km)</div>
           <div class="complaint">„${esc(o.complaint)}“</div>
           <div class="meta">${TYPE_LABELS[o.type] ?? o.type} · ${dueLabel(o, s.totalMinutes)} · Angebot läuft ab in ${expiresIn} h</div>
-          <div class="meta muted">Auftragswert steht nach der Diagnose fest.</div>
           <div class="btn-row">
             <button class="btn primary" data-action="accept" data-id="${o.id}">Annehmen</button>
             <button class="btn" data-action="decline" data-id="${o.id}">Ablehnen</button>
@@ -841,7 +845,7 @@ export class UI {
     for (const w of s.workers) {
       html += this.workerCard(w, false);
     }
-    html += `<p class="empty">Schichtzeit: 08:00–18:00. Gehälter werden täglich verbucht. Aufgaben werden automatisch nach Qualifikation, Priorität und Termin verteilt. Klick auf einen Mitarbeiter für Details und Weiterbildung.</p>`;
+    html += `<p class="empty">Schicht 08:00–18:00 · Klick für Details &amp; Weiterbildung <button type="button" class="help" data-help="Gehälter werden täglich verbucht. Aufgaben werden automatisch nach Qualifikation, Priorität und Termin verteilt – der beste freie Mitarbeiter übernimmt.">?</button></p>`;
     html += `<h3 class="section">Kandidaten (${s.candidates.length})</h3>`;
     html += `<div class="btn-row"><button class="btn small" data-action="refresh-candidates">Neue Kandidaten anzeigen</button><span class="muted">Pool erneuert sich täglich · max. 6 Mitarbeiter</span></div>`;
     for (const c of s.candidates) {
@@ -873,11 +877,11 @@ export class UI {
         html += `<div class="skill-row"><span>${label}</span><div class="bar"><div style="width:${val}%"></div></div><span class="num">${val}</span>
           <button class="btn small" data-action="train" data-id="${w.id}" data-skill="${skill}" ${busy || val >= 100 ? 'disabled' : ''} title="Weiterbildung: +5 für 150 €, dauert 2 h">+5</button></div>`;
       }
-      html += `</div><div class="meta muted">Weiterbildung: +5 Punkte für 150 €, Mitarbeiter ist 2 h nicht einsetzbar.</div>`;
-      html += `<div class="meta speed-row">Lauftempo: <strong>${w.speedTilesPerMinute.toFixed(2)}</strong> <span class="muted">(${tempoLabel(w.speedTilesPerMinute)})</span> ${help('Festes Mitarbeiter-Attribut (0.20–0.60 Tiles/Spielminute), nicht veränderbar. Schnelle Mitarbeiter erreichen Fahrzeug und Lager früher – der Unterschied ist im Laufbild sichtbar.')}</div>`;
+      html += `</div>`;
+      html += `<div class="meta speed-row">Lauftempo: <strong>${w.speedTilesPerMinute.toFixed(2)}</strong> <span class="muted">(${tempoLabel(w.speedTilesPerMinute)})</span> ${help('Festes Attribut, nicht veränderbar. Schnelle Mitarbeiter erreichen Fahrzeug und Lager früher – im Laufbild sichtbar.')}</div>`;
       html += `<div class="skill-row"><span>Motivation <button type="button" class="help" data-help="Motivation (0–100): beeinflusst das Arbeitstempo (±10 %). Steigt bei Erholung und Weiterbildung, sinkt bei Dauer-Überlastung (über 85 % Auslastung am Tag).">?</button></span><div class="bar"><div style="width:${w.motivation}%; background:${w.motivation < 40 ? 'var(--neg)' : w.motivation < 70 ? 'var(--warn)' : 'var(--pos)'}"></div></div><span class="num">${Math.round(w.motivation)}</span></div>`;
       if (w.task) {
-        html += `<div class="meta">Aktivität: ${WORKER_STATE_LABELS[w.state]} · Schritt verbleibend ca. ${Math.ceil(w.task.remainingMinutes)} Spielminuten</div>`;
+        html += `<div class="meta">Aktivität: ${WORKER_STATE_LABELS[w.state]} · Schritt: noch ca. ${Math.ceil(w.task.remainingMinutes)} min</div>`;
       }
       html += `<div class="btn-row"><button class="btn danger" data-action="fire" data-id="${w.id}" ${s.workers.length <= 1 ? 'disabled' : ''}>Entlassen (Abfindung: 1 Tagesgehalt)</button></div>`;
     } else {
@@ -912,12 +916,12 @@ export class UI {
       html += `<tr class="low"><td>${esc(pd.name)}</td><td class="num">${n.quantity}</td><td class="num">${avail}</td><td class="num"><strong>${missing}</strong></td><td class="num">${eur(EconomySystem.marketBuyCents(s, pd))}</td></tr>`;
     }
     html += `</tbody></table>
-      <div class="meta">Lieferant wählen (Express-Aufpreis zahlt die Werkstatt):</div>
+      <div class="meta">Lieferant: <button type="button" class="help" data-help="Express-Aufpreis und Versandkosten zahlt die Werkstatt – sie schmälern die Marge, nicht die Rechnung.">?</button></div>
       <div class="btn-row">${game.defs.suppliers.map((sup) => `<button class="btn small ${this.partsSupplierId === sup.id ? 'primary' : ''}" data-action="parts-supplier" data-id="${sup.id}">${esc(sup.name)} (${Math.round(sup.leadMinutes / 60)} h, ${sup.priceFactor > 1 ? '+' : ''}${Math.round((sup.priceFactor - 1) * 100)} %)</button>`).join('')}</div>
-      <div class="meta">Aufschub-Chance: <strong>${Math.round(chance * 100)} %</strong> – bei Zusage +${delayH} h Termin (profilabhängig). Lehnt der Kunde ab, geht er.</div>
+      <div class="meta">Aufschub-Chance: <strong>${Math.round(chance * 100)} %</strong> (+${delayH} h bei Zusage) <button type="button" class="help" data-help="Die Chance hängt vom Kundenprofil, der Reputation und der letzten Zufriedenheit ab. Lehnt der Kunde den Aufschub ab, geht er.">?</button></div>
       <div class="btn-row">
         <button class="btn primary" data-action="parts-delay">Um Aufschub bitten &amp; bestellen</button>
-        <button class="btn" data-action="parts-order">Ohne Aufschub bestellen (Termin bleibt)</button>
+        <button class="btn" data-action="parts-order">Ohne Aufschub bestellen</button>
         <button class="btn danger" data-action="parts-decline">Abweisen</button>
       </div>
     </div>`;
@@ -931,16 +935,16 @@ export class UI {
     const search = this.invSearch.trim().toLowerCase();
     let html = `<div class="btn-row">
       <button class="btn small ${this.invShowAll ? 'primary' : ''}" data-action="inv-showall">${this.invShowAll ? 'Alle Varianten sichtbar' : 'Nur relevante Varianten'}</button>
-      <input class="inv-search" type="search" placeholder="Variante suchen (Blendet alle Treffer ein)…" value="${esc(this.invSearch)}" data-field="inv-search">
+      <input class="inv-search" type="search" placeholder="Variante suchen…" value="${esc(this.invSearch)}" data-field="inv-search">
     </div>`;
     const allOn = game.defs.parts.every((p) => inv.autoReorder[p.id]);
     const allOff = game.defs.parts.every((p) => !inv.autoReorder[p.id]);
     html += `<div class="btn-row"><button class="btn small ${allOn ? 'primary' : ''}" data-action="auto-all" data-on="1" ${allOn ? 'disabled' : ''}>Alle Auto AN</button><button class="btn small ${allOff ? 'primary' : ''}" data-action="auto-all" data-on="0" ${allOff ? 'disabled' : ''}>Alle Auto AUS</button>
-      <span class="muted">Auto-Nachbestellung bei &lt; Mindestbestand → Lieferant:</span>
+      <span class="muted">Auto-Lieferant:</span>
       ${game.defs.suppliers.map((sup) => `<button class="btn small ${inv.autoSupplierId === sup.id ? 'primary' : ''}" data-action="auto-supplier" data-id="${sup.id}">${esc(sup.name)}</button>`).join('')}
       <button type="button" class="help" data-help="Auto-Nachbestellung pro Variante: Fällt der verfügbare Bestand (Lager minus Reservierungen) unter den Mindestbestand, wird automatisch die Differenz beim gewählten Lieferanten bestellt. Zielbestand = Mindestbestand.">?</button>
     </div>`;
-    html += `<div class="meta muted legend">Legende: <span class="legend-low">Gelber Name</span> = Bestand ≤ Mindestbestand · <span class="legend-highlight">Dunkler Hintergrund</span> = Teil für ausgewählten Auftrag gebraucht · 🐌 = Ladenhüter (Bestand &gt; 0, kein Verbrauch 48 h, letzte Bestellung &gt; 3 Tage her). Ausgeblendet: Bestand 0, Min 0, keine offene Bestellung – über Suche oder „Alle Varianten" einblenden und 📌 pinnen.</div>`;
+    html += `<div class="meta muted legend"><span class="legend-low">Gelb</span> = ≤ Mindestbestand · 🐌 Ladenhüter · 🚚 offene Lieferung <button type="button" class="help" data-help="Dunkler Hintergrund: Teil wird für einen ausgewählten Auftrag gebraucht. Ladenhüter: Bestand > 0, kein Verbrauch in 48 h, letzte Bestellung > 3 Tage her (Verkauf zu 60 % Marktpreis möglich). Ausgeblendet werden Varianten mit Bestand 0, Min 0 und keiner offenen Bestellung – über Suche oder „Alle Varianten" einblenden und mit 📌 dauerhaft sichtbar machen. 24h/48h = Verbrauch durch Reparaturen.">?</button></div>`;
     html += `<div class="inv-layout"><div class="inv-cats">`;
     for (const cat of game.defs.categories) {
       const vars = game.defs.parts.filter((p) => p.category === cat.id);
@@ -1019,7 +1023,7 @@ export class UI {
     const util = onDuty > 0 ? Math.round((worked / onDuty) * 100) : 0;
     let html = `<div class="drawer-head"><h2>Finanzen</h2></div>`;
     html += `<div class="balance-big ${s.economy.balanceCents < 150000 ? 'danger' : ''}">${eur(s.economy.balanceCents)}</div>
-      <div class="meta muted">Kontostand (Liquidität)</div>`;
+      <div class="meta muted">Kontostand</div>`;
     html += `<h3 class="section">Heute (Tag ${day})</h3>
       <div class="finance-grid">
         <div><label>Umsatz</label><strong class="pos">${eur(rev)}</strong></div>
@@ -1060,7 +1064,7 @@ export class UI {
     }
     html += `<h3 class="section">Kredite <button type="button" class="help" data-help="Max. 50.000 € Gesamtschulden. Zinsen: 0,05 % pro Tag auf die Restschuld (5 Basispunkte). Tilgung jederzeit manuell – Zinsen laufen nur auf den verbleibenden Betrag.">?</button></h3>`;
     const debt = s.loans.reduce((a, l) => a + l.remainingCents, 0);
-    html += `<div class="meta">Gesamtschulden: <strong class="${debt > 0 ? 'neg' : ''}">${eur(debt)}</strong> · Limit 50.000 € · Zinsen 0,05 %/Tag</div>`;
+    html += `<div class="meta">Gesamtschulden: <strong class="${debt > 0 ? 'neg' : ''}">${eur(debt)}</strong></div>`;
     html += `<div class="btn-row">
       <button class="btn small" data-action="take-loan" data-amount="500000">+5.000 €</button>
       <button class="btn small" data-action="take-loan" data-amount="1000000">+10.000 €</button>
@@ -1092,7 +1096,7 @@ export class UI {
       <div><label>Umsatz gesamt</label><strong>${eur(st.totalRevenueCents)}</strong></div>
       <div><label>Ø Auftragswert</label><strong>${eur(avgOrder)}</strong></div>
       <div><label>Ø Zufriedenheit</label><strong>${avgSat}%</strong></div>
-      <div><label>QC-Fehlschläge</label><strong class="${st.qcFailures > 0 ? 'neg' : ''}">${st.qcFailures}</strong></div>
+      <div><label>QC-Fehlschläge <button type="button" class="help" data-help="Qualitätskontrolle nach der Reparatur: bei unerfahrenen Prüfern kann sie fehlschlagen und Nacharbeit auslösen.">?</button></label><strong class="${st.qcFailures > 0 ? 'neg' : ''}">${st.qcFailures}</strong></div>
       <div><label>Reklamationen</label><strong class="${st.complaints > 0 ? 'neg' : ''}">${st.complaints}</strong></div>
       <div><label>Arbeitsstunden</label><strong>${(st.totalLaborMinutes / 60).toFixed(1)} h</strong></div>
     </div>`;
@@ -1130,7 +1134,7 @@ export class UI {
     let html = `<div class="drawer-head"><h2>Werkstattausbau</h2></div>`;
     html += `<div class="card">
       <div class="card-title">Hebebühnen (${lifts.filter((x) => x.unlocked).length}/${lifts.length})</div>
-      <div class="meta">Mehr Kapazität für parallele Reparaturen. Achtung: ohne Personal und Aufträge bringt sie keinen Nutzen.</div>
+      <div class="meta">Parallele Reparaturen <button type="button" class="help" data-help="Achtung: ohne Personal und Aufträge bringt eine weitere Bühne keinen Nutzen – erst Auslastung prüfen.">?</button></div>
       <div class="meta">Kosten je weiterer Bühne: ${eur(800000)}</div>
       ${nextLift
         ? `<div class="btn-row"><button class="btn primary" data-action="buy-lift">Bühne ${nextLift.id.replace('lift', '')} kaufen</button></div>`
@@ -1138,7 +1142,7 @@ export class UI {
     </div>`;
     html += `<div class="card">
       <div class="card-title">Diagnoseplätze (${diags.filter((x) => x.unlocked).length}/${diags.length})</div>
-      <div class="meta">Diagnosen parallel statt im Nadelöhr – besonders mit mehreren Mitarbeitern sinnvoll.</div>
+      <div class="meta">Parallele Diagnosen <button type="button" class="help" data-help="Vermeidet den Diagnose-Engpass, besonders mit mehreren Mitarbeitern.">?</button></div>
       <div class="meta">Kosten je weiterem Platz: ${eur(500000)}</div>
       ${nextDiag
         ? `<div class="btn-row"><button class="btn primary" data-action="buy-diag">Diagnose ${nextDiag.id.replace('diag', '')} kaufen</button></div>`
@@ -1146,7 +1150,7 @@ export class UI {
     </div>`;
     html += `<div class="card">
       <div class="card-title">Lagererweiterung (+60 Teile)</div>
-      <div class="meta">Aktuelle Kapazität: ${s.inventory.capacity} Teile. Mehr Lager vermeidet Wartezeiten, bindet aber Kapital.</div>
+      <div class="meta">Kapazität: ${s.inventory.capacity} Teile <button type="button" class="help" data-help="Mehr Lager vermeidet Wartezeiten auf Teile, bindet aber Kapital.">?</button></div>
       <div class="meta">Kosten: ${eur(250000)}</div>
       <div class="btn-row"><button class="btn primary" data-action="expand-storage">Kaufen</button></div>
     </div>`;
@@ -1154,7 +1158,7 @@ export class UI {
     const freeParks = parks.filter((x) => x.unlocked).length;
     html += `<div class="card">
       <div class="card-title">Parkplätze an der Straße</div>
-      <div class="meta">${freeParks} von ${parks.length} Plätzen erschlossen. Kunden parken dort nach der Reparatur und holen verzögert ab – volle Parkplätze blockieren Hebebühnen.</div>
+      <div class="meta">${freeParks} von ${parks.length} Plätzen erschlossen <button type="button" class="help" data-help="Kunden parken nach der Reparatur dort und holen verzögert ab (1–4 h). Sind alle Plätze voll, blockiert das fertige Fahrzeug die Hebebühne.">?</button></div>
       <div class="meta">Kosten je weiterem Platz: ${eur(120000)}</div>
       ${freeParks < parks.length ? '<div class="btn-row"><button class="btn primary" data-action="buy-parking">Weiteren Parkplatz erschließen</button></div>' : '<div class="chip st-delivered">Alle Plätze erschlossen</div>'}
     </div>`;
@@ -1184,15 +1188,14 @@ export class UI {
         <label class="field">Ersatzteilaufschlag (%) <button type="button" class="help" data-help="Verkaufspreis = Einkaufspreis × (1 + Aufschlag %). Beispiel: 50 € EK + 40 % = 70 € VK, also 20 € Rohmarge pro Teil.">?</button>
           <input type="number" min="0" max="150" step="5" value="${s.economy.partsMarkupPct}" data-field="markup">
         </label>
-        <div class="meta muted">Höhere Preise steigern die Marge, aber preissensible Kunden lehnen Angebote eher ab.</div>
         <label class="field">Auftragsfrequenz (Faktor) ${help('Multiplikator für neue Kundenaufträge: 0.5 = ruhig, 1 = normal, 3 = voll. Basis hängt zusätzlich von der Reputation ab. Mehr Aufträge = mehr Umsatz, aber auch mehr Engpässe bei Personal und Parkplätzen.')}
           <input type="number" min="0.5" max="3" step="0.1" value="${s.orderRateFactor}" data-field="orderrate">
         </label>
       </div>
       <div class="card">
         <div class="card-title">Spielstand</div>
-        <div class="meta">Automatische Speicherung alle 30 Sekunden und nach wichtigen Ereignissen. Primär IndexedDB (großer Browserspeicher), Fallback localStorage. Kein Server.</div>
-        <div class="meta muted">Außerhalb der Arbeitszeit (18:00–08:00) läuft das Spiel automatisch mit 8×. Geht ein Auftrag ein oder beginnt die Schicht um 08:00, wird auf 1× geschaltet. Untätige Mitarbeiter warten im Pausenraum, nach Feierabend werden sie ausgeblendet.</div>
+        <div class="meta">Autosave alle 30 s, offline (IndexedDB) <button type="button" class="help" data-help="Speichert automatisch alle 30 Sekunden und nach wichtigen Ereignissen. Primär IndexedDB (großer Browserspeicher), Fallback localStorage. Kein Server, keine Cloud. Export/Import als manuelle Sicherung.">?</button></div>
+        <div class="meta muted">Nachts läuft das Spiel automatisch mit 16×. <button type="button" class="help" data-help="Außerhalb der Arbeitszeit (18:00–08:00) wird auf 16× beschleunigt, solange keine Reparatur läuft. Auftragseingang und Schichtbeginn (08:00) schalten auf 1×. Untätige Mitarbeiter warten im Pausenraum, nach Feierabend werden sie ausgeblendet.">?</button></div>
         <div class="btn-row">
           <button class="btn primary" data-action="save">Jetzt speichern</button>
           <button class="btn" data-action="export">Export (JSON)</button>
@@ -1203,7 +1206,7 @@ export class UI {
           <button class="btn danger" data-action="reset">Spiel zurücksetzen</button>
         </div>
       </div>
-      <div class="card compact muted">Seed: ${s.seed} · Savegame-Version ${s.version} · Garage Tycoon MVP</div>`;
+      <div class="card compact muted">Seed: ${s.seed} · Savegame-Version ${s.version}</div>`;
   }
 
   private renderMessages(): string {
@@ -1227,11 +1230,11 @@ export class UI {
     const worker = o.assignedWorkerId ? s.workers.find((w) => w.id === o.assignedWorkerId) : null;
     let html = `<div class="drawer-head"><h2>${esc(v.make)} ${esc(v.model)}</h2><button class="btn small" data-action="close-detail">✕</button></div>`;
     html += `<div class="card compact">
-      <div class="meta">Baujahr ${v.year} · ${v.mileageKm.toLocaleString('de-DE')} km · Klasse ${esc(v.vehicleClass)}</div>
+      <div class="meta">Baujahr ${v.year} · ${v.mileageKm.toLocaleString('de-DE')} km · ${CLASS_LABELS[v.vehicleClass] ?? esc(v.vehicleClass)}</div>
       <div class="meta">Kunde: ${c ? esc(c.name) : '?'} (${c ? PROFILE_LABELS[c.profile] ?? '' : ''})</div>
       <div class="complaint">„${esc(o.complaint)}“</div>
       <div>${statusChip(o.status)} ${o.priority > 1 ? '<span class="chip prio">Priorität hoch</span>' : ''}</div>
-      ${o.status === 'diagnosing' && o.diagnosisExtended ? '<div class="meta overdue">Nachuntersuchung läuft – der Diagnostiker ist unerfahren.</div>' : ''}
+      ${o.status === 'diagnosing' && o.diagnosisExtended ? '<div class="meta overdue">Nachuntersuchung läuft (unerfahrene Diagnose).</div>' : ''}
       ${(() => { const wr = OrderSystem.waitReason(game.ctx, o); return wr ? `<div class="card compact warn-card wait-card">⏳ ${esc(wr)}</div>` : ''; })()}
       <div class="meta">${dueLabel(o, s.totalMinutes)}${worker ? ` · Mitarbeiter: ${esc(worker.name)}` : ''}</div>
     </div>`;
@@ -1243,8 +1246,8 @@ export class UI {
       html += `<div class="card warn-card wait-card">
         <div class="card-title">⚠️ Kunde droht, das Angebot abzulehnen</div>
         <div class="meta">Angebot: <strong>${eur(o.estimateCents ?? 0)}</strong> · Budget des Kunden: ${eur(o.budgetCents)}${o.discountPct > 0 ? ` · bisheriger Rabatt: ${o.discountPct} %` : ''}</div>
-        <div class="meta">Kundenhistorie: ${history.length === 0 ? 'Neukunde (keine vergangenen Aufträge)' : `${history.length} Aufträge · Umsatz ${eur(histRevenue)} · Ø Zufriedenheit ${avgSat}%`}${(c?.visits ?? 0) >= 2 ? ' · Stammkunde – Rabatt empfohlen' : ''}</div>
-        <div class="meta">Ohne Reaktion entscheidet sich der Kunde in ${minsLeft} Spielminuten gegen die Werkstatt.</div>
+        <div class="meta">Kundenhistorie: ${history.length === 0 ? 'Neukunde' : `${history.length} Aufträge · Umsatz ${eur(histRevenue)} · Ø Zufriedenheit ${avgSat}%`}${(c?.visits ?? 0) >= 2 ? ' · Stammkunde – Rabatt empfohlen' : ''}</div>
+        <div class="meta">Kunde entscheidet in ${minsLeft} min – ohne Reaktion: Ablehnung.</div>
         <div class="btn-row">
           <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="5">5 %</button>
           <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="10">10 %</button>
@@ -1270,7 +1273,7 @@ export class UI {
       if (b.discount > 0) html += `<tr><td>Rabatt${o.discountPct > 0 ? ` (${o.discountPct} %)` : ''}</td><td class="num">–</td><td class="num neg">−${eur(b.discount)}</td></tr>`;
       html += `<tr><td><strong>Summe</strong></td><td class="num"><strong>${eur(b.cost)}</strong></td><td class="num"><strong>${eur(b.revenue)}</strong></td></tr>`;
       html += `</tbody></table>
-        <div class="meta">Gewinn: <strong class="${b.profit >= 0 ? 'pos' : 'neg'}">${eur(b.profit)}</strong> (${b.revenue > 0 ? Math.round((b.profit / b.revenue) * 100) : 0} % Marge) · Lohnkosten anteilig aus Tagesgehältern</div>
+        <div class="meta">Gewinn: <strong class="${b.profit >= 0 ? 'pos' : 'neg'}">${eur(b.profit)}</strong> (${b.revenue > 0 ? Math.round((b.profit / b.revenue) * 100) : 0} % Marge) <button type="button" class="help" data-help="Kosten = Material-EK + anteilige Lohnkosten (Tagesgehälter auf die Arbeitszeit umgelegt). Erlös = Rechnung bzw. Kostenvoranschlag. Gewinn = Erlös − Kosten.">?</button></div>
       </div>`;
       html += `<h3 class="section">Erkannte Defekte & Reparaturen</h3>`;
       for (const j of o.jobs) {
@@ -1293,7 +1296,7 @@ export class UI {
         html += `<div class="card compact ${ok ? '' : 'warn-card'}">${n.quantity}× ${esc(p.name)} ${o.partsAtBay ? '· am Arbeitsplatz' : o.partsReserved ? '· reserviert' : ok ? '· auf Lager' : `· <strong>fehlt</strong> (verfügbar: ${avail})`}</div>`;
       }
       if (o.status === 'waiting_for_parts') {
-        html += `<div class="btn-row"><button class="btn warn" data-action="order-missing" data-id="${o.id}">Teile im Lager bestellen</button></div>`;
+        html += `<div class="btn-row"><button class="btn warn" data-action="order-missing" data-id="${o.id}">Fehlende Teile bestellen</button></div>`;
       }
       html += `<div class="card compact">
         ${o.estimateCents !== null ? `<div class="meta">Kostenvoranschlag: <strong>${eur(o.estimateCents)}</strong></div>` : ''}
@@ -1304,7 +1307,7 @@ export class UI {
         <div class="meta muted">Tatsächliche Arbeitszeit: ${Math.round(o.laborMinutesActual)} min</div>
       </div>`;
     } else {
-      html += `<p class="empty">Defekte unbekannt. Nach der Annahme führt ein Mitarbeiter die Diagnose durch.</p>`;
+      html += `<p class="empty">Defekte unbekannt – Diagnose nach Annahme.</p>`;
     }
     const cancellable = o.status !== 'delivered' && o.status !== 'cancelled' && o.status !== 'completed' && o.status !== 'incoming';
     html += `<div class="btn-row">
