@@ -25,7 +25,8 @@ Du führst eine Kfz-Werkstatt: Aufträge annehmen, Mitarbeiter diagnostizieren u
 - 10 Fahrzeugmodelle, 23 datengetriebene Reparaturen, 23 Ersatzteile
 - Diagnosesystem: Kundenmeldung ≠ tatsächliche Ursache
 - Kostenvoranschläge mit Kundenfreigabe nach Budget und Kundenprofil
-- Lager mit Reservierungen, drei Lieferanten (Standard / Express / Budget), **Auto-Nachbestellung** unter Mindestmenge (Lager als Modal)
+- Lager mit Reservierungen, drei Lieferanten (Standard / Express / Budget), **Auto-Nachbestellung** unter Mindestmenge (Lager als Modal), „Alle Auto AN/AUS"
+- **Lager-Verbrauchsstatistik**: Spalten 24h/48h zeigen den Teileverbrauch je Artikel; Legende erklärt Markierungen (gelb = Bestand ≤ Mindestbestand)
 - **Personalverwaltung**: Kandidaten einstellen/entlassen (max. 6), **Weiterbildung** (+5 Skill für 150 €, 2 h)
 - **Erweiterte Diagnosen**: unerfahrene Diagnostiker brauchen ggf. eine Nachuntersuchung
 - **Spezialwerkzeuge** (Ausbau): Federspanner, Steuerzeiten-Werkzeug, Klimastation, Getriebeheber – bestimmte Reparaturen brauchen sie
@@ -44,8 +45,8 @@ Du führst eine Kfz-Werkstatt: Aufträge annehmen, Mitarbeiter diagnostizieren u
 - **Diagnose-Vorbereitung**: der beste Diagnostiker wartet an der Diagnose, wenn ein Fahrzeug auf Anfahrt ist
 - Finanzsystem in Cent-Beträgen mit Doppelbuchungsschutz, Gehältern, Fixkosten, Dashboard mit Tagesübersicht
 - Reputation, Kundenzufriedenheit, Terminplanung
-- Ausbau: dritte Hebebühne, zweiter Diagnoseplatz, Lagererweiterung
-- Pause / 1× / 2× / 4× / 8×, Autosave, Savegame-Export/-Import, versionierte Migrationen
+- Ausbau: bis zu 4 Hebebühnen und 3 Diagnoseplätze, 8 Längs-Parkplätze (3 Start), Lagererweiterung, Spezialwerkzeuge
+- Pause / 1× / 2× / 4× / 8× / 16× (nachts automatisch 16×), Autosave, Savegame-Export/-Import, versionierte Migrationen
 
 ## Architektur
 
