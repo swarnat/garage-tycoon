@@ -195,7 +195,7 @@ export class WorkerSystem {
         const min = state.inventory.minStock[n.partId] ?? 0;
         if (stock <= min) {
           const p = ctx.defs.parts.find((x) => x.id === n.partId);
-          notify(ctx, 'warning', `Lagerbestand niedrig: ${p?.name ?? n.partId} (${stock} Stück)`);
+          notify(ctx, 'warning', `Lagerbestand niedrig: ${p?.name ?? n.partId} (${stock} Stück)`, n.partId);
           ctx.bus.emit('parts:low', n.partId);
         }
       }

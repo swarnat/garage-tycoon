@@ -375,6 +375,18 @@ export class UI {
     this.refresh(true);
   }
 
+  /** Öffnet das Lager direkt bei der Variante eines Teils (Kategorie + Highlight). */
+  openInventoryForPart(partId: string): void {
+    const part = this.getGame().defs.parts.find((p) => p.id === partId);
+    if (part) this.invCategory = part.category;
+    this.invSearch = '';
+    this.modalKind = 'inventory';
+    this.modalOpen = true;
+    this.modalMinimized = false;
+    this.highlightParts = new Set([partId]);
+    this.refresh(true);
+  }
+
   /** Hinweis-Modal: Reparatur braucht ein Spezialwerkzeug, das noch fehlt. */
   showToolPrompt(orderId: string): void {
     this.pauseForModal();
@@ -485,6 +497,7 @@ export class UI {
         }
         break;
       case 'open-event': this.showEventPrompt(); break;
+      case 'open-inv-part': this.openInventoryForPart(btn.dataset.part ?? ''); break;
       case 'choose-event': this.actions.chooseEvent(id); break;
       case 'dismiss-summary': this.actions.dismissSummary(); break;
       case 'set-marketing': this.actions.setMarketing(Number(id)); break;
@@ -797,6 +810,12 @@ export class UI {
     return html;
   }
 
+  /** Nach Reset/Import: Toast-Baseline zurücksetzen, damit neue Meldungen erscheinen. */
+  resetToastBaseline(): void {
+    this.lastToastId = 0;
+    this.toastHost.innerHTML = '';
+  }
+
   private updateToasts(): void {
     const s = this.getGame().state;
     const fresh = s.notifications.filter((n) => n.id > this.lastToastId);
@@ -804,7 +823,8 @@ export class UI {
       this.lastToastId = Math.max(this.lastToastId, n.id);
       const div = document.createElement('div');
       div.className = `toast toast-${n.kind}`;
-      div.innerHTML = `<span>${esc(n.text)}</span><button class="toast-close" data-action="close-toast" title="Schließen">✕</button>`;
+      const link = n.partId ? `<button class="toast-link" data-action="open-inv-part" data-part="${n.partId}">Lagereintrag öffnen</button>` : '';
+      div.innerHTML = `<span>${esc(n.text)}</span>${link}<button class="toast-close" data-action="close-toast" title="Schließen">✕</button>`;
       this.toastHost.appendChild(div);
       setTimeout(() => div.classList.add('show'), 10);
       setTimeout(() => {
@@ -1059,6 +1079,12 @@ export class UI {
       <button type="button" class="help" data-help="Auto-Nachbestellung pro Variante: Fällt der verfügbare Bestand (Lager minus Reservierungen) unter den Mindestbestand, wird automatisch die Differenz beim gewählten Lieferanten bestellt. Zielbestand = Mindestbestand.">?</button>
     </div>`;
     html += `<div class="meta muted legend"><span class="legend-low">Gelb</span> = ≤ Mindestbestand · 🐌 Ladenhüter · 🚚 offene Lieferung <button type="button" class="help" data-help="Dunkler Hintergrund: Teil wird für einen ausgewählten Auftrag gebraucht. Ladenhüter: Bestand > 0, kein Verbrauch in 48 h, letzte Bestellung > 3 Tage her (Verkauf zu 60 % Marktpreis möglich). Ausgeblendet werden Varianten mit Bestand 0, Min 0 und keiner offenen Bestellung – über Suche oder „Alle Varianten" einblenden und mit 📌 dauerhaft sichtbar machen. 24h/48h = Verbrauch durch Reparaturen.">?</button></div>`;
+    const sup = game.defs.suppliers.find((x) => x.id === this.supplierId) ?? game.defs.suppliers[0]!;
+    html += `<div class="btn-row"><span class="muted">Bestell-Lieferant (manuell):</span>
+      ${game.defs.suppliers.map((x) => `<button class="btn small ${this.supplierId === x.id ? 'primary' : ''}" data-action="supplier" data-id="${x.id}" title="Lieferzeit ${(x.leadMinutes / 60).toFixed(0)} h · Preisfaktor ${x.priceFactor} · Versand ${eur(x.shippingCents)}">${esc(x.name)}</button>`).join('')}
+      <span class="muted">⏱ ${(sup.leadMinutes / 60).toFixed(0)} h · ${sup.priceFactor}× Preis</span>
+      <button type="button" class="help" data-help="Lieferant für manuelle Bestellungen (+1/+5). ExpressParts liefert in 1 h (35 % Aufpreis), TeileProfi in 8 h, BudgetTeile in 24 h (15 % Rabatt). Gilt nicht für die Auto-Nachbestellung – die hat ihren eigenen Lieferanten oben.">?</button>
+    </div>`;
     html += `<div class="inv-layout"><div class="inv-cats">`;
     for (const cat of game.defs.categories) {
       const vars = game.defs.parts.filter((p) => p.category === cat.id);
@@ -1338,7 +1364,8 @@ export class UI {
     let html = `<div class="drawer-head"><h2>Meldungen</h2></div>`;
     if (s.notifications.length === 0) html += `<p class="empty">Noch keine Meldungen.</p>`;
     for (const n of [...s.notifications].reverse()) {
-      html += `<div class="card compact msg-${n.kind}"><span class="muted">${gameTime(n.atMinute)}</span> ${esc(n.text)}</div>`;
+      const link = n.partId ? ` <button class="btn small" data-action="open-inv-part" data-part="${n.partId}">Lagereintrag öffnen</button>` : '';
+      html += `<div class="card compact msg-${n.kind}"><span class="muted">${gameTime(n.atMinute)}</span> ${esc(n.text)}${link}</div>`;
     }
     return html;
   }

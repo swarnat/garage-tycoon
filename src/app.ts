@@ -72,6 +72,7 @@ function replaceGame(next: Game, message: string): void {
   renderer.resetCamera();
   renderer.setSelection(null);
   sound.enabled = game.state.soundEnabled;
+  ui.resetToastBaseline();
   ui.openPanel('orders');
   notify(game.ctx, 'info', message);
   saveNow();

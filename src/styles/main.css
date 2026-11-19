@@ -157,6 +157,10 @@ body {
 .summary-grid strong { font-size: 18px; }
 .summary-grid .pos { color: var(--pos); }
 .summary-grid .neg { color: var(--neg); }
+.toast-link {
+  background: none; border: none; color: var(--accent); cursor: pointer;
+  font-size: 12px; font-weight: 700; text-decoration: underline; padding: 0 6px;
+}
 
 .btn-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .btn {

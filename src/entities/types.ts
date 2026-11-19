@@ -297,6 +297,8 @@ export interface GameNotification {
   atMinute: number;
   kind: 'info' | 'success' | 'warning' | 'danger';
   text: string;
+  /** Optional: Bezug zu einer Teile-Variante (Lagereintrag-Link). */
+  partId?: string;
 }
 
 export interface Loan {
