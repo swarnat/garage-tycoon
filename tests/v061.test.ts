@@ -181,17 +181,28 @@ describe('Verzögerte Abholung durch den Kunden', () => {
   it('ohne freien Parkplatz blockiert das Fahrzeug die Bühne (Kapazitätsplanung)', () => {
     const game = Game.new(1041);
     stockEverything(game);
-    // Alle Parkplätze belegen
-    const parks = game.state.stations.filter((s) => s.kind === 'parking' && s.unlocked);
-    for (const p of parks) p.orderId = 'blocker';
+    game.state.inventory.capacity = 1000;
+    game.state.nextOrderAttemptAtMinute = 999999;
+    // Drei Aufträge fertigstellen und auf dem Parkplatz abholen lassen
+    const parked: ReturnType<typeof accept>[] = [];
+    for (let i = 0; i < 3; i++) {
+      const o = accept(game);
+      const ov = game.state.vehicles.find((x) => x.id === o.vehicleId)!;
+      runUntil(game, () => o.status === 'completed' && ov.state === 'waiting_pickup', 2 * 1440);
+      expect(ov.state).toBe('waiting_pickup');
+      o.pickupAtMinute = game.state.totalMinutes + 99999; // bleiben geparkt
+      parked.push(o);
+    }
+    // Vierter Auftrag: kein Parkplatz frei → blockiert die Bühne
     const offer = accept(game);
-    runUntil(game, () => offer.status === 'completed', 4 * 1440);
+    runUntil(game, () => offer.status === 'completed', 2 * 1440);
     const v = game.state.vehicles.find((x) => x.id === offer.vehicleId)!;
     expect(['at_lift', 'at_diagnosis']).toContain(v.state);
     const reason = OrderSystem.waitReason(game.ctx, offer);
     expect(reason).toContain('Parkplatz');
-    // Parkplatz frei machen → Fahrzeug rollt raus auf den Parkplatz
-    parks[0]!.orderId = null;
+    // Ein Kunde holt ab → Parkplatz frei → Fahrzeug rollt raus
+    parked[0]!.pickupAtMinute = game.state.totalMinutes;
+    game.tick(10);
     game.tick(5);
     expect(v.state === 'driving_in' || v.state === 'waiting_pickup').toBe(true);
   });

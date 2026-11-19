@@ -55,6 +55,7 @@ export class OrderSystem {
 
   static update(ctx: SimContext): void {
     const { state } = ctx;
+    OrderSystem.reconcileParking(ctx);
     for (const order of [...state.orders]) {
       switch (order.status) {
         case 'incoming':
@@ -299,6 +300,8 @@ export class OrderSystem {
     if (!lift) return;
     const old = order.stationId ? stationById(state, order.stationId) : null;
     if (old) old.orderId = null;
+    // Stand das Fahrzeug auf einem Parkplatz, wird der Platz jetzt frei
+    const parkId = v.targetStationId;
     lift.orderId = order.id;
     order.stationId = lift.id;
     v.state = 'driving_to_lift';
@@ -308,6 +311,27 @@ export class OrderSystem {
       order.stationId = old ? old.id : null;
       if (old) old.orderId = order.id;
       v.state = old?.kind === 'diagnosis' ? 'at_diagnosis' : 'waiting';
+    } else if (parkId) {
+      const ps = stationById(state, parkId);
+      if (ps.kind === 'parking') ps.orderId = null;
+    }
+  }
+
+  /** Bereinigt Parkplatz-Belegungen, deren Auftrag/Fahrzeug nicht mehr dort ist. */
+  static reconcileParking(ctx: SimContext): void {
+    const { state } = ctx;
+    for (const park of state.stations) {
+      if (park.kind !== 'parking' || park.orderId === null) continue;
+      const order = state.orders.find((o) => o.id === park.orderId);
+      if (!order || order.status === 'delivered' || order.status === 'cancelled') {
+        park.orderId = null;
+        continue;
+      }
+      const v = vehicleById(state, order.vehicleId);
+      const valid =
+        v.targetStationId === park.id &&
+        (v.state === 'waiting' || v.state === 'waiting_pickup' || v.state === 'driving_in');
+      if (!valid) park.orderId = null;
     }
   }
 
@@ -461,6 +485,10 @@ export class OrderSystem {
     }
     const v = state.vehicles.find((x) => x.id === order.vehicleId);
     if (v) {
+      if (v.targetStationId) {
+        const ps = stationById(state, v.targetStationId);
+        if (ps.kind === 'parking') ps.orderId = null;
+      }
       if (v.state === 'incoming') {
         v.state = 'gone';
       } else if (v.state !== 'gone' && v.state !== 'driving_out') {
