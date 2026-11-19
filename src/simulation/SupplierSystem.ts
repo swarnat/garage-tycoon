@@ -10,6 +10,7 @@ export class SupplierSystem {
     partId: string,
     quantity: number,
     supplierId: string,
+    auto = false,
   ): boolean {
     const part = ctx.defs.parts.find((p) => p.id === partId);
     const supplier = ctx.defs.suppliers.find((s) => s.id === supplierId);
@@ -20,14 +21,14 @@ export class SupplierSystem {
       Math.round(part.buyCents * supplier.priceFactor) * quantity +
       supplier.shippingCents;
     if (ctx.state.economy.balanceCents < cost) {
-      notify(ctx, 'danger', `Bestellung ${part.name}: Kontostand reicht nicht.`);
+      if (!auto) notify(ctx, 'danger', `Bestellung ${part.name}: Kontostand reicht nicht.`);
       return false;
     }
     if (
       InventorySystem.totalStock(ctx.state.inventory) + quantity >
       ctx.state.inventory.capacity
     ) {
-      notify(ctx, 'warning', `Lager voll: ${part.name} passt nicht mehr ins Lager.`);
+      if (!auto) notify(ctx, 'warning', `Lager voll: ${part.name} passt nicht mehr ins Lager.`);
       return false;
     }
     const id = `po-${ctx.state.nextId++}`;
@@ -54,7 +55,7 @@ export class SupplierSystem {
     notify(
       ctx,
       'info',
-      `Bestellt: ${quantity}× ${part.name} bei ${supplier.name} (Lieferung in ${Math.round(supplier.leadMinutes / 60)} h, ${(cost / 100).toFixed(2)} €)`,
+      `${auto ? 'Auto-Bestellung' : 'Bestellt'}: ${quantity}× ${part.name} bei ${supplier.name} (Lieferung in ${Math.round(supplier.leadMinutes / 60)} h, ${(cost / 100).toFixed(2)} €)`,
     );
     return true;
   }

@@ -37,7 +37,7 @@ export function validateState(raw: unknown): asserts raw is GameState {
     }
   }
   if ((s.totalMinutes as number) < 0) fail('Spielzeit ist negativ');
-  for (const k of ['workers', 'vehicles', 'orders', 'customers', 'deliveries', 'stations', 'notifications']) {
+  for (const k of ['workers', 'vehicles', 'orders', 'customers', 'deliveries', 'stations', 'notifications', 'candidates']) {
     if (!Array.isArray(s[k])) fail(`Feld ${k} ist kein Array`);
   }
   const eco = s.economy;

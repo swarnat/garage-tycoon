@@ -33,6 +33,12 @@ export interface UIActions {
   setPartsMarkup(v: number): void;
   setMinStock(partId: string, v: number): void;
   resetCamera(): void;
+  hireCandidate(id: string): void;
+  fireWorker(id: string): void;
+  trainWorker(id: string, skill: string): void;
+  refreshCandidates(): void;
+  toggleAuto(partId: string): void;
+  setAutoSupplier(id: string): void;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -59,6 +65,7 @@ const WORKER_STATE_LABELS: Record<string, string> = {
   quality_check: 'Qualitätskontrolle',
   waiting: 'Wartet',
   break: 'Pause',
+  training: 'Weiterbildung',
   off_duty: 'Feierabend',
 };
 
@@ -126,6 +133,7 @@ export class UI {
   private selection: Selection | null = null;
   private supplierId = 'teileprofi';
   private highlightParts = new Set<string>();
+  private modalOpen = false;
   private lastRefresh = 0;
   private lastToastId = 0;
   private toastHost!: HTMLElement;
@@ -174,6 +182,12 @@ export class UI {
         <aside id="drawer"></aside>
       </div>
       <div id="toasts"></div>
+      <div id="modal-backdrop" class="hidden">
+        <div id="modal">
+          <div class="modal-head"><h2>Ersatzteillager</h2><button class="btn small" data-action="close-modal">✕ Schließen</button></div>
+          <div id="modal-body"></div>
+        </div>
+      </div>
       <input type="file" id="import-file" accept="application/json,.json" hidden>
     `;
     this.drawer = this.root.querySelector('#drawer') as HTMLElement;
@@ -197,12 +211,19 @@ export class UI {
     this.panel = p;
     this.selection = null;
     this.highlightParts.clear();
+    this.modalOpen = p === 'inventory';
+    this.refresh(true);
+  }
+
+  closeModal(): void {
+    this.modalOpen = false;
     this.refresh(true);
   }
 
   openInventoryForParts(partIds: string[]): void {
     this.panel = 'inventory';
     this.selection = null;
+    this.modalOpen = true;
     this.highlightParts = new Set(partIds);
     this.refresh(true);
   }
@@ -220,6 +241,10 @@ export class UI {
 
   private onClick(e: Event): void {
     const target = e.target as HTMLElement;
+    if (target.id === 'modal-backdrop') {
+      this.closeModal();
+      return;
+    }
     const btn = target.closest('[data-panel],[data-speed],[data-action]') as HTMLElement | null;
     if (!btn) return;
     if (btn.dataset.panel) {
@@ -248,6 +273,13 @@ export class UI {
         break;
       }
       case 'supplier': this.supplierId = id; this.refresh(true); break;
+      case 'close-modal': this.closeModal(); break;
+      case 'toggle-auto': this.actions.toggleAuto(btn.dataset.part ?? ''); break;
+      case 'auto-supplier': this.actions.setAutoSupplier(id); break;
+      case 'hire': this.actions.hireCandidate(id); break;
+      case 'fire': this.actions.fireWorker(id); break;
+      case 'train': this.actions.trainWorker(id, btn.dataset.skill ?? ''); break;
+      case 'refresh-candidates': this.actions.refreshCandidates(); break;
       case 'order-missing': {
         const order = this.getGame().state.orders.find((o) => o.id === id);
         if (order) {
@@ -306,17 +338,27 @@ export class UI {
     }
     for (const b of this.root.querySelectorAll('#nav button')) {
       const el = b as HTMLElement;
-      el.classList.toggle('active', el.dataset.panel === this.panel && !this.selection);
+      el.classList.toggle('active', el.dataset.panel === this.panel && !this.selection && (el.dataset.panel !== 'inventory' || this.modalOpen));
+    }
+    // Modal (Lager) aktualisieren
+    const backdrop = this.root.querySelector('#modal-backdrop') as HTMLElement;
+    const modalBody = this.root.querySelector('#modal-body') as HTMLElement;
+    backdrop.classList.toggle('hidden', !this.modalOpen);
+    const activeEl = document.activeElement;
+    const editingModal =
+      activeEl && modalBody.contains(activeEl) &&
+      (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
+    if (this.modalOpen && !editingModal) {
+      modalBody.innerHTML = this.renderInventory();
     }
     // Drawer nur neu aufbauen, wenn kein Eingabefeld fokussiert ist
-    const activeEl = document.activeElement;
     const editing =
       activeEl &&
       this.drawer.contains(activeEl) &&
       (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
     if (!editing) {
-      this.drawer.innerHTML = this.renderDrawer();
-      this.drawer.classList.toggle('hidden', this.panel === 'workshop' && !this.selection);
+      this.drawer.innerHTML = this.selection || !this.modalOpen ? this.renderDrawer() : '';
+      this.drawer.classList.toggle('hidden', this.modalOpen || (this.panel === 'workshop' && !this.selection));
     }
     this.updateToasts();
   }
@@ -420,12 +462,24 @@ export class UI {
   }
 
   private renderWorkers(): string {
-    const s = this.getGame().state;
+    const game = this.getGame();
+    const s = game.state;
     let html = `<div class="drawer-head"><h2>Mitarbeiter</h2></div>`;
     for (const w of s.workers) {
       html += this.workerCard(w, false);
     }
-    html += `<p class="empty">Schichtzeit: 08:00–18:00. Gehälter werden täglich verbucht. Mitarbeiter wählen Aufgaben automatisch nach Qualifikation, Priorität und Termin.</p>`;
+    html += `<p class="empty">Schichtzeit: 08:00–18:00. Gehälter werden täglich verbucht. Aufgaben werden automatisch nach Qualifikation, Priorität und Termin verteilt. Klick auf einen Mitarbeiter für Details und Weiterbildung.</p>`;
+    html += `<h3 class="section">Kandidaten (${s.candidates.length})</h3>`;
+    html += `<div class="btn-row"><button class="btn small" data-action="refresh-candidates">Neue Kandidaten anzeigen</button><span class="muted">Pool erneuert sich täglich · max. 6 Mitarbeiter</span></div>`;
+    for (const c of s.candidates) {
+      const top = Object.entries(c.skills).sort((a, b) => b[1] - a[1]).slice(0, 3);
+      html += `<div class="card">
+        <div class="card-title">${esc(c.name)}</div>
+        <div class="meta">Stärken: ${top.map(([sk, v]) => `${SKILL_LABELS[sk] ?? sk} ${v}`).join(' · ')}</div>
+        <div class="meta">Gehalt: ${eur(c.salaryCentsPerDay)}/Tag · Einstellungsgebühr: ${eur(c.hiringFeeCents)}</div>
+        <div class="btn-row"><button class="btn primary" data-action="hire" data-id="${c.id}" ${s.workers.length >= 6 ? 'disabled' : ''}>Einstellen</button></div>
+      </div>`;
+    }
     return html;
   }
 
@@ -436,17 +490,22 @@ export class UI {
     let html = `
       <div class="card ${detailed ? '' : 'order-row'}" ${detailed ? '' : `data-action="select-worker" data-id="${w.id}"`}>
         <div class="card-title">${esc(w.name)} <span class="chip st-${w.state}">${WORKER_STATE_LABELS[w.state] ?? w.state}</span></div>
-        <div class="meta">${order ? `Auftrag ${order.id}` : 'Keine Aufgabe'} · Auslastung ${utilization}% · ${eur(w.salaryCentsPerDay)}/Tag</div>`;
+        <div class="meta">${order ? `Auftrag ${order.id}` : w.trainingMinutes > 0 ? `Weiterbildung: noch ${Math.ceil(w.trainingMinutes)} min` : 'Keine Aufgabe'} · Auslastung ${utilization}% · ${eur(w.salaryCentsPerDay)}/Tag</div>`;
     if (detailed) {
       html += `<div class="skills">`;
+      const busy = !!w.task || w.trainingMinutes > 0;
       for (const [skill, label] of Object.entries(SKILL_LABELS)) {
         const val = w.skills[skill as keyof Worker['skills']];
-        html += `<div class="skill-row"><span>${label}</span><div class="bar"><div style="width:${val}%"></div></div><span class="num">${val}</span></div>`;
+        html += `<div class="skill-row"><span>${label}</span><div class="bar"><div style="width:${val}%"></div></div><span class="num">${val}</span>
+          <button class="btn small" data-action="train" data-id="${w.id}" data-skill="${skill}" ${busy || val >= 100 ? 'disabled' : ''} title="Weiterbildung: +5 für 150 €, dauert 2 h">+5</button></div>`;
       }
-      html += `</div>`;
+      html += `</div><div class="meta muted">Weiterbildung: +5 Punkte für 150 €, Mitarbeiter ist 2 h nicht einsetzbar.</div>`;
       if (w.task) {
         html += `<div class="meta">Aktivität: ${WORKER_STATE_LABELS[w.state]} · Schritt verbleibend ca. ${Math.ceil(w.task.remainingMinutes)} Spielminuten</div>`;
       }
+      html += `<div class="btn-row"><button class="btn danger" data-action="fire" data-id="${w.id}" ${s.workers.length <= 1 ? 'disabled' : ''}>Entlassen (Abfindung: 1 Tagesgehalt)</button></div>`;
+    } else {
+      html += `<div class="btn-row"><button class="btn small danger" data-action="fire" data-id="${w.id}" ${s.workers.length <= 1 ? 'disabled' : ''}>Entlassen</button></div>`;
     }
     html += `</div>`;
     return html;
@@ -460,21 +519,27 @@ export class UI {
     let html = `<div class="drawer-head"><h2>Ersatzteillager</h2></div>`;
     html += `<div class="meta">Kapazität: ${total} / ${inv.capacity} Teile</div>
       <div class="bar capacity"><div style="width:${Math.min(100, (total / inv.capacity) * 100)}%"></div></div>`;
-    html += `<div class="supplier-row">Lieferant:
+    html += `<div class="supplier-row">Lieferant (manuell):
       ${game.defs.suppliers.map((sup) => `<button class="btn small ${this.supplierId === sup.id ? 'primary' : ''}" data-action="supplier" data-id="${sup.id}">${esc(sup.name)} (${Math.round(sup.leadMinutes / 60)} h, +${Math.round((sup.priceFactor - 1) * 100)}%)</button>`).join('')}
     </div>`;
-    html += `<table class="parts-table"><thead><tr><th>Teil</th><th>Bestand</th><th>Reserv.</th><th>Min</th><th>EK</th><th>VK</th><th>Bestellen</th></tr></thead><tbody>`;
+    html += `<div class="supplier-row">Auto-Nachbestellung bei ≤ Mindestmenge → Lieferant:
+      ${game.defs.suppliers.map((sup) => `<button class="btn small ${inv.autoSupplierId === sup.id ? 'primary' : ''}" data-action="auto-supplier" data-id="${sup.id}">${esc(sup.name)}</button>`).join('')}
+      <span class="muted">Zielbestand: 2× Mindestmenge</span>
+    </div>`;
+    html += `<table class="parts-table"><thead><tr><th>Teil</th><th>Bestand</th><th>Reserv.</th><th>Min</th><th>Auto</th><th>EK</th><th>VK</th><th>Bestellen</th></tr></thead><tbody>`;
     for (const p of game.defs.parts) {
       const stock = inv.stock[p.id] ?? 0;
       const reserved = inv.reserved[p.id] ?? 0;
       const min = inv.minStock[p.id] ?? 0;
       const low = stock <= min;
       const highlight = this.highlightParts.has(p.id);
+      const auto = !!inv.autoReorder[p.id];
       html += `<tr class="${highlight ? 'highlight' : ''} ${low ? 'low' : ''}">
         <td>${esc(p.name)}</td>
         <td class="num">${stock}</td>
         <td class="num">${reserved}</td>
         <td><input class="min-input" type="number" min="0" max="20" value="${min}" data-field="minstock" data-part="${p.id}"></td>
+        <td><button class="btn small ${auto ? 'primary' : ''}" data-action="toggle-auto" data-part="${p.id}" title="Automatisch nachbestellen">${auto ? 'AN' : 'AUS'}</button></td>
         <td class="num">${eur(p.buyCents)}</td>
         <td class="num">${eur(EconomySystem.sellPrice(p.buyCents, s.economy.partsMarkupPct))}</td>
         <td class="btn-cell">
@@ -542,6 +607,16 @@ export class UI {
       const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * 260},${60 - ((v - min) / range) * 56}`).join(' ');
       html += `<h3 class="section">Kontostand-Verlauf</h3>
         <svg class="sparkline" viewBox="0 0 260 64" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="#f5a623" stroke-width="2"/></svg>`;
+    }
+    const lastDays = s.economy.daily.slice(-7).reverse();
+    if (lastDays.length > 0) {
+      html += `<h3 class="section">Letzte Tage</h3><table class="parts-table"><thead><tr><th>Tag</th><th>Umsatz</th><th>Kosten</th><th>Ergebnis</th></tr></thead><tbody>`;
+      for (const d of lastDays) {
+        const costs = d.partsCostCents + d.salaryCents + d.fixedCostCents;
+        const result = d.revenueCents - costs;
+        html += `<tr><td>${d.day}</td><td class="num pos">${eur(d.revenueCents)}</td><td class="num neg">${eur(costs)}</td><td class="num ${result >= 0 ? 'pos' : 'neg'}">${eur(result)}</td></tr>`;
+      }
+      html += `</tbody></table>`;
     }
     html += `<h3 class="section">Letzte Buchungen</h3><div class="tx-list">`;
     for (const t of [...s.economy.transactions].slice(-14).reverse()) {

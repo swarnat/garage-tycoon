@@ -1,6 +1,9 @@
 import type { InventoryState, PartNeed } from '../entities/types';
+import type { SimContext } from './context';
+import { notify } from './context';
+import { SupplierSystem } from './SupplierSystem';
 
-/** Lagerbestand, Reservierungen und Verbrauch. Alles-oder-nichts-Prinzip. */
+/** Lagerbestand, Reservierungen, Verbrauch und automatische Nachbestellung. */
 export class InventorySystem {
   static available(inv: InventoryState, partId: string): number {
     return (inv.stock[partId] ?? 0) - (inv.reserved[partId] ?? 0);
@@ -42,6 +45,37 @@ export class InventorySystem {
     for (const n of needs) {
       inv.stock[n.partId] = (inv.stock[n.partId] ?? 0) - n.quantity;
       inv.reserved[n.partId] = (inv.reserved[n.partId] ?? 0) - n.quantity;
+    }
+  }
+
+  /**
+   * Stündliche Prüfung: Auto-Nachbestellung auf 2× Mindestmenge,
+   * wenn verfügbarer Bestand (ohne Reservierungen) <= Mindestmenge
+   * und keine Lieferung des Teils offen ist.
+   */
+  static update(ctx: SimContext): void {
+    const s = ctx.state;
+    if (s.totalMinutes < s.nextAutoOrderCheckAtMinute) return;
+    s.nextAutoOrderCheckAtMinute = s.totalMinutes + 60;
+    const inv = s.inventory;
+    let failed = false;
+    for (const p of ctx.defs.parts) {
+      if (!inv.autoReorder[p.id]) continue;
+      const min = inv.minStock[p.id] ?? 0;
+      if (min <= 0) continue;
+      if (InventorySystem.available(inv, p.id) > min) continue;
+      if (s.deliveries.some((d) => !d.done && d.partId === p.id)) continue;
+      const qty = Math.max(1, min * 2 - (inv.stock[p.id] ?? 0));
+      if (!SupplierSystem.orderParts(ctx, p.id, qty, inv.autoSupplierId, true)) {
+        failed = true;
+      }
+    }
+    if (failed) {
+      notify(
+        ctx,
+        'warning',
+        'Auto-Bestellung fehlgeschlagen: Kontostand oder Lagerkapazität reicht nicht.',
+      );
     }
   }
 }

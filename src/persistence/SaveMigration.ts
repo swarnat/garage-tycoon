@@ -30,6 +30,30 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     version = 2;
     raw.version = version;
   }
+  if (version === 2) {
+    // v2 → v3: Auto-Nachbestellung, Kandidaten, Weiterbildung
+    version = 3;
+    raw.version = version;
+  }
+  // Idempotente Normalisierung neuer Felder (auch für aktuelle Version)
+  const inv = raw.inventory as Record<string, unknown> | undefined;
+  if (inv && typeof inv === 'object') {
+    if (typeof inv.autoReorder !== 'object' || inv.autoReorder === null) inv.autoReorder = {};
+    if (typeof inv.autoSupplierId !== 'string') inv.autoSupplierId = 'teileprofi';
+  }
+  if (!Array.isArray(raw.candidates)) raw.candidates = [];
+  if (typeof raw.nextAutoOrderCheckAtMinute !== 'number') {
+    raw.nextAutoOrderCheckAtMinute = (raw.totalMinutes as number) ?? 480;
+  }
+  if (typeof raw.lastCandidateRefreshDay !== 'number') {
+    raw.lastCandidateRefreshDay = Math.floor(((raw.totalMinutes as number) ?? 480) / 1440) + 1;
+  }
+  if (Array.isArray(raw.workers)) {
+    for (const w of raw.workers as Record<string, unknown>[]) {
+      if (typeof w.trainingMinutes !== 'number') w.trainingMinutes = 0;
+      if (w.pendingTraining === undefined) w.pendingTraining = null;
+    }
+  }
   if (version !== SAVE_VERSION) {
     throw new SaveError(`Keine Migration für Version ${version} verfügbar`);
   }

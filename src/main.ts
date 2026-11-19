@@ -112,6 +112,12 @@ const actions: UIActions = {
     game.state.inventory.minStock[partId] = Math.max(0, Math.min(20, Math.round(v)));
   },
   resetCamera: () => renderer.resetCamera(),
+  hireCandidate: (id) => { game.hireCandidate(id); },
+  fireWorker: (id) => { game.fireWorker(id); },
+  trainWorker: (id, skill) => { game.trainWorker(id, skill as Parameters<Game['trainWorker']>[1]); },
+  refreshCandidates: () => { game.refreshCandidates(); },
+  toggleAuto: (partId) => { game.toggleAutoReorder(partId); },
+  setAutoSupplier: (id) => { game.setAutoSupplier(id); },
 };
 
 function advanceSimulation(now: number): void {
@@ -174,7 +180,10 @@ async function boot(): Promise<void> {
     else if (e.key === '2') actions.setSpeed(2);
     else if (e.key === '3') actions.setSpeed(4);
     else if (e.key === '4') actions.setSpeed(8);
-    else if (e.key === 'Escape') actions.select(null);
+    else if (e.key === 'Escape') {
+      ui.closeModal();
+      actions.select(null);
+    }
   });
   window.addEventListener('beforeunload', () => {
     // Synchrone Notfallsicherung; beim nächsten Start wird der neuere

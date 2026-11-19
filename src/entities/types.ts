@@ -44,6 +44,7 @@ export type WorkerState =
   | 'quality_check'
   | 'waiting'
   | 'break'
+  | 'training'
   | 'off_duty';
 
 export type StationKind =
@@ -109,6 +110,11 @@ export interface WorkerTask {
   remainingMinutes: number;
 }
 
+export interface PendingTraining {
+  skill: SkillId;
+  amount: number;
+}
+
 export interface Worker {
   id: string;
   name: string;
@@ -124,6 +130,16 @@ export interface Worker {
   speedTilesPerMinute: number;
   workedMinutes: number;
   onDutyMinutes: number;
+  trainingMinutes: number;
+  pendingTraining: PendingTraining | null;
+}
+
+export interface Candidate {
+  id: string;
+  name: string;
+  skills: Record<SkillId, number>;
+  salaryCentsPerDay: number;
+  hiringFeeCents: number;
 }
 
 export interface RepairJob {
@@ -228,6 +244,8 @@ export interface InventoryState {
   reserved: Record<string, number>;
   minStock: Record<string, number>;
   capacity: number;
+  autoReorder: Record<string, boolean>;
+  autoSupplierId: string;
 }
 
 export interface GameNotification {
@@ -263,9 +281,12 @@ export interface GameState {
   inventory: InventoryState;
   deliveries: Delivery[];
   stations: Station[];
+  candidates: Candidate[];
   notifications: GameNotification[];
   statistics: GameStatistics;
   nextOrderAttemptAtMinute: number;
+  nextAutoOrderCheckAtMinute: number;
+  lastCandidateRefreshDay: number;
   nextId: number;
   nextNotificationId: number;
 }
@@ -321,7 +342,7 @@ export interface GameDefs {
   suppliers: SupplierDef[];
 }
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 export const MINUTES_PER_DAY = 1440;
 export const GAME_MINUTES_PER_REAL_SECOND = 6;
 export const SIM_STEP_MINUTES = 0.25;

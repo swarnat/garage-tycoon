@@ -6,6 +6,7 @@ import { OrderSystem } from './OrderSystem';
 import { DiagnosisSystem } from './DiagnosisSystem';
 import { RepairSystem } from './RepairSystem';
 import { InventorySystem } from './InventorySystem';
+import { SKILL_LABELS } from './PersonnelSystem';
 import { findPath } from '../world/Pathfinding';
 
 /** Bewegung entlang eines Tile-Pfads mit_fractionalem Fortschritt. */
@@ -49,6 +50,27 @@ export class WorkerSystem {
     for (const w of state.workers) {
       const onDuty = isOnDuty(state, w);
       if (onDuty) w.onDutyMinutes += dt;
+      // Weiterbildung: blockiert neue Aufgaben, zählt nur während der Schicht
+      if (w.trainingMinutes > 0) {
+        if (onDuty) {
+          w.state = 'training';
+          w.trainingMinutes -= dt;
+          if (w.trainingMinutes <= 0) {
+            w.trainingMinutes = 0;
+            if (w.pendingTraining) {
+              const t = w.pendingTraining;
+              w.skills[t.skill] = Math.min(100, w.skills[t.skill] + t.amount);
+              w.experience += 1;
+              notify(ctx, 'success', `${w.name}: Weiterbildung ${SKILL_LABELS[t.skill]} abgeschlossen (+${t.amount}).`);
+              w.pendingTraining = null;
+            }
+            w.state = 'idle';
+          }
+        } else {
+          w.state = 'off_duty';
+        }
+        continue;
+      }
       if (!onDuty && !w.task) {
         w.state = 'off_duty';
         continue;
@@ -166,7 +188,7 @@ export class WorkerSystem {
       .sort((a, b) => b.priority - a.priority || a.dueAtMinute - b.dueAtMinute);
 
     for (const w of state.workers) {
-      if (w.task || !isOnDuty(state, w) || w.state === 'off_duty') continue;
+      if (w.task || w.trainingMinutes > 0 || !isOnDuty(state, w) || w.state === 'off_duty') continue;
       for (const order of candidates) {
         if (order.assignedWorkerId) continue;
         if (order.status === 'repairing') {

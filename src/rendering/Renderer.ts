@@ -58,6 +58,7 @@ const STATE_COLORS: Record<string, number> = {
   quality_check: 0x9ccc65,
   waiting: 0x7d8aa0,
   break: 0x7d8aa0,
+  training: 0xb39ddb,
   off_duty: 0x4a5160,
 };
 

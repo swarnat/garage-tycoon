@@ -25,8 +25,9 @@ Du führst eine Kfz-Werkstatt: Aufträge annehmen, Mitarbeiter diagnostizieren u
 - 10 Fahrzeugmodelle, 23 datengetriebene Reparaturen, 23 Ersatzteile
 - Diagnosesystem: Kundenmeldung ≠ tatsächliche Ursache
 - Kostenvoranschläge mit Kundenfreigabe nach Budget und Kundenprofil
-- Lager mit Reservierungen, zwei Lieferanten (Standard / Express)
-- Finanzsystem in Cent-Beträgen mit Doppelbuchungsschutz, Gehältern, Fixkosten, Dashboard
+- Lager mit Reservierungen, zwei Lieferanten (Standard / Express), **Auto-Nachbestellung** unter Mindestmenge (Lager als Modal)
+- **Personalverwaltung**: Kandidaten einstellen/entlassen (max. 6), **Weiterbildung** (+5 Skill für 150 €, 2 h)
+- Finanzsystem in Cent-Beträgen mit Doppelbuchungsschutz, Gehältern, Fixkosten, Dashboard mit Tagesübersicht
 - Reputation, Kundenzufriedenheit, Terminplanung
 - Ausbau: dritte Hebebühne, Lagererweiterung
 - Pause / 1× / 2× / 4× / 8×, Autosave, Savegame-Export/-Import, versionierte Migrationen
@@ -45,7 +46,7 @@ Strikte Trennung von Simulation und Rendering:
 - `src/data/` – JSON-Definitionen (Fahrzeuge, Teile, Reparaturen, Lieferanten)
 - `tests/` – Vitest: Statusmaschine, Reservierungen, Buchungen, Determinismus, Save-Roundtrip u. v. m.
 
-Das vollständige Spielkonzept liegt in [`konzept.md`](konzept.md). Umgesetzt ist Phase 1 (spielbarer MVP).
+Das vollständige Spielkonzept liegt in [`konzept.md`](konzept.md). Umgesetzt sind Phase 1 (spielbarer MVP) und die Kernfeatures von Phase 2 (Personalrekrutierung, Weiterbildung, automatische Lagerbestellungen, detaillierte Finanzübersichten).
 
 ## Releases
 

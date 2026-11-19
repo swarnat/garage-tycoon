@@ -18,6 +18,9 @@ import { CustomerSystem } from '../simulation/CustomerSystem';
 import { WorkerSystem } from '../simulation/WorkerSystem';
 import { VehicleSystem } from '../simulation/VehicleSystem';
 import { SupplierSystem } from '../simulation/SupplierSystem';
+import { InventorySystem } from '../simulation/InventorySystem';
+import { PersonnelSystem } from '../simulation/PersonnelSystem';
+import type { SkillId } from '../entities/types';
 import { findPath } from '../world/Pathfinding';
 
 const INITIAL_STOCK: Record<string, number> = {
@@ -55,6 +58,8 @@ function startingWorker(
     speedTilesPerMinute: 0.35,
     workedMinutes: 0,
     onDutyMinutes: 0,
+    trainingMinutes: 0,
+    pendingTraining: null,
   };
 }
 
@@ -99,9 +104,17 @@ export function createNewGame(seed: number): GameState {
     vehicles: [],
     orders: [],
     customers: [],
-    inventory: { stock, reserved, minStock, capacity: 120 },
+    inventory: {
+      stock,
+      reserved,
+      minStock,
+      capacity: 120,
+      autoReorder: {},
+      autoSupplierId: 'teileprofi',
+    },
     deliveries: [],
     stations: TileMap.defaultStations(),
+    candidates: [],
     notifications: [],
     statistics: {
       ordersCompleted: 0,
@@ -114,6 +127,8 @@ export function createNewGame(seed: number): GameState {
       satisfactionSum: 0,
     },
     nextOrderAttemptAtMinute: 540,
+    nextAutoOrderCheckAtMinute: 540,
+    lastCandidateRefreshDay: 1,
     nextId: 1,
     nextNotificationId: 1,
   };
@@ -143,6 +158,7 @@ export class Game {
   static new(seed: number = Math.floor(Math.random() * 2 ** 31)): Game {
     const game = new Game(createNewGame(seed));
     CustomerSystem.generateOffer(game.ctx);
+    game.state.candidates = PersonnelSystem.generateCandidates(game.ctx);
     return game;
   }
 
@@ -178,6 +194,8 @@ export class Game {
     }
     const ctx = this.ctx;
     SupplierSystem.update(ctx);
+    InventorySystem.update(ctx);
+    PersonnelSystem.update(ctx);
     CustomerSystem.update(ctx);
     OrderSystem.update(ctx);
     WorkerSystem.update(ctx, dt);
@@ -244,6 +262,33 @@ export class Game {
 
   orderParts(partId: string, quantity: number, supplierId: string): boolean {
     return SupplierSystem.orderParts(this.ctx, partId, quantity, supplierId);
+  }
+
+  hireCandidate(candidateId: string): boolean {
+    return PersonnelSystem.hire(this.ctx, candidateId);
+  }
+
+  fireWorker(workerId: string): boolean {
+    return PersonnelSystem.fire(this.ctx, workerId);
+  }
+
+  trainWorker(workerId: string, skill: SkillId): boolean {
+    return PersonnelSystem.train(this.ctx, workerId, skill);
+  }
+
+  refreshCandidates(): void {
+    this.state.candidates = PersonnelSystem.generateCandidates(this.ctx);
+  }
+
+  toggleAutoReorder(partId: string): void {
+    const inv = this.state.inventory;
+    inv.autoReorder[partId] = !inv.autoReorder[partId];
+  }
+
+  setAutoSupplier(supplierId: string): void {
+    if (this.defs.suppliers.some((s) => s.id === supplierId)) {
+      this.state.inventory.autoSupplierId = supplierId;
+    }
   }
 
   setHourlyRate(cents: number): void {
