@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 420">
+  <defs>
+    <linearGradient id="pb" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#b00020"/>
+      <stop offset="0.5" stop-color="#ff4d4d"/>
+      <stop offset="1" stop-color="#b00020"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#141414" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Kotflügel-Bulges hinten -->
+    <rect x="12" y="252" width="26" height="56" rx="12" fill="#c40018"/>
+    <rect x="172" y="252" width="26" height="56" rx="12" fill="#c40018"/>
+    <!-- Spiegel -->
+    <rect x="16" y="128" width="28" height="16" rx="7" fill="#e8112d"/>
+    <rect x="166" y="128" width="28" height="16" rx="7" fill="#e8112d"/>
+    <!-- Karosserie -->
+    <path d="M56 20 Q105 8 154 20 Q174 32 176 68 L172 150 Q178 190 172 230 L176 340 Q174 386 152 396 Q105 408 58 396 Q36 386 34 340 L38 230 Q32 190 38 150 L34 68 Q36 32 56 20 Z" fill="url(#pb)"/>
+    <!-- Haube -->
+    <path d="M84 36 Q105 30 126 36 L120 62 Q105 58 90 62 Z" fill="#c40018" stroke-width="4"/>
+    <path d="M46 36 Q62 26 76 32 L70 50 Q54 50 46 44 Z" fill="#f4f4f4" stroke-width="5"/>
+    <path d="M164 36 Q148 26 134 32 L140 50 Q156 50 164 44 Z" fill="#f4f4f4" stroke-width="5"/>
+    <!-- Frontscheibe -->
+    <path d="M60 80 Q105 70 150 80 L142 118 Q105 110 68 118 Z" fill="#3e4c59" stroke-width="6"/>
+    <path d="M82 80 L94 78 L86 114 L76 116 Z" fill="#ffffff" opacity="0.35" stroke="none"/>
+    <!-- Seitenfenster Kabine -->
+    <path d="M44 132 L58 128 L58 176 L44 172 Z" fill="#3e4c59" stroke-width="5"/>
+    <path d="M166 132 L152 128 L152 176 L166 172 Z" fill="#3e4c59" stroke-width="5"/>
+    <!-- Kabinendach -->
+    <rect x="62" y="126" width="86" height="62" rx="12" fill="#e8112d" stroke-width="5"/>
+    <path d="M82 136 L82 178 M105 134 L105 180 M128 136 L128 178" stroke="#b00020" stroke-width="4" opacity="0.8"/>
+    <!-- Ladefläche -->
+    <rect x="48" y="200" width="114" height="150" rx="10" fill="#2b2f36" stroke-width="6"/>
+    <path d="M62 208 L62 342 M76 208 L76 342 M90 208 L90 342 M105 208 L105 342 M120 208 L120 342 M134 208 L134 342 M148 208 L148 342" stroke="#474d57" stroke-width="4"/>
+    <!-- Zurrgur-Haken -->
+    <rect x="54" y="206" width="10" height="10" rx="3" fill="#b8bcc2" stroke-width="3"/>
+    <rect x="146" y="206" width="10" height="10" rx="3" fill="#b8bcc2" stroke-width="3"/>
+    <rect x="54" y="334" width="10" height="10" rx="3" fill="#b8bcc2" stroke-width="3"/>
+    <rect x="146" y="334" width="10" height="10" rx="3" fill="#b8bcc2" stroke-width="3"/>
+    <!-- Tailgate + Griff -->
+    <rect x="44" y="356" width="122" height="26" rx="8" fill="#e8112d" stroke-width="5"/>
+    <rect x="92" y="362" width="26" height="10" rx="5" fill="#2b2f36" stroke-width="3"/>
+    <!-- Rücklichter -->
+    <path d="M40 356 L54 356 L54 384 Q44 384 40 376 Z" fill="#ff2a2a" stroke-width="5"/>
+    <path d="M170 356 L156 356 L156 384 Q166 384 170 376 Z" fill="#ff2a2a" stroke-width="5"/>
+    <!-- Stoßstange -->
+    <rect x="48" y="392" width="114" height="14" rx="7" fill="#4a4f57" stroke-width="5"/>
+  </g>
+</svg>

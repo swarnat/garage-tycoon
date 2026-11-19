@@ -189,6 +189,14 @@ export interface RepairOrder {
   offerAtRisk: boolean;
   approvalDeadline: number | null;
   discountPct: number;
+  /** Werkzeug-Hinweis-Modal wurde bereits angezeigt. */
+  toolPromptShown: boolean;
+  /** Kunde holt das Fahrzeug zu diesem Zeitpunkt ab (verzögert). */
+  pickupAtMinute: number | null;
+  cancelReason: string | null;
+  satisfactionReason: string;
+  /** Spieler hat das (niedrige) Kundenbudget als Preis akzeptiert. */
+  acceptedBudgetCents: number | null;
   laborMinutesActual: number;
   expiresAtMinute: number | null;
   crewIds: string[];
@@ -205,6 +213,7 @@ export type VehicleState =
   | 'driving_to_lift'
   | 'at_lift'
   | 'driving_out'
+  | 'waiting_pickup'
   | 'gone';
 
 export interface Vehicle {
@@ -302,6 +311,7 @@ export interface GameState {
   vehicles: Vehicle[];
   orders: RepairOrder[];
   customers: Customer[];
+  orderRateFactor: number;
   inventory: InventoryState;
   deliveries: Delivery[];
   stations: Station[];
@@ -380,7 +390,7 @@ export interface GameDefs {
   tools: ToolDef[];
 }
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 8;
 export const MINUTES_PER_DAY = 1440;
 export const GAME_MINUTES_PER_REAL_SECOND = 6;
 export const SIM_STEP_MINUTES = 0.25;

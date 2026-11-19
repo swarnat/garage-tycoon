@@ -52,8 +52,8 @@ export class CustomerSystem {
         o.status !== 'delivered' &&
         o.status !== 'cancelled',
     ).length;
-    if (incoming >= 3 || active >= 8) return;
-    const chance = 0.16 + state.reputation / 400;
+    if (incoming >= 4 || active >= 8) return;
+    const chance = (0.25 + state.reputation / 300) * state.orderRateFactor;
     if (ctx.rng.chance(chance)) {
       CustomerSystem.generateOffer(ctx);
     }
@@ -200,6 +200,11 @@ export class CustomerSystem {
       offerAtRisk: false,
       approvalDeadline: null,
       discountPct: 0,
+      toolPromptShown: false,
+      pickupAtMinute: null,
+      cancelReason: null,
+      satisfactionReason: '',
+      acceptedBudgetCents: null,
       laborMinutesActual: 0,
       expiresAtMinute: state.totalMinutes + 360,
       crewIds: [],

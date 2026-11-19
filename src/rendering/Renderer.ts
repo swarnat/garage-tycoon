@@ -19,6 +19,13 @@ import storageSvg from '../assets/sprites/storage.svg?raw';
 import receptionSvg from '../assets/sprites/reception.svg?raw';
 import parkingSvg from '../assets/sprites/parking.svg?raw';
 import vendingSvg from '../assets/sprites/vending.svg?raw';
+import carKleinwagenSvg from '../assets/sprites/car_kleinwagen.svg?raw';
+import carLimousineSvg from '../assets/sprites/car_limousine.svg?raw';
+import carSuvSvg from '../assets/sprites/car_suv.svg?raw';
+import carPickupSvg from '../assets/sprites/car_pickup.svg?raw';
+import carTransporterSvg from '../assets/sprites/car_transporter.svg?raw';
+import { ROOM_DEFS } from '../world/TileMap';
+import { CLASS_SPRITES } from '../data';
 
 /** Rasterisiert ein SVG bei hoher Auflösung in eine Pixi-Textur. */
 async function svgTexture(svg: string, scale = 3): Promise<Texture> {
@@ -71,6 +78,7 @@ export class Renderer {
   private workerLayer = new Container();
   private fxLayer = new Container();
   private vehicleSprites = new Map<string, Container>();
+  private vehicleBaseScale = new Map<string, number>();
   private workerSprites = new Map<string, Container>();
   private getGame: () => Game;
   private onSelect: (sel: Selection | null) => void;
@@ -108,6 +116,11 @@ export class Renderer {
       ['reception', receptionSvg],
       ['parking', parkingSvg],
       ['vending', vendingSvg],
+      ['car_kleinwagen', carKleinwagenSvg],
+      ['car_limousine', carLimousineSvg],
+      ['car_suv', carSuvSvg],
+      ['car_pickup', carPickupSvg],
+      ['car_transporter', carTransporterSvg],
     ];
     for (const [name, svg] of entries) {
       this.textures.set(name, await svgTexture(svg));
@@ -123,28 +136,101 @@ export class Renderer {
     const game = this.getGame();
     const map = game.map;
     const g = new Graphics();
-    // Boden
+    // Hof (Asphalt) als Basis innerhalb der Außenwand
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
-        const blocked = map.isBlocked(x, y);
         const isWall =
           x === 0 || y === 0 || x === map.width - 1 || y === map.height - 1;
-        let color = (x + y) % 2 === 0 ? 0x23262d : 0x252930;
+        let color = (x + y) % 2 === 0 ? 0x1c1f24 : 0x1e2127;
         if (isWall) color = 0x0c0e12;
-        else if (blocked) color = 0x1b1e24;
         g.rect(x * TILE, y * TILE, TILE, TILE).fill(color);
       }
     }
-    // Dezente Gridlinien
-    for (let x = 0; x <= map.width; x++) {
-      g.moveTo(x * TILE, 0).lineTo(x * TILE, map.height * TILE).stroke({ width: 1, color: 0x2c3038, alpha: 0.35 });
+    // Werkstatthalle: heller Betonboden über den Arbeitsflächen
+    const hall = { x: 7, y: 1, w: 18, h: 12 };
+    for (let y = hall.y; y < hall.y + hall.h; y++) {
+      for (let x = hall.x; x < hall.x + hall.w; x++) {
+        const color = (x + y) % 2 === 0 ? 0x2a2e36 : 0x2c3039;
+        g.rect(x * TILE, y * TILE, TILE, TILE).fill(color);
+      }
     }
-    for (let y = 0; y <= map.height; y++) {
-      g.moveTo(0, y * TILE).lineTo(map.width * TILE, y * TILE).stroke({ width: 1, color: 0x2c3038, alpha: 0.35 });
+    g.rect(hall.x * TILE, hall.y * TILE, hall.w * TILE, hall.h * TILE)
+      .stroke({ width: 3, color: 0x3d434e });
+    // dezente Gridlinien nur in der Halle
+    for (let x = hall.x; x <= hall.x + hall.w; x++) {
+      g.moveTo(x * TILE, hall.y * TILE).lineTo(x * TILE, (hall.y + hall.h) * TILE).stroke({ width: 1, color: 0x333842, alpha: 0.4 });
     }
-    // Fahrspur Markierung
-    g.rect(TILE, 15 * TILE + 4, (map.width - 2) * TILE, TILE - 8).fill({ color: 0x2a2e37, alpha: 0.6 });
+    for (let y = hall.y; y <= hall.y + hall.h; y++) {
+      g.moveTo(hall.x * TILE, y * TILE).lineTo((hall.x + hall.w) * TILE, y * TILE).stroke({ width: 1, color: 0x333842, alpha: 0.4 });
+    }
+    // Räume: Innenboden, Wandring, Türschwelle
+    for (const room of ROOM_DEFS) {
+      for (let y = room.y1 + 1; y < room.y2; y++) {
+        for (let x = room.x1 + 1; x < room.x2; x++) {
+          g.rect(x * TILE, y * TILE, TILE, TILE).fill((x + y) % 2 === 0 ? 0x262a33 : 0x282c36);
+        }
+      }
+      for (let x = room.x1; x <= room.x2; x++) {
+        for (const y of [room.y1, room.y2]) {
+          if (x === room.door.x && y === room.door.y) continue;
+          g.rect(x * TILE, y * TILE, TILE, TILE).fill(0x0c0e12);
+          g.rect(x * TILE, y * TILE, TILE, 4).fill(0x3d434e);
+        }
+      }
+      for (let y = room.y1; y <= room.y2; y++) {
+        for (const x of [room.x1, room.x2]) {
+          if (x === room.door.x && y === room.door.y) continue;
+          g.rect(x * TILE, y * TILE, TILE, TILE).fill(0x0c0e12);
+          g.rect(x * TILE, y * TILE, 4, TILE).fill(0x3d434e);
+        }
+      }
+      // Türschwelle (braun) + Rahmen
+      const dx = room.door.x * TILE;
+      const dy = room.door.y * TILE;
+      g.rect(dx + 2, dy + 2, TILE - 4, TILE - 4).fill(0x262a33);
+      g.rect(dx + 4, dy + TILE / 2 - 3, TILE - 8, 6).fill(0x8a5a33);
+    }
+    // Wartebereich vor dem Büro
+    g.rect(2 * TILE + 6, 6 * TILE + 8, 2 * TILE - 12, 10).fill(0x3a4150);
+    g.rect(2 * TILE + 6, 7 * TILE + 4, 2 * TILE - 12, 10).fill(0x3a4150);
+    // Fahrspur mit Mittelstrich
+    g.rect(TILE, 15 * TILE + 4, (map.width - 2) * TILE, TILE - 8).fill({ color: 0x23262e, alpha: 0.9 });
+    for (let x = 2; x < map.width - 2; x += 2) {
+      g.rect(x * TILE, 15 * TILE + TILE / 2 - 1, TILE - 8, 2).fill({ color: 0xd9a441, alpha: 0.35 });
+    }
+    // Parkplätze: weiße Buchten
+    for (const s of game.state.stations) {
+      if (s.kind !== 'parking') continue;
+      g.rect(s.rect.x * TILE + 2, s.rect.y * TILE + 2, s.rect.w * TILE - 4, s.rect.h * TILE - 4)
+        .stroke({ width: 2, color: 0x8b93a3, alpha: 0.5 });
+    }
     this.staticLayer.addChild(g);
+    // Raum-Labels
+    for (const room of ROOM_DEFS) {
+      this.staticLayer.addChild(
+        this.label(room.label.toUpperCase(), (room.x1 + room.x2 + 1) * TILE / 2, (room.y1 + 0.15) * TILE, 9, 0x9aa3b2),
+      );
+    }
+    this.staticLayer.addChild(this.label('WARTEBEREICH', 3 * TILE, 7 * TILE + 18, 8, 0x6b7280));
+    // Tore (Einfahrt links, Ausfahrt rechts): Pfosten mit Warnstreifen + Sturz
+    const gates = new Graphics();
+    for (const gx of [0, map.width - 1]) {
+      for (const gy of [14, 16]) {
+        const px = gx * TILE;
+        const py = gy * TILE;
+        gates.rect(px, py, TILE, TILE).fill(0x1a1d23);
+        for (let i = 0; i < 3; i++) {
+          const x0 = px + i * 10;
+          gates.poly([x0, py + TILE, x0 + 5, py + TILE, x0 + 14, py, x0 + 9, py]).fill({ color: 0xd9a441, alpha: 0.9 });
+        }
+        gates.rect(px + 1, py + 1, TILE - 2, TILE - 2).stroke({ width: 2, color: 0x0c0e12 });
+      }
+      // Sturz über dem Tor
+      gates.rect(gx * TILE, 15 * TILE - 5, TILE, 5).fill(0x3d434e);
+    }
+    this.staticLayer.addChild(gates);
+    this.staticLayer.addChild(this.label('EINFERT', 1.6 * TILE, 13.4 * TILE, 9, 0x6fdc8c));
+    this.staticLayer.addChild(this.label('AUSFAHRT', (map.width - 1.6) * TILE, 13.4 * TILE, 9, 0xff7b72));
 
     for (const s of game.state.stations) {
       this.staticLayer.addChild(this.drawStation(s));
@@ -175,6 +261,13 @@ export class Renderer {
     const py = y * TILE;
     const pw = w * TILE;
     const ph = h * TILE;
+    if (s.kind === 'parking' && !s.unlocked) {
+      const g = new Graphics();
+      g.rect(px + 2, py + 2, pw - 4, ph - 4).stroke({ width: 2, color: 0x3a3f4a, alpha: 0.7 });
+      c.addChild(g);
+      c.addChild(this.label('P (Ausbau)', px + pw / 2, py + ph / 2 - 6, 8, 0x5a6170));
+      return c;
+    }
     if (s.kind === 'lift' && !s.unlocked) {
       const g = new Graphics();
       g.rect(px + 3, py + 3, pw - 6, ph - 6).fill({ color: 0x1b1e24, alpha: 0.5 });
@@ -217,15 +310,6 @@ export class Renderer {
         break;
       case 'diagnosis':
         c.addChild(this.label(s.id === 'diag2' ? 'DIAGNOSE 2' : 'DIAGNOSE', px + pw / 2, py + ph + 2, 9, 0x4fc3f7));
-        break;
-      case 'storage':
-        c.addChild(this.label('ERSATZTEILLAGER', px + pw / 2, py + ph + 2, 9, 0xc98a4b));
-        break;
-      case 'office':
-        c.addChild(this.label('BÜRO & ANNAHME', px + pw / 2, py + ph + 2, 9));
-        break;
-      case 'break_room':
-        c.addChild(this.label('PAUSENRAUM', px + pw / 2, py + ph + 2, 9));
         break;
       default:
         break;
@@ -317,16 +401,22 @@ export class Renderer {
   private drawVehicle(v: Vehicle): Container {
     const c = new Container();
     const shadow = new Graphics();
-    shadow.ellipse(0, 6, 42, 18).fill({ color: 0x000000, alpha: 0.28 });
+    shadow.ellipse(0, 5, 34, 13).fill({ color: 0x000000, alpha: 0.28 });
     c.addChild(shadow);
-    const tex = this.textures.get('car');
+    const key = CLASS_SPRITES[v.vehicleClass] ?? 'car';
+    const tex = this.textures.get(key) ?? this.textures.get('car');
     if (tex) {
       const sp = new Sprite(tex);
       sp.anchor.set(0.5);
       sp.rotation = Math.PI / 2; // Front zeigt nach rechts (Fahrtrichtung)
-      // Skalierung aus tatsächlichen Texturmaßen (SVG ist 3x rasterisiert)
-      sp.scale.set((2.4 * TILE) / tex.height);
-      sp.tint = v.color;
+      // Klassenabhängige Länge; Skalierung aus tatsächlichen Texturmaßen (3x rasterisiert)
+      const lengthTiles =
+        v.vehicleClass === 'transporter' ? 3.0 :
+        v.vehicleClass === 'pickup' ? 2.6 :
+        v.vehicleClass === 'suv' ? 2.5 : 2.4;
+      const base = (lengthTiles * TILE) / tex.height;
+      sp.scale.set(base);
+      this.vehicleBaseScale.set(v.id, base);
       c.addChild(sp);
     }
     return c;
@@ -376,7 +466,7 @@ export class Renderer {
       let cx = v.pos.x + 1;
       let cy = v.pos.y + 0.5;
       if (
-        (v.state === 'at_lift' || v.state === 'at_diagnosis' || v.state === 'waiting') &&
+        (v.state === 'at_lift' || v.state === 'at_diagnosis' || v.state === 'waiting' || v.state === 'waiting_pickup') &&
         v.targetStationId
       ) {
         const st = state.stations.find((s) => s.id === v.targetStationId);
@@ -387,6 +477,16 @@ export class Renderer {
       }
       sprite.x = cx * TILE;
       sprite.y = cy * TILE;
+      // Parkende Fahrzeuge passen in die Buchtenhöhe (1 Tile an der Straße)
+      const body = sprite.children[1] as Sprite | undefined;
+      const base = this.vehicleBaseScale.get(v.id);
+      if (body && base !== undefined) {
+        if (v.state === 'waiting' || v.state === 'waiting_pickup') {
+          body.scale.set(Math.min(base, (0.92 * TILE) / body.texture.width));
+        } else {
+          body.scale.set(base);
+        }
+      }
       const sel = this.selection?.kind === 'vehicle' && this.selection.id === v.id;
       sprite.alpha = 1;
       sprite.scale.set(sel ? 1.04 : 1);

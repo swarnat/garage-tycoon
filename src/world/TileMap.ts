@@ -1,5 +1,22 @@
 import type { Station, Vec } from '../entities/types';
 
+/** Räume (Büro, Pause, Lager): Wandring mit einer Tür. */
+export interface RoomDef {
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  door: Vec;
+  label: string;
+}
+
+export const ROOM_DEFS: RoomDef[] = [
+  { id: 'office', x1: 1, y1: 1, x2: 6, y2: 5, door: { x: 4, y: 5 }, label: 'Büro & Annahme' },
+  { id: 'break_room', x1: 1, y1: 8, x2: 5, y2: 12, door: { x: 5, y: 10 }, label: 'Pausenraum' },
+  { id: 'storage', x1: 19, y1: 1, x2: 24, y2: 6, door: { x: 21, y: 6 }, label: 'Ersatzteillager' },
+];
+
 /**
  * Statischer Werkstattgrundriss (MVP: festes Layout, freischaltbare Plätze).
  * Koordinaten in Tiles; blockierte Tiles sind Wände und Objektflächen.
@@ -23,9 +40,21 @@ export class TileMap {
       this.block(0, y);
       this.block(width - 1, y);
     }
-    // Ein-/Ausfahrt als Lücken in der Wand
+    // Ein-/Ausfahrt als Lücken in der Wand (Tore)
     this.unblock(0, 15);
     this.unblock(width - 1, 15);
+    // Räume: Wandring mit Tür
+    for (const room of ROOM_DEFS) {
+      for (let x = room.x1; x <= room.x2; x++) {
+        this.block(x, room.y1);
+        this.block(x, room.y2);
+      }
+      for (let y = room.y1; y <= room.y2; y++) {
+        this.block(room.x1, y);
+        this.block(room.x2, y);
+      }
+      this.unblock(room.door.x, room.door.y);
+    }
     for (const s of stations) {
       if (s.kind === 'entry' || s.kind === 'exit' || s.kind === 'parking') continue;
       if (!s.unlocked) continue; // gesperrte Ausbauplätze bleiben begehbarer Boden
@@ -61,16 +90,22 @@ export class TileMap {
   static defaultStations(): Station[] {
     return [
       { id: 'office', kind: 'office', rect: { x: 2, y: 2, w: 4, h: 2 }, interact: { x: 3, y: 4 }, orderId: null, unlocked: true },
-      { id: 'break_room', kind: 'break_room', rect: { x: 2, y: 10, w: 3, h: 2 }, interact: { x: 3, y: 12 }, orderId: null, unlocked: true },
+      { id: 'break_room', kind: 'break_room', rect: { x: 2, y: 10, w: 2, h: 2 }, interact: { x: 3, y: 9 }, orderId: null, unlocked: true },
       { id: 'storage', kind: 'storage', rect: { x: 20, y: 2, w: 4, h: 3 }, interact: { x: 21, y: 5 }, orderId: null, unlocked: true },
       { id: 'diag1', kind: 'diagnosis', rect: { x: 9, y: 3, w: 3, h: 2 }, interact: { x: 10, y: 5 }, orderId: null, unlocked: true },
       { id: 'diag2', kind: 'diagnosis', rect: { x: 14, y: 3, w: 3, h: 2 }, interact: { x: 15, y: 5 }, orderId: null, unlocked: false },
       { id: 'lift1', kind: 'lift', rect: { x: 8, y: 9, w: 3, h: 2 }, interact: { x: 9, y: 11 }, orderId: null, unlocked: true },
       { id: 'lift2', kind: 'lift', rect: { x: 13, y: 9, w: 3, h: 2 }, interact: { x: 14, y: 11 }, orderId: null, unlocked: true },
       { id: 'lift3', kind: 'lift', rect: { x: 18, y: 9, w: 3, h: 2 }, interact: { x: 19, y: 11 }, orderId: null, unlocked: false },
-      { id: 'park1', kind: 'parking', rect: { x: 4, y: 13, w: 3, h: 2 }, interact: { x: 4, y: 13 }, orderId: null, unlocked: true },
-      { id: 'park2', kind: 'parking', rect: { x: 8, y: 13, w: 3, h: 2 }, interact: { x: 8, y: 13 }, orderId: null, unlocked: true },
-      { id: 'park3', kind: 'parking', rect: { x: 12, y: 13, w: 3, h: 2 }, interact: { x: 12, y: 13 }, orderId: null, unlocked: true },
+      // Längs-Parkplätze an der Fahrspur (y15), 6 frei + 2 kaufbar
+      ...Array.from({ length: 8 }, (_, i) => ({
+        id: `park${i + 1}`,
+        kind: 'parking' as const,
+        rect: { x: 1 + i * 3, y: 16, w: 3, h: 1 },
+        interact: { x: 2 + i * 3, y: 16 },
+        orderId: null,
+        unlocked: i < 6,
+      })),
       { id: 'entry', kind: 'entry', rect: { x: 0, y: 15, w: 1, h: 1 }, interact: { x: 1, y: 15 }, orderId: null, unlocked: true },
       { id: 'exit', kind: 'exit', rect: { x: 25, y: 15, w: 1, h: 1 }, interact: { x: 24, y: 15 }, orderId: null, unlocked: true },
     ];

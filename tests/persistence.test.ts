@@ -109,7 +109,7 @@ describe('Savegame-Migration', () => {
     delete raw.notifications;
     delete raw.nextNotificationId;
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(6);
+    expect(migrated.version).toBe(8);
     expect(Array.isArray(migrated.notifications)).toBe(true);
     expect(typeof migrated.nextNotificationId).toBe('number');
   });
@@ -125,9 +125,11 @@ describe('Savegame-Migration', () => {
       }
     }
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(6);
-    const park = migrated.stations.find((s) => s.id === 'park1')!;
-    expect(park.rect).toEqual({ x: 4, y: 13, w: 3, h: 2 });
+    expect(migrated.version).toBe(8);
+    const parks = migrated.stations.filter((s) => s.kind === 'parking');
+    expect(parks).toHaveLength(8);
+    const park = parks.find((s) => s.id === 'park1')!;
+    expect(park.rect).toEqual({ x: 1, y: 16, w: 3, h: 1 });
   });
 });
 

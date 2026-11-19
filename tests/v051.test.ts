@@ -30,14 +30,14 @@ describe('Nacht-Automatik (8x außerhalb, 1x bei Auftrag/Arbeitsbeginn)', () => 
     game.state.totalMinutes = 19 * 60;
     game.setSpeed(2);
     game.tick(1);
-    expect(game.state.speed).toBe(8);
+    expect(game.state.speed).toBe(16);
   });
 
   it('schaltet um 08:00 auf 1x', () => {
     const game = Game.new(702);
     game.state.totalMinutes = 7 * 60 + 59;
     game.state.nextOrderAttemptAtMinute = 99999; // keine Angebote
-    game.setSpeed(8);
+    game.setSpeed(16);
     game.tick(2);
     expect(game.state.totalMinutes % 1440).toBeGreaterThanOrEqual(480);
     expect(game.state.speed).toBe(1);

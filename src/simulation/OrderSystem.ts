@@ -70,6 +70,24 @@ export class OrderSystem {
           if (v.state === 'waiting') OrderSystem.tryDiagnosisPlacement(ctx, order);
           break;
         }
+        case 'completed': {
+          const v = vehicleById(state, order.vehicleId);
+          if (v.state === 'at_lift' || v.state === 'at_diagnosis') {
+            OrderSystem.tryPickupParking(ctx, order, v);
+          }
+          const readyToLeave =
+            order.pickupAtMinute !== null && state.totalMinutes >= order.pickupAtMinute;
+          if (readyToLeave && (v.state === 'waiting_pickup' || v.state === 'at_lift' || v.state === 'at_diagnosis')) {
+            if (v.state === 'waiting_pickup' && v.targetStationId) {
+              stationById(state, v.targetStationId).orderId = null;
+            } else if (order.stationId) {
+              stationById(state, order.stationId).orderId = null;
+              order.stationId = null;
+            }
+            OrderSystem.sendVehicleOut(ctx, v);
+          }
+          break;
+        }
         case 'waiting_for_approval':
           if (order.offerAtRisk) {
             if (order.approvalDeadline !== null && state.totalMinutes > order.approvalDeadline) {
@@ -154,6 +172,8 @@ export class OrderSystem {
   /** Kunde hat freigegeben: Teile reservieren, Reparatur vorbereiten. */
   static approve(ctx: SimContext, order: RepairOrder): void {
     const { state } = ctx;
+    order.offerAtRisk = false;
+    order.approvalDeadline = null;
     ctx.bus.emit('estimate:approved', order.id);
     if (InventorySystem.reserve(state.inventory, order.partsNeeded)) {
       order.partsReserved = true;
@@ -169,6 +189,16 @@ export class OrderSystem {
         .join(', ');
       notify(ctx, 'warning', `Auftrag ${order.id}: Ersatzteile fehlen (${missing}). Bitte im Lager bestellen.`);
     }
+  }
+
+  /** Fehlende Spezialwerkzeuge über alle Reparaturen des Auftrags. */
+  static missingToolsForOrder(ctx: SimContext, order: RepairOrder): string[] {
+    const missing = new Set<string>();
+    for (const job of order.jobs) {
+      const def = repairDef(ctx, job.repairId);
+      for (const t of RepairSystem.missingTools(ctx, def)) missing.add(t);
+    }
+    return [...missing];
   }
 
   /** Kalkulations-Aufschlüsselung: Material, Arbeit, Gebühren, Gewinn. */
@@ -258,6 +288,26 @@ export class OrderSystem {
     }
   }
 
+  /** Nach der Reparatur: Fahrzeug auf einen freien Abhol-Parkplatz stellen. */
+  static tryPickupParking(ctx: SimContext, order: RepairOrder, v: Vehicle): void {
+    const { state } = ctx;
+    if (v.state !== 'at_lift' && v.state !== 'at_diagnosis') return;
+    const park = state.stations.find(
+      (s) => s.kind === 'parking' && s.unlocked && s.orderId === null,
+    );
+    if (!park) return; // kein Platz frei → Bühne bleibt blockiert
+    if (order.stationId) {
+      stationById(state, order.stationId).orderId = null;
+      order.stationId = null;
+    }
+    park.orderId = order.id;
+    v.state = 'driving_in';
+    if (!OrderSystem.dispatchVehicle(ctx, v, park)) {
+      park.orderId = null;
+      v.state = 'at_lift';
+    }
+  }
+
   static dispatchVehicle(
     ctx: SimContext,
     vehicle: Vehicle,
@@ -306,6 +356,8 @@ export class OrderSystem {
         if (order.status === 'accepted') {
           OrderSystem.setStatus(state, order, 'waiting_for_diagnosis');
         }
+      } else if (station?.kind === 'parking' && order.status === 'completed') {
+        vehicle.state = 'waiting_pickup';
       } else {
         vehicle.state = 'waiting';
       }
@@ -379,6 +431,7 @@ export class OrderSystem {
         OrderSystem.sendVehicleOut(ctx, v);
       }
     }
+    order.cancelReason = reason;
     OrderSystem.setStatus(state, order, 'cancelled');
     state.statistics.ordersCancelled += 1;
     ctx.bus.emit('order:cancelled', { orderId: order.id, reason });
@@ -485,8 +538,17 @@ export class OrderSystem {
         if (!worker) return 'Wartet auf Mitarbeiter für die Qualitätskontrolle.';
         if (worker.task?.phase === 'to_station') return 'Mitarbeiter ist unterwegs zur Qualitätskontrolle.';
         return null;
-      case 'completed':
+      case 'completed': {
+        const vv = vehicleById(state, order.vehicleId);
+        if (vv.state === 'at_lift' || vv.state === 'at_diagnosis') {
+          return 'Wartet auf freien Parkplatz für die Abholung (Parkplatz-Kapazität).';
+        }
+        if (vv.state === 'waiting_pickup' && order.pickupAtMinute !== null) {
+          const h = Math.max(0, (order.pickupAtMinute - state.totalMinutes) / 60);
+          return `Kunde holt das Fahrzeug in ca. ${h.toFixed(1)} h ab.`;
+        }
         return 'Fahrzeug verlässt die Werkstatt.';
+      }
       default:
         return null;
     }
@@ -500,7 +562,11 @@ export class OrderSystem {
       (order.laborMinutesActual / 60) * state.economy.hourlyRateCents,
     );
     const partsCents = RepairSystem.partsSellTotal(ctx, order);
-    const invoice = laborCents + partsCents + DIAGNOSIS_FEE_CENTS;
+    const invoice = order.acceptedBudgetCents !== null
+      ? order.acceptedBudgetCents
+      : Math.round(
+          (laborCents + partsCents + DIAGNOSIS_FEE_CENTS) * (1 - order.discountPct / 100),
+        );
     const booked = EconomySystem.book(state.economy, {
       id: `invoice-${order.id}`,
       day: Math.floor(state.totalMinutes / 1440) + 1,
@@ -522,10 +588,22 @@ export class OrderSystem {
       Math.min(1, 0.6 + qcSkill / 250 - order.qualityIssues * 0.15),
     );
     let satisfaction = 95;
-    if (state.totalMinutes > order.dueAtMinute) satisfaction -= 30;
-    if (invoice > order.budgetCents * 1.15) satisfaction -= 15;
+    const reasons: string[] = [];
+    const lateMinutes = state.totalMinutes - order.dueAtMinute;
+    if (lateMinutes > 0) {
+      satisfaction -= 30;
+      reasons.push(`Verspätung ${Math.max(1, Math.round(lateMinutes / 60))} h (−30)`);
+    }
+    if (invoice > order.budgetCents * 1.15) {
+      satisfaction -= 15;
+      reasons.push('Rechnung mehr als 15 % über Budget (−15)');
+    }
+    if (order.qualityIssues > 0) {
+      reasons.push(`${order.qualityIssues} Nacharbeit(en) bei der Qualitätskontrolle`);
+    }
     satisfaction = Math.max(20, Math.min(100, satisfaction));
     order.satisfaction = satisfaction;
+    order.satisfactionReason = reasons.length > 0 ? reasons.join('; ') : 'Pünktlich, im Budget, keine Mängel';
     const customer = state.customers.find((c) => c.id === order.customerId);
     if (customer) customer.lastSatisfaction = satisfaction;
     state.reputation = Math.max(
@@ -541,8 +619,10 @@ export class OrderSystem {
       Math.floor(state.totalMinutes / 1440) + 1,
     ).ordersCompleted += 1;
     OrderSystem.setStatus(state, order, 'completed');
+    // Kunde holt verzögert ab: erst auf den Parkplatz, dann random warten
+    order.pickupAtMinute = state.totalMinutes + ctx.rng.intRange(60, 240);
     const v = vehicleById(state, order.vehicleId);
-    OrderSystem.sendVehicleOut(ctx, v);
+    OrderSystem.tryPickupParking(ctx, order, v);
     ctx.bus.emit('order:completed', order.id);
     ctx.bus.emit('invoice:paid', { orderId: order.id, amountCents: invoice });
   }

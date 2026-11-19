@@ -59,6 +59,47 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     version = 6;
     raw.version = version;
   }
+  if (version === 6) {
+    for (const o of (raw.orders as Array<Record<string, unknown>>) ?? []) {
+      o.toolPromptShown ??= false;
+    }
+    // Pausenraum-Interaktionspunkt lag ab v7 in einer Wand
+    for (const s of (raw.stations as Array<Record<string, unknown>>) ?? []) {
+      if (s.id === 'break_room') s.interact = { x: 3, y: 9 };
+    }
+    version = 7;
+    raw.version = version;
+  }
+  if (version === 7) {
+    const stations = (raw.stations as Array<Record<string, unknown>>) ?? [];
+    const oldParks = stations.filter((s) => s.kind === 'parking');
+    const kept = stations.filter((s) => s.kind !== 'parking');
+    const newParks = TileMap.defaultStations().filter((s) => s.kind === 'parking');
+    const vehicles = (raw.vehicles as Array<Record<string, unknown>>) ?? [];
+    let pi = 0;
+    for (const v of vehicles) {
+      if (v.state === 'waiting' && v.targetStationId) {
+        const old = oldParks.find((p) => p.id === v.targetStationId);
+        if (old) {
+          const np = newParks[pi % newParks.length]!;
+          pi += 1;
+          v.targetStationId = np.id;
+          v.pos = { x: np.rect.x + 1, y: 16 };
+          np.orderId = (v.orderId as string | null) ?? null;
+        }
+      }
+    }
+    raw.stations = [...kept, ...newParks];
+    for (const o of (raw.orders as Array<Record<string, unknown>>) ?? []) {
+      o.pickupAtMinute ??= null;
+      o.cancelReason ??= null;
+      o.satisfactionReason ??= '';
+      o.acceptedBudgetCents ??= null;
+    }
+    raw.orderRateFactor ??= 1;
+    version = 8;
+    raw.version = version;
+  }
   // Idempotente Normalisierung neuer Felder (auch für aktuelle Version)
   const inv = raw.inventory as Record<string, unknown> | undefined;
   if (inv && typeof inv === 'object') {

@@ -35,9 +35,11 @@ export interface UIActions {
   setHourlyRate(v: number): void;
   setPartsMarkup(v: number): void;
   setMinStock(partId: string, v: number): void;
-  setWorkerSpeed(id: string, delta: number): void;
   resetCamera(): void;
   offerDiscount(id: string, pct: number): void;
+  acceptBudget(id: string): void;
+  buyParking(): void;
+  setOrderRate(v: number): void;
   insistPrice(id: string): void;
   buyTool(id: string): void;
   takeLoan(cents: number): void;
@@ -77,6 +79,11 @@ const WORKER_STATE_LABELS: Record<string, string> = {
   training: 'Weiterbildung',
   off_duty: 'Feierabend',
 };
+
+/** Kurzes Erklär-Icon mit Tooltip (Hover/Fokus). */
+function help(text: string): string {
+  return `<button type="button" class="help" data-help="${text.replace(/"/g, '&quot;')}">?</button>`;
+}
 
 function tempoLabel(sp: number): string {
   return sp < 0.3 ? 'gemächlich' : sp < 0.45 ? 'normal' : 'flink';
@@ -148,6 +155,12 @@ export class UI {
   private highlightParts = new Set<string>();
   private modalOpen = false;
   private lastRefresh = 0;
+  private lastDrawerSig = '';
+  private lastModalSig = '';
+  private interacting = false;
+  private modalKind: 'inventory' | 'tool' | 'approval' = 'inventory';
+  private toolOrderId: string | null = null;
+  private approvalOrderId: string | null = null;
   private lastToastId = 0;
   private toastHost!: HTMLElement;
   private drawer!: HTMLElement;
@@ -167,7 +180,7 @@ export class UI {
         <div class="top-stats">
           <div class="stat"><label>Kontostand</label><strong id="tb-balance"></strong></div>
           <div class="stat"><label>Spielzeit</label><strong id="tb-time"></strong></div>
-          <div class="stat"><label>Reputation</label><strong id="tb-rep"></strong></div>
+          <div class="stat"><label>Reputation <button type="button" class="help" data-help="Reputation (0–100): beeinflusst Anzahl und Qualität neuer Aufträge sowie die Zahlungsbereitschaft. Steigt mit zufriedenen Kunden, sinkt bei Verspätungen und Reklamationen.">?</button></label><strong id="tb-rep"></strong></div>
           <div class="stat"><label>Aktive Aufträge</label><strong id="tb-orders"></strong></div>
         </div>
         <div class="speed-controls" id="speed-controls">
@@ -176,6 +189,8 @@ export class UI {
           <button data-speed="2">2×</button>
           <button data-speed="4">4×</button>
           <button data-speed="8">8×</button>
+          <button data-speed="16">16×</button>
+          <button type="button" class="help" data-help="Spieltempo: 1× = 6 Spielminuten pro Sekunde. Nachts (18–08 Uhr) automatisch 8×; bei Auftragseingang und um 08:00 zurück auf 1×. Pause stoppt alles.">?</button>
         </div>
         <div class="save-indicator" id="save-indicator" title="Automatische Speicherung">●</div>
       </header>
@@ -198,7 +213,7 @@ export class UI {
       <div id="toasts"></div>
       <div id="modal-backdrop" class="hidden">
         <div id="modal">
-          <div class="modal-head"><h2>Ersatzteillager</h2><button class="btn small" data-action="close-modal">✕ Schließen</button></div>
+          <div class="modal-head"><h2 id="modal-title">Ersatzteillager</h2><button class="btn small" data-action="close-modal">✕ Schließen</button></div>
           <div id="modal-body"></div>
         </div>
       </div>
@@ -208,7 +223,21 @@ export class UI {
     this.toastHost = this.root.querySelector('#toasts') as HTMLElement;
     this.fileInput = this.root.querySelector('#import-file') as HTMLInputElement;
 
-    this.root.addEventListener('click', (e) => this.onClick(e));
+    // Aktionen auf pointerdown: DOM-Neuaufbau kann den Klick nicht mehr verschlucken
+    this.root.addEventListener('pointerdown', (e) => {
+      const t = e.target as HTMLElement;
+      if (t.closest('#drawer') || t.closest('#modal')) {
+        this.interacting = true;
+        // Sicherheitsnetz: falls pointerup ausbleibt, nicht dauerhaft blockieren
+        setTimeout(() => { this.interacting = false; }, 1500);
+      }
+      this.onClick(e);
+    });
+    window.addEventListener('pointerup', () => { this.interacting = false; });
+    // Tastatur-Bedienung (Enter/Space auf Buttons) läuft weiter über click
+    this.root.addEventListener('click', (e) => {
+      if ((e as MouseEvent).detail === 0) this.onClick(e);
+    });
     this.root.addEventListener('change', (e) => this.onChange(e));
     this.fileInput.addEventListener('change', () => {
       const f = this.fileInput.files?.[0];
@@ -222,23 +251,48 @@ export class UI {
   }
 
   openPanel(p: PanelId): void {
+    if (p === 'inventory') {
+      // Lager ist ein Modal – die Sidebar bleibt, wie sie ist
+      this.modalKind = 'inventory';
+      this.modalOpen = true;
+      this.refresh(true);
+      return;
+    }
     this.panel = p;
     this.selection = null;
     this.highlightParts.clear();
-    this.modalOpen = p === 'inventory';
+    this.modalOpen = false;
+    this.modalKind = 'inventory';
     this.refresh(true);
   }
 
   closeModal(): void {
     this.modalOpen = false;
+    this.modalKind = 'inventory';
+    this.toolOrderId = null;
     this.refresh(true);
   }
 
   openInventoryForParts(partIds: string[]): void {
-    this.panel = 'inventory';
-    this.selection = null;
+    this.modalKind = 'inventory';
     this.modalOpen = true;
     this.highlightParts = new Set(partIds);
+    this.refresh(true);
+  }
+
+  /** Hinweis-Modal: Reparatur braucht ein Spezialwerkzeug, das noch fehlt. */
+  showToolPrompt(orderId: string): void {
+    this.modalKind = 'tool';
+    this.toolOrderId = orderId;
+    this.modalOpen = true;
+    this.refresh(true);
+  }
+
+  /** Nachfrage-Modal: Kunde droht abzulehnen – Rabatt, Budget akzeptieren oder Preis bestehen. */
+  showApprovalPrompt(orderId: string): void {
+    this.modalKind = 'approval';
+    this.approvalOrderId = orderId;
+    this.modalOpen = true;
     this.refresh(true);
   }
 
@@ -288,12 +342,17 @@ export class UI {
       }
       case 'supplier': this.supplierId = id; this.refresh(true); break;
       case 'close-modal': this.closeModal(); break;
+      case 'tool-wait': this.closeModal(); break;
+      case 'tool-shop': this.closeModal(); this.openPanel('upgrades'); break;
+      case 'tool-decline':
+        if (this.toolOrderId) this.actions.cancelOrder(this.toolOrderId);
+        this.closeModal();
+        break;
       case 'toggle-auto': this.actions.toggleAuto(btn.dataset.part ?? ''); break;
       case 'auto-supplier': this.actions.setAutoSupplier(id); break;
       case 'hire': this.actions.hireCandidate(id); break;
       case 'fire': this.actions.fireWorker(id); break;
       case 'train': this.actions.trainWorker(id, btn.dataset.skill ?? ''); break;
-      case 'worker-speed': this.actions.setWorkerSpeed(id, Number(btn.dataset.delta ?? '0')); break;
       case 'refresh-candidates': this.actions.refreshCandidates(); break;
       case 'order-missing': {
         const order = this.getGame().state.orders.find((o) => o.id === id);
@@ -312,6 +371,8 @@ export class UI {
       case 'buy-tool': this.actions.buyTool(id); break;
       case 'offer-discount': this.actions.offerDiscount(id, Number(btn.dataset.pct ?? '0')); break;
       case 'insist-price': this.actions.insistPrice(id); break;
+      case 'accept-budget': this.actions.acceptBudget(id); break;
+      case 'buy-parking': this.actions.buyParking(); break;
       case 'take-loan': this.actions.takeLoan(Number(btn.dataset.amount ?? '0')); break;
       case 'repay-loan': this.actions.repayLoan(id, Number(btn.dataset.amount ?? '0')); break;
       case 'expand-storage': this.actions.expandStorage(); break;
@@ -327,6 +388,8 @@ export class UI {
       this.actions.setHourlyRate(Math.round(Number(target.value) * 100));
     } else if (target.dataset.field === 'markup') {
       this.actions.setPartsMarkup(Number(target.value));
+    } else if (target.dataset.field === 'orderrate') {
+      this.actions.setOrderRate(Number(target.value));
     } else if (target.dataset.field === 'minstock') {
       this.actions.setMinStock(target.dataset.part ?? '', Number(target.value));
     }
@@ -359,29 +422,150 @@ export class UI {
     }
     for (const b of this.root.querySelectorAll('#nav button')) {
       const el = b as HTMLElement;
-      el.classList.toggle('active', el.dataset.panel === this.panel && !this.selection && (el.dataset.panel !== 'inventory' || this.modalOpen));
+      el.classList.toggle('active', el.dataset.panel === 'inventory'
+        ? this.modalOpen && this.modalKind === 'inventory'
+        : el.dataset.panel === this.panel && !this.selection && !this.modalOpen);
     }
-    // Modal (Lager) aktualisieren
+    // Modal aktualisieren – nur bei Inhaltsänderung, nie während Eingabe/Zeigeraktion
     const backdrop = this.root.querySelector('#modal-backdrop') as HTMLElement;
     const modalBody = this.root.querySelector('#modal-body') as HTMLElement;
+    const modalTitle = this.root.querySelector('#modal-title') as HTMLElement;
     backdrop.classList.toggle('hidden', !this.modalOpen);
+    modalTitle.textContent =
+      this.modalKind === 'tool' ? 'Spezialwerkzeug benötigt'
+      : this.modalKind === 'approval' ? 'Kunde droht abzulehnen'
+      : 'Ersatzteillager';
+    // Nachfrage-Modal schließt sich, sobald die Entscheidung gefallen ist
+    if (this.modalKind === 'approval' && this.modalOpen) {
+      const ao = s.orders.find((x) => x.id === this.approvalOrderId);
+      if (!ao || !ao.offerAtRisk || ao.status !== 'waiting_for_approval') {
+        this.closeModal();
+        return;
+      }
+    }
     const activeEl = document.activeElement;
     const editingModal =
       activeEl && modalBody.contains(activeEl) &&
       (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
-    if (this.modalOpen && !editingModal) {
-      modalBody.innerHTML = this.renderInventory();
+    const modalSig = this.modalOpen ? this.signature() : '';
+    if (this.modalOpen && !editingModal && (force || (!this.interacting && modalSig !== this.lastModalSig))) {
+      this.lastModalSig = modalSig;
+      modalBody.innerHTML =
+        this.modalKind === 'tool' ? this.renderToolPrompt()
+        : this.modalKind === 'approval' ? this.renderApprovalPrompt()
+        : this.renderInventory();
     }
-    // Drawer nur neu aufbauen, wenn kein Eingabefeld fokussiert ist
+    // Drawer nur bei Inhaltsänderung neu aufbauen (verhindert Klick-Flackern)
     const editing =
       activeEl &&
       this.drawer.contains(activeEl) &&
       (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
-    if (!editing) {
+    const drawerSig = this.signature();
+    if (!editing && (force || (!this.interacting && drawerSig !== this.lastDrawerSig))) {
+      this.lastDrawerSig = drawerSig;
       this.drawer.innerHTML = this.selection || !this.modalOpen ? this.renderDrawer() : '';
-      this.drawer.classList.toggle('hidden', this.modalOpen || (this.panel === 'workshop' && !this.selection));
     }
+    this.drawer.classList.toggle('hidden', this.modalOpen || (this.panel === 'workshop' && !this.selection));
     this.updateToasts();
+  }
+
+  /** Günstiger Änderungs-Schlüssel: DOM wird nur bei echten Änderungen neu gebaut. */
+  private signature(): string {
+    const s = this.getGame().state;
+    const parts: (string | number)[] = [
+      this.panel, this.modalKind, this.toolOrderId ?? '', this.modalOpen ? 1 : 0,
+      this.selection ? `${this.selection.kind}:${this.selection.id}` : '',
+      this.highlightParts.size,
+      Math.floor(s.totalMinutes / 5), s.speed, s.economy.balanceCents, s.orderRateFactor,
+      Math.floor(s.reputation), s.economy.hourlyRateCents, s.economy.partsMarkupPct,
+      s.notifications.length,
+    ];
+    for (const o of s.orders) {
+      parts.push(
+        o.id, o.status, o.priority, o.offerAtRisk ? 1 : 0, o.discountPct,
+        o.crewIds.length, o.jobs.filter((j) => j.done).length,
+        Math.floor(o.laborMinutesActual / 5), Math.floor(o.diagnosisRemainingMinutes / 5),
+        o.estimateCents ?? 0, o.invoiceCents ?? 0, o.satisfaction ?? -1,
+        o.qualityIssues, o.partsReserved ? 1 : 0, o.partsAtBay ? 1 : 0,
+        Math.floor((o.pickupAtMinute ?? 0) / 15), o.cancelReason ?? '', o.satisfactionReason, o.acceptedBudgetCents ?? -1,
+        Math.floor((o.expiresAtMinute ?? 0) / 30),
+      );
+    }
+    for (const w of s.workers) {
+      parts.push(
+        w.id, w.state, Math.floor(w.pos.x * 2), Math.floor(w.pos.y * 2),
+        Math.floor(w.trainingMinutes), Math.floor(w.motivation),
+        Object.values(w.skills).join(','), w.speedTilesPerMinute,
+      );
+    }
+    for (const c of s.candidates) parts.push(c.id, c.salaryCentsPerDay);
+    for (const pid of Object.keys(s.inventory.stock).sort()) {
+      parts.push(
+        s.inventory.stock[pid] ?? 0, s.inventory.reserved[pid] ?? 0,
+        s.inventory.minStock[pid] ?? 0, s.inventory.autoReorder[pid] ? 1 : 0,
+        Math.floor((s.marketPriceFactors[pid] ?? 1) * 100),
+      );
+    }
+    for (const d of s.deliveries) parts.push(d.id, Math.floor(d.arriveAtMinute / 30));
+    for (const st of s.stations) parts.push(st.id, st.unlocked ? 1 : 0, st.orderId ?? '');
+    parts.push(s.ownedTools.join(','), s.inventory.autoSupplierId, s.inventory.capacity);
+    for (const l of s.loans) parts.push(l.id, l.remainingCents);
+    return parts.join('|');
+  }
+
+  private renderApprovalPrompt(): string {
+    const game = this.getGame();
+    const s = game.state;
+    const o = s.orders.find((x) => x.id === this.approvalOrderId);
+    if (!o) return '<p class="empty">Auftrag nicht gefunden.</p>';
+    const c = s.customers.find((x) => x.id === o.customerId);
+    const v = s.vehicles.find((x) => x.id === o.vehicleId);
+    const history = s.orders.filter((x) => x.customerId === o.customerId && x.status === 'delivered');
+    const histRevenue = history.reduce((a, x) => a + (x.invoiceCents ?? 0), 0);
+    const avgSat = history.length > 0 ? Math.round(history.reduce((a, x) => a + (x.satisfaction ?? 0), 0) / history.length) : 0;
+    const minsLeft = Math.max(0, Math.ceil(((o.approvalDeadline ?? 0) - s.totalMinutes)));
+    let html = `<div class="card warn-card">
+      <div class="card-title">⚠️ ${esc(c?.name ?? 'Kunde')} droht, das Angebot abzulehnen</div>
+      <div class="meta">${v ? `${esc(v.make)} ${esc(v.model)} · ` : ''}Angebot: <strong>${eur(o.estimateCents ?? 0)}</strong> · Budget des Kunden: <strong>${eur(o.budgetCents)}</strong></div>
+      <div class="meta">Kundenhistorie: ${history.length === 0 ? 'Neukunde (keine vergangenen Aufträge)' : `${history.length} Aufträge · Umsatz ${eur(histRevenue)} · Ø Zufriedenheit ${avgSat}%`}${(c?.visits ?? 0) >= 2 ? ' · Stammkunde' : ''}</div>
+      <div class="meta">Ohne Reaktion entscheidet sich der Kunde in ${minsLeft} Spielminuten gegen die Werkstatt.</div>
+      <div class="btn-row">
+        <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="5">5 % Rabatt</button>
+        <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="10">10 % Rabatt</button>
+        <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="15">15 % Rabatt</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" data-action="accept-budget" data-id="${o.id}">Budget akzeptieren – Kunde halten (Rechnung = ${eur(o.budgetCents)})</button>
+        <button class="btn danger" data-action="insist-price" data-id="${o.id}">Preis bestehen – Kunde geht</button>
+      </div>
+    </div>`;
+    return html;
+  }
+
+  private renderToolPrompt(): string {
+    const game = this.getGame();
+    const s = game.state;
+    const o = s.orders.find((x) => x.id === this.toolOrderId);
+    if (!o) return '<p class="empty">Auftrag nicht gefunden.</p>';
+    const v = s.vehicles.find((x) => x.id === o.vehicleId);
+    const missing = OrderSystem.missingToolsForOrder(game.ctx, o);
+    let html = `<div class="card warn-card">
+      <div class="card-title">⚠️ Diagnose abgeschlossen – Spezialwerkzeug fehlt</div>
+      <div class="meta">Auftrag ${o.id}${v ? ` · ${esc(v.make)} ${esc(v.model)}` : ''}: „${esc(o.complaint)}“</div>
+      <div class="meta">Für die erkannten Reparaturen wird folgendes Werkzeug benötigt:</div>`;
+    for (const tid of missing) {
+      const t = game.defs.tools.find((x) => x.id === tid);
+      if (!t) continue;
+      html += `<div class="card compact"><strong>${esc(t.name)}</strong> – ${eur(t.costCents)}<div class="meta muted">${esc(t.description)}</div></div>`;
+    }
+    html += `<div class="meta">Der Auftrag wartet, bis das Werkzeug vorhanden ist. Du kannst es jetzt im Ausbau kaufen – oder den Auftrag ablehnen.</div>
+      <div class="btn-row">
+        <button class="btn primary" data-action="tool-shop">Zum Ausbau – Werkzeug kaufen</button>
+        <button class="btn" data-action="tool-wait">Warten – ich kümmere mich später</button>
+        <button class="btn danger" data-action="tool-decline">Auftrag ablehnen</button>
+      </div>
+    </div>`;
+    return html;
   }
 
   private updateToasts(): void {
@@ -478,7 +662,12 @@ export class UI {
       html += `<h3 class="section">Zuletzt abgeschlossen</h3>`;
       for (const o of finished) {
         const v = s.vehicles.find((x) => x.id === o.vehicleId);
-        html += `<div class="card compact">${statusChip(o.status)} ${v ? `${esc(v.make)} ${esc(v.model)}` : o.id}${o.invoiceCents !== null ? ` · ${eur(o.invoiceCents)}` : ''}${o.satisfaction !== null ? ` · Zufriedenheit ${o.satisfaction}%` : ''}</div>`;
+        const reasonHelp = o.status === 'cancelled'
+          ? help(`Storniert: ${o.cancelReason ?? 'ohne Angabe'}`)
+          : o.satisfaction !== null
+            ? help(`Zufriedenheit ${o.satisfaction}% – ${o.satisfactionReason || 'keine Details'}`)
+            : '';
+        html += `<div class="card compact">${statusChip(o.status)} ${v ? `${esc(v.make)} ${esc(v.model)}` : o.id}${o.invoiceCents !== null ? ` · ${eur(o.invoiceCents)}` : ''}${o.satisfaction !== null ? ` · Zufriedenheit ${o.satisfaction}%` : ''} ${reasonHelp}${o.status === 'cancelled' && o.cancelReason ? `<div class="meta muted">Grund: ${esc(o.cancelReason)}</div>` : ''}</div>`;
       }
     }
     return html;
@@ -524,11 +713,8 @@ export class UI {
           <button class="btn small" data-action="train" data-id="${w.id}" data-skill="${skill}" ${busy || val >= 100 ? 'disabled' : ''} title="Weiterbildung: +5 für 150 €, dauert 2 h">+5</button></div>`;
       }
       html += `</div><div class="meta muted">Weiterbildung: +5 Punkte für 150 €, Mitarbeiter ist 2 h nicht einsetzbar.</div>`;
-      html += `<div class="meta speed-row">Lauftempo: <strong>${w.speedTilesPerMinute.toFixed(2)}</strong> <span class="muted">(${tempoLabel(w.speedTilesPerMinute)})</span>
-        <button class="btn small" data-action="worker-speed" data-id="${w.id}" data-delta="-0.05" title="langsamer">−</button>
-        <button class="btn small" data-action="worker-speed" data-id="${w.id}" data-delta="0.05" title="schneller">+</button>
-        <span class="muted">(0.20–0.60)</span></div>`;
-      html += `<div class="skill-row"><span>Motivation</span><div class="bar"><div style="width:${w.motivation}%; background:${w.motivation < 40 ? 'var(--neg)' : w.motivation < 70 ? 'var(--warn)' : 'var(--pos)'}"></div></div><span class="num">${Math.round(w.motivation)}</span></div>`;
+      html += `<div class="meta speed-row">Lauftempo: <strong>${w.speedTilesPerMinute.toFixed(2)}</strong> <span class="muted">(${tempoLabel(w.speedTilesPerMinute)})</span> ${help('Festes Mitarbeiter-Attribut (0.20–0.60 Tiles/Spielminute), nicht veränderbar. Schnelle Mitarbeiter erreichen Fahrzeug und Lager früher – der Unterschied ist im Laufbild sichtbar.')}</div>`;
+      html += `<div class="skill-row"><span>Motivation <button type="button" class="help" data-help="Motivation (0–100): beeinflusst das Arbeitstempo (±10 %). Steigt bei Erholung und Weiterbildung, sinkt bei Dauer-Überlastung (über 85 % Auslastung am Tag).">?</button></span><div class="bar"><div style="width:${w.motivation}%; background:${w.motivation < 40 ? 'var(--neg)' : w.motivation < 70 ? 'var(--warn)' : 'var(--pos)'}"></div></div><span class="num">${Math.round(w.motivation)}</span></div>`;
       if (w.task) {
         html += `<div class="meta">Aktivität: ${WORKER_STATE_LABELS[w.state]} · Schritt verbleibend ca. ${Math.ceil(w.task.remainingMinutes)} Spielminuten</div>`;
       }
@@ -554,8 +740,9 @@ export class UI {
     html += `<div class="supplier-row">Auto-Nachbestellung bei ≤ Mindestmenge → Lieferant:
       ${game.defs.suppliers.map((sup) => `<button class="btn small ${inv.autoSupplierId === sup.id ? 'primary' : ''}" data-action="auto-supplier" data-id="${sup.id}">${esc(sup.name)}</button>`).join('')}
       <span class="muted">Zielbestand: Mindestbestand</span>
+      <button type="button" class="help" data-help="Lieferanten: Prozent = Auf-/Abschlag auf den Marktpreis. Express +35 % (1 h), Standard 0 % (8 h), Budget −15 % (24 h), jeweils plus Versandkosten.">?</button>
     </div>`;
-    html += `<table class="parts-table"><thead><tr><th>Teil</th><th>Bestand</th><th>Reserv.</th><th>Min</th><th>Auto</th><th>EK</th><th>VK</th><th>Bestellen</th></tr></thead><tbody>`;
+    html += `<table class="parts-table"><thead><tr><th>Teil</th><th>Bestand</th><th>Reserv.</th><th>Min</th><th>Auto <button type="button" class="help" data-help="Auto-Nachbestellung pro Artikel: Fällt der verfügbare Bestand (Lager minus Reservierungen) unter den Mindestbestand, wird automatisch die Differenz beim gewählten Lieferanten bestellt. Standard: aus.">?</button></th><th>EK <button type="button" class="help" data-help="EK = aktueller Marktpreis (schwankt täglich ±15 %). VK = EK × (1 + Teileaufschlag). Der Pfeil zeigt den Trend zum Vortag.">?</button></th><th>VK</th><th>Bestellen</th></tr></thead><tbody>`;
     for (const p of game.defs.parts) {
       const stock = inv.stock[p.id] ?? 0;
       const reserved = inv.reserved[p.id] ?? 0;
@@ -651,7 +838,7 @@ export class UI {
       }
       html += `</tbody></table>`;
     }
-    html += `<h3 class="section">Kredite</h3>`;
+    html += `<h3 class="section">Kredite <button type="button" class="help" data-help="Max. 50.000 € Gesamtschulden. Zinsen: 0,05 % pro Tag auf die Restschuld (5 Basispunkte). Tilgung jederzeit manuell – Zinsen laufen nur auf den verbleibenden Betrag.">?</button></h3>`;
     const debt = s.loans.reduce((a, l) => a + l.remainingCents, 0);
     html += `<div class="meta">Gesamtschulden: <strong class="${debt > 0 ? 'neg' : ''}">${eur(debt)}</strong> · Limit 50.000 € · Zinsen 0,05 %/Tag</div>`;
     html += `<div class="btn-row">
@@ -740,7 +927,15 @@ export class UI {
       <div class="meta">Kosten: ${eur(250000)}</div>
       <div class="btn-row"><button class="btn primary" data-action="expand-storage">Kaufen</button></div>
     </div>`;
-    html += `<h3 class="section">Spezialwerkzeuge</h3>`;
+    const parks = s.stations.filter((x) => x.kind === 'parking');
+    const freeParks = parks.filter((x) => x.unlocked).length;
+    html += `<div class="card">
+      <div class="card-title">Parkplätze an der Straße</div>
+      <div class="meta">${freeParks} von ${parks.length} Plätzen erschlossen. Kunden parken dort nach der Reparatur und holen verzögert ab – volle Parkplätze blockieren Hebebühnen.</div>
+      <div class="meta">Kosten je weiterem Platz: ${eur(120000)}</div>
+      ${freeParks < parks.length ? '<div class="btn-row"><button class="btn primary" data-action="buy-parking">Weiteren Parkplatz erschließen</button></div>' : '<div class="chip st-delivered">Alle Plätze erschlossen</div>'}
+    </div>`;
+    html += `<h3 class="section">Spezialwerkzeuge <button type="button" class="help" data-help="Bestimmte Reparaturen (Federn, Wasserpumpe, Klima, Getriebe) sind erst möglich, wenn das passende Werkzeug gekauft wurde. Fehlt es, wartet der Auftrag – die Diagnose zeigt ein Hinweis-Modal.">?</button></h3>`;
     for (const t of game.defs.tools) {
       const owned = s.ownedTools.includes(t.id);
       html += `<div class="card">
@@ -760,13 +955,16 @@ export class UI {
     return `<div class="drawer-head"><h2>Einstellungen</h2></div>
       <div class="card">
         <div class="card-title">Kalkulation</div>
-        <label class="field">Stundenverrechnungssatz (€)
+        <label class="field">Stundenverrechnungssatz (€) <button type="button" class="help" data-help="Basis für alle Arbeitsleistungen. Rechnung = Arbeitszeit × Satz + Teile-VK + Diagnosepauschale. Höher = mehr Marge, aber preissensible Kunden lehnen eher ab.">?</button>
           <input type="number" min="30" max="200" step="5" value="${(s.economy.hourlyRateCents / 100).toFixed(0)}" data-field="rate">
         </label>
-        <label class="field">Ersatzteilaufschlag (%)
+        <label class="field">Ersatzteilaufschlag (%) <button type="button" class="help" data-help="Verkaufspreis = Einkaufspreis × (1 + Aufschlag %). Beispiel: 50 € EK + 40 % = 70 € VK, also 20 € Rohmarge pro Teil.">?</button>
           <input type="number" min="0" max="150" step="5" value="${s.economy.partsMarkupPct}" data-field="markup">
         </label>
         <div class="meta muted">Höhere Preise steigern die Marge, aber preissensible Kunden lehnen Angebote eher ab.</div>
+        <label class="field">Auftragsfrequenz (Faktor) ${help('Multiplikator für neue Kundenaufträge: 0.5 = ruhig, 1 = normal, 3 = voll. Basis hängt zusätzlich von der Reputation ab. Mehr Aufträge = mehr Umsatz, aber auch mehr Engpässe bei Personal und Parkplätzen.')}
+          <input type="number" min="0.5" max="3" step="0.1" value="${s.orderRateFactor}" data-field="orderrate">
+        </label>
       </div>
       <div class="card">
         <div class="card-title">Spielstand</div>
@@ -876,8 +1074,8 @@ export class UI {
         ${o.estimateCents !== null ? `<div class="meta">Kostenvoranschlag: <strong>${eur(o.estimateCents)}</strong></div>` : ''}
         ${o.invoiceCents !== null ? `<div class="meta">Rechnung: <strong>${eur(o.invoiceCents)}</strong></div>` : ''}
         ${o.satisfaction !== null ? `<div class="meta">Kundenzufriedenheit: ${o.satisfaction}%</div>` : ''}
-        ${o.qualityScore !== null ? `<div class="meta">Qualitäts-score: ${(o.qualityScore * 100).toFixed(0)}%${o.qualityIssues > 0 ? ` · ${o.qualityIssues} Nacharbeit(en)` : ''}</div>` : ''}
-        ${o.crewIds.length > 1 ? `<div class="meta">Team-Reparatur: ${o.crewIds.map((id) => esc(s.workers.find((w) => w.id === id)?.name ?? id)).join(', ')}</div>` : ''}
+        ${o.qualityScore !== null ? `<div class="meta">Qualitäts-score: ${(o.qualityScore * 100).toFixed(0)}%${o.qualityIssues > 0 ? ` · ${o.qualityIssues} Nacharbeit(en)` : ''} ${help('Qualitäts-score: steigt mit dem Diagnose-Skill des Prüfers, sinkt bei QC-Nacharbeiten. Niedriger Score erhöht das Reklamationsrisiko (20 % Erstattung, Reputation −4).')}</div>` : ''}
+        ${o.crewIds.length > 1 ? `<div class="meta">Team-Reparatur: ${o.crewIds.map((id) => esc(s.workers.find((w) => w.id === id)?.name ?? id)).join(', ')} ${help('Team-Reparatur: Diese Reparatur braucht 2 Mitarbeiter. Beide müssen an der Bühne sein; zusammen gibt es +15 % Arbeitsgeschwindigkeit.')}</div>` : ''}
         <div class="meta muted">Tatsächliche Arbeitszeit: ${Math.round(o.laborMinutesActual)} min</div>
       </div>`;
     } else {

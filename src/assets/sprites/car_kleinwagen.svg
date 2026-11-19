@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 400">
+  <defs>
+    <linearGradient id="kb" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="0.5" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#0f172a" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Spiegel -->
+    <rect x="18" y="128" width="26" height="16" rx="7" fill="#3b82f6"/>
+    <rect x="156" y="128" width="26" height="16" rx="7" fill="#3b82f6"/>
+    <!-- Karosserie -->
+    <path d="M60 22 Q100 8 140 22 Q162 34 164 70 L160 150 Q166 200 160 260 L162 330 Q160 368 138 378 Q100 390 62 378 Q40 368 38 330 L40 260 Q34 200 40 150 L36 70 Q38 34 60 22 Z" fill="url(#kb)"/>
+    <!-- Scheinwerfer -->
+    <path d="M52 34 Q66 26 78 30 L74 46 Q60 46 52 42 Z" fill="#f8fafc" stroke-width="5"/>
+    <path d="M148 34 Q134 26 122 30 L126 46 Q140 46 148 42 Z" fill="#f8fafc" stroke-width="5"/>
+    <!-- Frontscheibe -->
+    <path d="M64 78 Q100 68 136 78 L128 118 Q100 110 72 118 Z" fill="#1e293b" stroke-width="6"/>
+    <path d="M80 80 L92 78 L84 114 L74 116 Z" fill="#ffffff" opacity="0.35" stroke="none"/>
+    <!-- Seitenfenster -->
+    <path d="M46 130 L58 126 L58 210 L46 206 Z" fill="#1e293b" stroke-width="5"/>
+    <path d="M154 130 L142 126 L142 210 L154 206 Z" fill="#1e293b" stroke-width="5"/>
+    <!-- Dach -->
+    <rect x="62" y="126" width="76" height="96" rx="14" fill="#3b82f6" stroke-width="5"/>
+    <path d="M74 140 L74 208 M100 136 L100 212 M126 140 L126 208" stroke="#2563eb" stroke-width="4" opacity="0.7"/>
+    <!-- Heckscheibe -->
+    <path d="M72 232 Q100 226 128 232 L134 268 Q100 260 66 268 Z" fill="#1e293b" stroke-width="6"/>
+    <path d="M86 232 L96 230 L90 264 L80 266 Z" fill="#ffffff" opacity="0.3" stroke="none"/>
+    <!-- Antenne -->
+    <path d="M100 280 L108 296 L96 296 Z" fill="#0f172a" stroke-width="4"/>
+    <!-- Rücklichter -->
+    <path d="M46 344 Q58 338 70 342 L68 360 Q54 360 46 354 Z" fill="#ef4444" stroke-width="5"/>
+    <path d="M154 344 Q142 338 130 342 L132 360 Q146 360 154 354 Z" fill="#ef4444" stroke-width="5"/>
+  </g>
+</svg>

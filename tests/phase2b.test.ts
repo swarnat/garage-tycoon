@@ -179,7 +179,7 @@ describe('Save-Migration v3 → v4', () => {
     for (const c of raw.customers) delete c.lastSatisfaction;
     raw.stations = raw.stations.filter((s: { id: string }) => s.id !== 'diag2');
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(6);
+    expect(migrated.version).toBe(8);
     expect(migrated.orders[0]!.diagnosisExtended).toBe(false);
     expect(migrated.customers[0]!.lastSatisfaction).toBeNull();
     const diag2 = migrated.stations.find((s) => s.id === 'diag2');

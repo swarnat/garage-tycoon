@@ -25,6 +25,33 @@ import { MarketSystem } from '../simulation/MarketSystem';
 import type { SkillId } from '../entities/types';
 import { findPath } from '../world/Pathfinding';
 
+/** Sinnvolle Mindestbestände: Verschleißteile häufiger, seltene Teile einzeln. */
+const DEFAULT_MIN_STOCK: Record<string, number> = {
+  brake_pads: 3,
+  brake_discs: 2,
+  brake_caliper: 1,
+  brake_fluid: 2,
+  spark_plugs: 3,
+  ignition_coil: 1,
+  oil_filter: 3,
+  motor_oil: 4,
+  air_filter: 2,
+  accessory_belt: 1,
+  water_pump: 1,
+  thermostat: 1,
+  battery: 2,
+  alternator: 1,
+  starter: 1,
+  sensor: 2,
+  shock_absorber: 2,
+  spring: 1,
+  control_arm: 1,
+  wheel_bearing: 1,
+  muffler: 1,
+  transmission_oil: 2,
+  refrigerant: 2,
+};
+
 const INITIAL_STOCK: Record<string, number> = {
   brake_pads: 4,
   brake_fluid: 3,
@@ -77,7 +104,7 @@ export function createNewGame(seed: number): GameState {
   for (const p of DEFS.parts) {
     stock[p.id] = INITIAL_STOCK[p.id] ?? 0;
     reserved[p.id] = 0;
-    minStock[p.id] = INITIAL_STOCK[p.id] ? 2 : 0;
+    minStock[p.id] = DEFAULT_MIN_STOCK[p.id] ?? 1;
     marketPriceFactors[p.id] = 1;
   }
   return {
@@ -125,6 +152,7 @@ export function createNewGame(seed: number): GameState {
     deliveries: [],
     stations: TileMap.defaultStations(),
     candidates: [],
+    orderRateFactor: 1,
     ownedTools: ['brake_bleeder'],
     marketPriceFactors,
     loans: [],
@@ -192,9 +220,13 @@ export class Game {
    *  Nachts läuft sie automatisch mit 8×, zu Arbeitsbeginn mit 1×. */
   tick(minutes: number): void {
     if (this.state.speed === 0) return;
-    // Außerhalb der Arbeitszeit läuft die Simulation automatisch mit 8x
+    // Außerhalb der Arbeitszeit automatisch 16x – aber nie bei laufender Arbeit
     const m0 = this.state.totalMinutes % MINUTES_PER_DAY;
-    if ((m0 >= 1080 || m0 < 480) && this.state.speed !== 8) {
+    const night0 = m0 >= 1080 || m0 < 480;
+    const working0 = this.state.workers.some((w) => w.task);
+    if (night0 && !working0 && this.state.speed !== 16) {
+      this.state.speed = 16;
+    } else if (night0 && working0 && this.state.speed === 16) {
       this.state.speed = 8;
     }
     this.acc += minutes;
@@ -219,12 +251,16 @@ export class Game {
       this.bus.emit('day:started', d);
       notify(this.ctx, 'info', `Tag ${d} beginnt. Gehälter und Fixkosten wurden verbucht.`);
     }
-    // Tempo-Automatik: außerhalb der Arbeitszeit 8x, zu Beginn (08:00) 1x
+    // Tempo-Automatik: nachts 16x (nur ohne laufende Arbeit), zu Beginn 1x
     const afterMinute = this.state.totalMinutes % MINUTES_PER_DAY;
     if (this.state.speed !== 0) {
-      if (afterMinute >= 1080 || afterMinute < 480) {
-        if (this.state.speed !== 8) this.state.speed = 8;
-      } else if (beforeMinute < 480 && afterMinute >= 480) {
+      const night = afterMinute >= 1080 || afterMinute < 480;
+      const working = this.state.workers.some((w) => w.task);
+      if (night && !working) {
+        if (this.state.speed !== 16) this.state.speed = 16;
+      } else if (night && working && this.state.speed === 16) {
+        this.state.speed = 8;
+      } else if (!night && beforeMinute < 480 && afterMinute >= 480) {
         this.state.speed = 1;
       }
     }
@@ -370,6 +406,43 @@ export class Game {
     OrderSystem.cancelOrder(this.ctx, order, 'Preis bestanden – Kunde lehnt ab');
   }
 
+  buyParking(): boolean {
+    const park = this.state.stations.find((s) => s.kind === 'parking' && !s.unlocked);
+    if (!park) return false;
+    const cost = 120000;
+    if (this.state.economy.balanceCents < cost) {
+      notify(this.ctx, 'danger', 'Parkplatz: Kontostand reicht nicht (1.200 €).');
+      return false;
+    }
+    EconomySystem.book(this.state.economy, {
+      id: `upgrade-${park.id}`,
+      day: Math.floor(this.state.totalMinutes / 1440) + 1,
+      atMinute: this.state.totalMinutes,
+      amountCents: -cost,
+      category: 'investment',
+      label: `Parkplatz ${park.id.replace('park', '')} (Straße)`,
+    });
+    park.unlocked = true;
+    this.bus.emit('upgrade:purchased', park.id);
+    notify(this.ctx, 'success', `Parkplatz ${park.id.replace('park', '')} erschlossen (1.200 €).`);
+    return true;
+  }
+
+  setOrderRate(value: number): void {
+    this.state.orderRateFactor = Math.max(0.5, Math.min(3, Math.round(value * 10) / 10));
+  }
+
+  /** Kunde bietet wenig, soll aber bleiben: Preis = Kundenbudget. */
+  acceptBudget(orderId: string): boolean {
+    const order = this.state.orders.find((o) => o.id === orderId);
+    if (!order || order.status !== 'waiting_for_approval' || !order.offerAtRisk) return false;
+    order.acceptedBudgetCents = order.budgetCents;
+    OrderSystem.approve(this.ctx, order);
+    const customer = this.state.customers.find((c) => c.id === order.customerId);
+    notify(this.ctx, 'success', `${customer?.name ?? 'Kunde'} bleibt: Rechnung zum Budget ${(order.budgetCents / 100).toFixed(2)} € akzeptiert.`);
+    return true;
+  }
+
   takeLoan(amountCents: number): boolean {
     if (!Number.isInteger(amountCents) || amountCents <= 0) return false;
     const debt = this.state.loans.reduce((a, l) => a + l.remainingCents, 0);
@@ -418,12 +491,6 @@ export class Game {
     return true;
   }
 
-  setWorkerSpeed(workerId: string, value: number): void {
-    const w = this.state.workers.find((x) => x.id === workerId);
-    if (w) {
-      w.speedTilesPerMinute = Math.max(0.2, Math.min(0.6, Math.round(value * 100) / 100));
-    }
-  }
 
   setHourlyRate(cents: number): void {
     this.state.economy.hourlyRateCents = Math.max(

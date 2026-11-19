@@ -35,6 +35,19 @@ function bindBus(): void {
   game.bus.on('parts:delivered', () => { saveDirty = true; });
   game.bus.on('order:accepted', () => { saveDirty = true; });
   game.bus.on('order:delivered', () => { saveDirty = true; });
+  game.bus.on('approval:at-risk', (payload) => {
+    ui.showApprovalPrompt(String(payload));
+  });
+  game.bus.on('diagnosis:completed', (payload) => {
+    const orderId = String(payload);
+    const o = game.state.orders.find((x) => x.id === orderId);
+    if (!o || o.toolPromptShown) return;
+    const missing = OrderSystem.missingToolsForOrder(game.ctx, o);
+    if (missing.length > 0) {
+      o.toolPromptShown = true;
+      ui.showToolPrompt(orderId);
+    }
+  });
 }
 
 function replaceGame(next: Game, message: string): void {
@@ -112,12 +125,11 @@ const actions: UIActions = {
   setMinStock: (partId, v) => {
     game.state.inventory.minStock[partId] = Math.max(0, Math.min(20, Math.round(v)));
   },
-  setWorkerSpeed: (id, delta) => {
-    const w = game.state.workers.find((x) => x.id === id);
-    if (w) game.setWorkerSpeed(id, w.speedTilesPerMinute + delta);
-  },
   resetCamera: () => renderer.resetCamera(),
   offerDiscount: (id, pct) => { game.offerDiscount(id, pct); },
+  acceptBudget: (id) => { game.acceptBudget(id); },
+  buyParking: () => { game.buyParking(); },
+  setOrderRate: (v) => { game.setOrderRate(v); },
   insistPrice: (id) => { game.insistPrice(id); },
   buyTool: (id) => { game.buyTool(id); },
   takeLoan: (cents) => { game.takeLoan(cents); },
@@ -190,6 +202,7 @@ async function boot(): Promise<void> {
     else if (e.key === '2') actions.setSpeed(2);
     else if (e.key === '3') actions.setSpeed(4);
     else if (e.key === '4') actions.setSpeed(8);
+    else if (e.key === '5') actions.setSpeed(16);
     else if (e.key === 'Escape') {
       ui.closeModal();
       actions.select(null);

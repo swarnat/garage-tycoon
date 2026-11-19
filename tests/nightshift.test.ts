@@ -9,7 +9,7 @@ describe('Nacht-Skip bei 8×', () => {
     game.orderParts('battery', 1, 'teileprofi'); // +480 min → 02:00 nachts
     const stockBefore = game.state.inventory.stock['battery'] ?? 0;
     game.tick(1);
-    expect(game.state.speed).toBe(8);
+    expect(game.state.speed).toBe(16);
     game.tick(840); // bis 08:00 nächsten Tages
     expect(Math.floor(game.state.totalMinutes / 1440)).toBe(1);
     expect(game.state.inventory.stock['battery']).toBe(stockBefore + 1);
@@ -22,7 +22,7 @@ describe('Nacht-Skip bei 8×', () => {
     game.state.totalMinutes = 22 * 60;
     game.setSpeed(2);
     game.tick(1);
-    expect(game.state.speed).toBe(8);
+    expect(game.state.speed).toBe(16);
   });
 
   it('tagsüber bleibt die gewählte Geschwindigkeit erhalten', () => {
@@ -50,7 +50,8 @@ describe('Pausenraum für untätige Mitarbeiter', () => {
     game.tick(180);
     for (const w of game.state.workers) {
       expect(w.state).toBe('break');
-      expect(w.pos.y).toBeGreaterThan(10);
+      expect(w.pos.y).toBeGreaterThan(8);
+      expect(w.pos.y).toBeLessThan(12.5);
       expect(w.pos.x).toBeGreaterThan(1.5);
       expect(w.pos.x).toBeLessThan(5);
     }
@@ -63,6 +64,7 @@ describe('Pausenraum für untätige Mitarbeiter', () => {
     for (const k of Object.keys(game.state.inventory.stock)) {
       game.state.inventory.stock[k] = 20;
     }
+    for (const o of game.state.orders.filter((x) => x.status === 'incoming')) game.declineOrder(o.id);
     const offer = game.generateOffer()!;
     offer.budgetCents = 5_000_000;
     game.acceptOrder(offer.id);
@@ -86,8 +88,8 @@ describe('Individuelle Geschwindigkeit', () => {
   it('Mitarbeiter haben unterschiedliches Tempo und laufen unterschiedlich schnell', () => {
     const game = Game.new(420);
     const [w1, w2] = game.state.workers;
-    game.setWorkerSpeed(w1!.id, 0.6);
-    game.setWorkerSpeed(w2!.id, 0.2);
+    w1!.speedTilesPerMinute = 0.6;
+    w2!.speedTilesPerMinute = 0.2;
     expect(w1!.speedTilesPerMinute).toBe(0.6);
     expect(w2!.speedTilesPerMinute).toBe(0.2);
     game.tick(10);
@@ -98,12 +100,9 @@ describe('Individuelle Geschwindigkeit', () => {
     expect(d1).toBeGreaterThan(d2);
   });
 
-  it('Geschwindigkeit wird begrenzt', () => {
+  it('Geschwindigkeit ist ein festes Attribut (kein Setter)', () => {
     const game = Game.new(421);
-    game.setWorkerSpeed('w1', 5);
-    expect(game.state.workers[0]!.speedTilesPerMinute).toBeLessThanOrEqual(0.6);
-    game.setWorkerSpeed('w1', 0.01);
-    expect(game.state.workers[0]!.speedTilesPerMinute).toBeGreaterThanOrEqual(0.2);
+    expect((game as unknown as Record<string, unknown>).setWorkerSpeed).toBeUndefined();
   });
 
   it('eingestellte Mitarbeiter bringen eigenes Tempo mit', () => {

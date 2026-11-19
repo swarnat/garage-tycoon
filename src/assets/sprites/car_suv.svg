@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 420">
+  <defs>
+    <linearGradient id="sb" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4e5d26"/>
+      <stop offset="0.5" stop-color="#8fa34e"/>
+      <stop offset="1" stop-color="#4e5d26"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#15181b" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Radläufe / Reifenbulges -->
+    <rect x="14" y="66" width="26" height="52" rx="12" fill="#3a434b"/>
+    <rect x="180" y="66" width="26" height="52" rx="12" fill="#3a434b"/>
+    <rect x="14" y="300" width="26" height="52" rx="12" fill="#3a434b"/>
+    <rect x="180" y="300" width="26" height="52" rx="12" fill="#3a434b"/>
+    <!-- Stoßfänger vorne -->
+    <rect x="34" y="10" width="152" height="20" rx="9" fill="#3a434b"/>
+    <!-- Spiegel -->
+    <rect x="20" y="140" width="28" height="17" rx="7" fill="#6e8b3d"/>
+    <rect x="172" y="140" width="28" height="17" rx="7" fill="#6e8b3d"/>
+    <!-- Karosserie: breit, kantig -->
+    <path d="M52 24 Q110 12 168 24 Q186 36 188 76 L184 170 Q190 230 184 300 L186 356 Q184 396 162 404 Q110 416 58 404 Q36 396 34 356 L36 300 Q30 230 36 170 L32 76 Q34 36 52 24 Z" fill="url(#sb)"/>
+    <!-- Haube mit Scoop -->
+    <path d="M88 40 Q110 34 132 40 L126 68 Q110 62 94 68 Z" fill="#5c6e2e" stroke-width="4"/>
+    <path d="M44 40 Q60 28 76 34 L70 54 Q54 54 44 48 Z" fill="#f4f6f7" stroke-width="5"/>
+    <path d="M176 40 Q160 28 144 34 L150 54 Q166 54 176 48 Z" fill="#f4f6f7" stroke-width="5"/>
+    <!-- Frontscheibe -->
+    <path d="M58 92 Q110 80 162 92 L152 134 Q110 126 68 134 Z" fill="#33414b" stroke-width="6"/>
+    <path d="M82 92 L96 88 L86 130 L74 132 Z" fill="#ffffff" opacity="0.3" stroke="none"/>
+    <!-- Seitenfenster (3 je Seite) -->
+    <path d="M42 148 L56 142 L56 194 L42 190 Z" fill="#33414b" stroke-width="5"/>
+    <path d="M42 202 L56 200 L56 246 L42 242 Z" fill="#33414b" stroke-width="5"/>
+    <path d="M42 254 L56 252 L56 288 L42 282 Z" fill="#33414b" stroke-width="5"/>
+    <path d="M178 148 L164 142 L164 194 L178 190 Z" fill="#33414b" stroke-width="5"/>
+    <path d="M178 202 L164 200 L164 246 L178 242 Z" fill="#33414b" stroke-width="5"/>
+    <path d="M178 254 L164 252 L164 288 L178 282 Z" fill="#33414b" stroke-width="5"/>
+    <!-- Dach mit Reling -->
+    <rect x="60" y="142" width="100" height="150" rx="14" fill="#6e8b3d" stroke-width="5"/>
+    <rect x="70" y="152" width="8" height="130" rx="4" fill="#a6adb5" stroke-width="4"/>
+    <rect x="142" y="152" width="8" height="130" rx="4" fill="#a6adb5" stroke-width="4"/>
+    <path d="M96 158 L96 282 M110 156 L110 284 M124 158 L124 282" stroke="#4e5d26" stroke-width="4" opacity="0.8"/>
+    <!-- Heckscheibe -->
+    <path d="M68 304 Q110 296 152 304 L158 340 Q110 332 62 340 Z" fill="#33414b" stroke-width="6"/>
+    <path d="M88 304 L100 302 L92 336 L82 338 Z" fill="#ffffff" opacity="0.28" stroke="none"/>
+    <!-- Rückleuchten L-Form -->
+    <path d="M40 362 Q56 354 74 358 L72 384 Q54 386 40 376 Z" fill="#e11d24" stroke-width="5"/>
+    <path d="M180 362 Q164 354 146 358 L148 384 Q166 386 180 376 Z" fill="#e11d24" stroke-width="5"/>
+    <!-- Heckstoßfänger -->
+    <rect x="44" y="398" width="132" height="14" rx="7" fill="#3a434b" stroke-width="5"/>
+  </g>
+</svg>
