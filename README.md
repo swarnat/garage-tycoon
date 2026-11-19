@@ -1,5 +1,7 @@
 # Garage Tycoon
 
+**▶ Jetzt spielen: https://swarnat.github.io/garage-tycoon/** (GitHub Pages, automatisch bei jedem Push auf `main`)
+
 2D-Wirtschaftssimulation / Werkstattmanagement im Browser. TypeScript + Vite + PixiJS, vollständig offline. Spielstände werden primär in **IndexedDB** gespeichert (großer Browserspeicher, Fallback localStorage). Kein Backend.
 
 ![Screenshot](docs/screenshot.png)
