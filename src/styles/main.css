@@ -249,3 +249,8 @@ body {
 .toast span { flex: 1; }
 .toast-close { background: none; border: none; color: inherit; cursor: pointer; font-size: 12px; opacity: 0.6; padding: 0 2px; }
 .toast-close:hover { opacity: 1; }
+
+.usage-hot { color: var(--accent); font-weight: 700; }
+.legend { margin: 6px 0; }
+.legend-low { color: var(--warn); font-weight: 700; }
+.legend-highlight { background: #2a2413; padding: 1px 5px; border-radius: 3px; }

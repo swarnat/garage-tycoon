@@ -245,7 +245,7 @@ describe('Save-Migration v7 → v8', () => {
     );
     delete raw.orderRateFactor;
     const migrated = migrate(raw);
-    expect(migrated.version).toBe(9);
+    expect(migrated.version).toBe(10);
     const parks = (migrated.stations as Array<Record<string, unknown>>).filter((s) => s.kind === 'parking');
     expect(parks).toHaveLength(8);
     expect(migrated.orderRateFactor).toBe(1);

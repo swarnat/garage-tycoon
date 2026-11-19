@@ -147,6 +147,7 @@ export function createNewGame(seed: number): GameState {
       minStock,
       capacity: 120,
       autoReorder: {},
+      usageLog: [],
       autoSupplierId: 'teileprofi',
     },
     deliveries: [],

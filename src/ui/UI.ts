@@ -547,6 +547,8 @@ export class UI {
         s.inventory.stock[pid] ?? 0, s.inventory.reserved[pid] ?? 0,
         s.inventory.minStock[pid] ?? 0, s.inventory.autoReorder[pid] ? 1 : 0,
         Math.floor((s.marketPriceFactors[pid] ?? 1) * 100),
+        InventorySystem.usageWithin(s.inventory, pid, 1440, s.totalMinutes),
+        InventorySystem.usageWithin(s.inventory, pid, 2880, s.totalMinutes),
       );
     }
     for (const d of s.deliveries) parts.push(d.id, Math.floor(d.arriveAtMinute / 30));
@@ -806,7 +808,8 @@ export class UI {
       <span class="muted">Zielbestand: Mindestbestand</span>
       <button type="button" class="help" data-help="Lieferanten: Prozent = Auf-/Abschlag auf den Marktpreis. Express +35 % (1 h), Standard 0 % (8 h), Budget −15 % (24 h), jeweils plus Versandkosten.">?</button>
     </div>`;
-    html += `<table class="parts-table"><thead><tr><th>Teil</th><th>Bestand</th><th>Reserv.</th><th>Min</th><th>Auto <button type="button" class="help" data-help="Auto-Nachbestellung pro Artikel: Fällt der verfügbare Bestand (Lager minus Reservierungen) unter den Mindestbestand, wird automatisch die Differenz beim gewählten Lieferanten bestellt. Standard: aus.">?</button></th><th>EK <button type="button" class="help" data-help="EK = aktueller Marktpreis (schwankt täglich ±15 %). VK = EK × (1 + Teileaufschlag). Der Pfeil zeigt den Trend zum Vortag.">?</button></th><th>VK</th><th>Bestellen</th></tr></thead><tbody>`;
+    html += `<div class="meta muted legend">Legende: <span class="legend-low">Gelber Name</span> = Bestand ≤ Mindestbestand (Nachbestell-Warnung) · <span class="legend-highlight">Dunkler Hintergrund</span> = Teil wird für einen ausgewählten Auftrag gebraucht.</div>`;
+    html += `<table class="parts-table"><thead><tr><th>Teil</th><th>Bestand</th><th>Reserv.</th><th>Min</th><th>Auto <button type="button" class="help" data-help="Auto-Nachbestellung pro Artikel: Fällt der verfügbare Bestand (Lager minus Reservierungen) unter den Mindestbestand, wird automatisch die Differenz beim gewählten Lieferanten bestellt. Standard: aus.">?</button></th><th>EK <button type="button" class="help" data-help="EK = aktueller Marktpreis (schwankt täglich ±15 %). VK = EK × (1 + Teileaufschlag). Der Pfeil zeigt den Trend zum Vortag.">?</button></th><th>VK</th><th>24h <button type="button" class="help" data-help="Verbrauch durch Reparaturen in den letzten 24 Spielstunden. Hilft bei der Entscheidung über Mindestbestand und Auto-Nachbestellung.">?</button></th><th>48h <button type="button" class="help" data-help="Verbrauch durch Reparaturen in den letzten 48 Spielstunden.">?</button></th><th>Bestellen</th></tr></thead><tbody>`;
     for (const p of game.defs.parts) {
       const stock = inv.stock[p.id] ?? 0;
       const reserved = inv.reserved[p.id] ?? 0;
@@ -818,6 +821,8 @@ export class UI {
       const factor = s.marketPriceFactors[p.id] ?? 1;
       const trend = factor > 1.02 ? '▲' : factor < 0.98 ? '▼' : '·';
       const trendClass = factor > 1.02 ? 'trend-up' : factor < 0.98 ? 'trend-down' : 'muted';
+      const used24 = InventorySystem.usageWithin(inv, p.id, 1440, s.totalMinutes);
+      const used48 = InventorySystem.usageWithin(inv, p.id, 2880, s.totalMinutes);
       html += `<tr class="${highlight ? 'highlight' : ''} ${low ? 'low' : ''}">
         <td>${esc(p.name)}</td>
         <td class="num">${stock}</td>
@@ -826,6 +831,8 @@ export class UI {
         <td><button class="btn small ${auto ? 'primary' : ''}" data-action="toggle-auto" data-part="${p.id}" title="Automatisch nachbestellen">${auto ? 'AN' : 'AUS'}</button></td>
         <td class="num" title="Marktpreis (Basis ${eur(p.buyCents)}, Faktor ${factor.toFixed(2)})">${eur(market)} <span class="${trendClass}">${trend}</span></td>
         <td class="num">${eur(EconomySystem.sellPrice(market, s.economy.partsMarkupPct))}</td>
+        <td class="num ${used24 > 0 ? 'usage-hot' : 'muted'}">${used24}</td>
+        <td class="num ${used48 > 0 ? 'usage-hot' : 'muted'}">${used48}</td>
         <td class="btn-cell">
           <button class="btn small" data-action="order-part" data-part="${p.id}" data-qty="1">+1</button>
           <button class="btn small" data-action="order-part" data-part="${p.id}" data-qty="5">+5</button>

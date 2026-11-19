@@ -172,7 +172,7 @@ export class WorkerSystem {
       return;
     }
     if (task.phase === 'to_storage') {
-      InventorySystem.consumeReserved(state.inventory, order.partsNeeded);
+      InventorySystem.consumeReserved(state.inventory, order.partsNeeded, state.totalMinutes);
       order.partsAtBay = true;
       for (const n of order.partsNeeded) {
         const stock = state.inventory.stock[n.partId] ?? 0;

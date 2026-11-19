@@ -128,6 +128,12 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     version = 9;
     raw.version = version;
   }
+  if (version === 9) {
+    const inv = raw.inventory as Record<string, unknown> | undefined;
+    if (inv) inv.usageLog ??= [];
+    version = 10;
+    raw.version = version;
+  }
   // Idempotente Normalisierung neuer Felder (auch für aktuelle Version)
   const inv = raw.inventory as Record<string, unknown> | undefined;
   if (inv && typeof inv === 'object') {

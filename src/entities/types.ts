@@ -261,6 +261,12 @@ export interface Delivery {
   done: boolean;
 }
 
+export interface PartUsage {
+  partId: string;
+  quantity: number;
+  atMinute: number;
+}
+
 export interface InventoryState {
   stock: Record<string, number>;
   reserved: Record<string, number>;
@@ -268,6 +274,8 @@ export interface InventoryState {
   capacity: number;
   autoReorder: Record<string, boolean>;
   autoSupplierId: string;
+  /** Verbrauch durch Reparaturen (letzte 48 h), fuer die Lagerstatistik. */
+  usageLog: PartUsage[];
 }
 
 export interface GameNotification {
@@ -390,7 +398,7 @@ export interface GameDefs {
   tools: ToolDef[];
 }
 
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 10;
 export const MINUTES_PER_DAY = 1440;
 export const GAME_MINUTES_PER_REAL_SECOND = 6;
 export const SIM_STEP_MINUTES = 0.25;

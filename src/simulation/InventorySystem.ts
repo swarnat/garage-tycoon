@@ -32,7 +32,7 @@ export class InventorySystem {
   }
 
   /** Verbraucht reservierte Teile. Wirft bei inkonsistentem Zustand. */
-  static consumeReserved(inv: InventoryState, needs: PartNeed[]): void {
+  static consumeReserved(inv: InventoryState, needs: PartNeed[], atMinute = 0): void {
     for (const n of needs) {
       const stock = inv.stock[n.partId] ?? 0;
       const reserved = inv.reserved[n.partId] ?? 0;
@@ -45,6 +45,7 @@ export class InventorySystem {
     for (const n of needs) {
       inv.stock[n.partId] = (inv.stock[n.partId] ?? 0) - n.quantity;
       inv.reserved[n.partId] = (inv.reserved[n.partId] ?? 0) - n.quantity;
+      inv.usageLog.push({ partId: n.partId, quantity: n.quantity, atMinute });
     }
   }
 
@@ -53,8 +54,23 @@ export class InventorySystem {
    * wenn verfügbarer Bestand (ohne Reservierungen) darunter liegt
    * und keine Lieferung des Teils offen ist.
    */
+  /** Verbrauch eines Teils im Zeitfenster (in Spielminuten vor now). */
+  static usageWithin(inv: InventoryState, partId: string, minutes: number, now: number): number {
+    const cutoff = now - minutes;
+    let sum = 0;
+    for (const u of inv.usageLog) {
+      if (u.partId === partId && u.atMinute >= cutoff) sum += u.quantity;
+    }
+    return sum;
+  }
+
   static update(ctx: SimContext): void {
     const s = ctx.state;
+    // Verbrauchsprotokoll: nur die letzten 48 h behalten
+    const cutoff = s.totalMinutes - 2880;
+    if (s.inventory.usageLog.length > 0 && s.inventory.usageLog[0]!.atMinute < cutoff) {
+      s.inventory.usageLog = s.inventory.usageLog.filter((u) => u.atMinute >= cutoff);
+    }
     if (s.totalMinutes < s.nextAutoOrderCheckAtMinute) return;
     s.nextAutoOrderCheckAtMinute = s.totalMinutes + 60;
     const inv = s.inventory;
