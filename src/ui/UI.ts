@@ -587,7 +587,7 @@ export class UI {
       </div>
       <div class="card">
         <div class="card-title">Spielstand</div>
-        <div class="meta">Automatische Speicherung alle 30 Sekunden und nach wichtigen Ereignissen. Nur localStorage, kein Server.</div>
+        <div class="meta">Automatische Speicherung alle 30 Sekunden und nach wichtigen Ereignissen. Primär IndexedDB (großer Browserspeicher), Fallback localStorage. Kein Server.</div>
         <div class="btn-row">
           <button class="btn primary" data-action="save">Jetzt speichern</button>
           <button class="btn" data-action="export">Export (JSON)</button>

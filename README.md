@@ -1,6 +1,6 @@
 # Garage Tycoon
 
-2D-Wirtschaftssimulation / Werkstattmanagement im Browser. TypeScript + Vite + PixiJS, vollständig offline, Spielstände im Browser (localStorage). Kein Backend.
+2D-Wirtschaftssimulation / Werkstattmanagement im Browser. TypeScript + Vite + PixiJS, vollständig offline. Spielstände werden primär in **IndexedDB** gespeichert (großer Browserspeicher, Fallback localStorage). Kein Backend.
 
 ![Screenshot](docs/screenshot.png)
 

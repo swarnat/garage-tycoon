@@ -21,8 +21,8 @@ let lastAutosave = performance.now();
 let lastSaveAttempt = 0;
 let saveDirty = false;
 
-function saveNow(): void {
-  const ok = SaveManager.save(game.state);
+async function saveNow(): Promise<void> {
+  const ok = await SaveManager.saveAsync(game.state);
   ui.flashSaveIndicator(ok);
   lastAutosave = performance.now();
   lastSaveAttempt = performance.now();
@@ -100,8 +100,9 @@ const actions: UIActions = {
   },
   resetGame: () => {
     if (!window.confirm('Spielstand wirklich löschen und ein neues Spiel starten?')) return;
-    SaveManager.clear();
-    replaceGame(Game.new(), 'Neues Spiel gestartet. Viel Erfolg!');
+    void SaveManager.clearAsync().then(() => {
+      replaceGame(Game.new(), 'Neues Spiel gestartet. Viel Erfolg!');
+    });
   },
   buyLift: () => { game.buyLift(); },
   expandStorage: () => { game.expandStorage(); },
@@ -124,7 +125,7 @@ function advanceSimulation(now: number): void {
     now - lastAutosave > 30000 ||
     (saveDirty && now - lastSaveAttempt > 5000)
   ) {
-    saveNow();
+    void saveNow();
   }
 }
 
@@ -136,7 +137,7 @@ function frame(now: number): void {
 }
 
 async function boot(): Promise<void> {
-  const loaded = SaveManager.load();
+  const loaded = await SaveManager.loadAsync();
   game = loaded ? new Game(loaded) : Game.new();
   ui = new UI(document.getElementById('app') as HTMLElement, () => game, actions);
   renderer = new Renderer(
@@ -176,6 +177,8 @@ async function boot(): Promise<void> {
     else if (e.key === 'Escape') actions.select(null);
   });
   window.addEventListener('beforeunload', () => {
+    // Synchrone Notfallsicherung; beim nächsten Start wird der neuere
+    // Stand (savedAt-Vergleich) automatisch nach IndexedDB migriert.
     SaveManager.save(game.state);
   });
 

@@ -11,6 +11,25 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     version = 1;
     raw.version = version;
   }
+  if (version === 1) {
+    // v1 → v2: Parkplätze an die größeren Fahrzeug-Sprites anpassen (3×2 statt 2×1)
+    const parkingRects: Record<string, { x: number; y: number; w: number; h: number }> = {
+      park1: { x: 4, y: 13, w: 3, h: 2 },
+      park2: { x: 8, y: 13, w: 3, h: 2 },
+      park3: { x: 12, y: 13, w: 3, h: 2 },
+    };
+    if (Array.isArray(raw.stations)) {
+      for (const s of raw.stations as Record<string, unknown>[]) {
+        const rect = parkingRects[s.id as string];
+        if (s.kind === 'parking' && rect) {
+          s.rect = rect;
+          s.interact = { x: rect.x, y: rect.y };
+        }
+      }
+    }
+    version = 2;
+    raw.version = version;
+  }
   if (version !== SAVE_VERSION) {
     throw new SaveError(`Keine Migration für Version ${version} verfügbar`);
   }

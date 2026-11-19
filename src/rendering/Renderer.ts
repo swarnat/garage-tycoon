@@ -307,14 +307,15 @@ export class Renderer {
   private drawVehicle(v: Vehicle): Container {
     const c = new Container();
     const shadow = new Graphics();
-    shadow.ellipse(0, 5, 30, 12).fill({ color: 0x000000, alpha: 0.28 });
+    shadow.ellipse(0, 6, 42, 18).fill({ color: 0x000000, alpha: 0.28 });
     c.addChild(shadow);
     const tex = this.textures.get('car');
     if (tex) {
       const sp = new Sprite(tex);
       sp.anchor.set(0.5);
       sp.rotation = Math.PI / 2; // Front zeigt nach rechts (Fahrtrichtung)
-      sp.scale.set((2 * TILE - 10) / 240);
+      // Skalierung aus tatsächlichen Texturmaßen (SVG ist 3x rasterisiert)
+      sp.scale.set((2.4 * TILE) / tex.height);
       sp.tint = v.color;
       c.addChild(sp);
     }
@@ -327,8 +328,8 @@ export class Renderer {
     if (tex) {
       const sp = new Sprite(tex);
       sp.anchor.set(0.5, 1);
-      sp.scale.set(30 / 140);
-      sp.y = 11;
+      sp.scale.set(34 / tex.height);
+      sp.y = 12;
       c.addChild(sp);
     }
     const ring = new Graphics();
@@ -340,7 +341,7 @@ export class Renderer {
       style: { fontFamily: 'system-ui, sans-serif', fontSize: 10, fill: 0xdfe5ee, fontWeight: '600' },
     });
     name.anchor.set(0.5, 0);
-    name.y = 14;
+    name.y = 16;
     c.addChild(name);
     return c;
   }
@@ -361,8 +362,21 @@ export class Renderer {
         this.vehicleSprites.set(v.id, sprite);
         this.vehicleLayer.addChild(sprite);
       }
-      sprite.x = (v.pos.x + 1) * TILE;
-      sprite.y = (v.pos.y + 0.5) * TILE;
+      // Im Stand mittig auf dem Arbeitsplatz; fahrend folgt die Mitte dem Pfad
+      let cx = v.pos.x + 1;
+      let cy = v.pos.y + 0.5;
+      if (
+        (v.state === 'at_lift' || v.state === 'at_diagnosis' || v.state === 'waiting') &&
+        v.targetStationId
+      ) {
+        const st = state.stations.find((s) => s.id === v.targetStationId);
+        if (st) {
+          cx = st.rect.x + st.rect.w / 2;
+          cy = st.rect.y + st.rect.h / 2;
+        }
+      }
+      sprite.x = cx * TILE;
+      sprite.y = cy * TILE;
       const sel = this.selection?.kind === 'vehicle' && this.selection.id === v.id;
       sprite.alpha = 1;
       sprite.scale.set(sel ? 1.04 : 1);
@@ -392,9 +406,9 @@ export class Renderer {
       if (ring) {
         ring.clear();
         const color = STATE_COLORS[w.state] ?? 0x7d8aa0;
-        ring.circle(0, -3, 13).stroke({ width: 2, color, alpha: 0.95 });
+        ring.circle(0, -4, 15).stroke({ width: 2, color, alpha: 0.95 });
         const sel = this.selection?.kind === 'worker' && this.selection.id === w.id;
-        if (sel) ring.circle(0, -3, 17).stroke({ width: 2, color: 0xf5a623 });
+        if (sel) ring.circle(0, -4, 19).stroke({ width: 2, color: 0xf5a623 });
       }
     }
     for (const [id, sprite] of this.workerSprites) {

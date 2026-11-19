@@ -102,16 +102,32 @@ describe('Importvalidierung', () => {
 });
 
 describe('Savegame-Migration', () => {
-  it('migriert Version 0 auf Version 1 mit Default-Feldern', () => {
+  it('migriert Version 0 über Version 1 auf die aktuelle Version', () => {
     const game = Game.new(1);
     const raw = JSON.parse(SaveManager.serialize(game.state));
     raw.version = 0;
     delete raw.notifications;
     delete raw.nextNotificationId;
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(1);
+    expect(migrated.version).toBe(2);
     expect(Array.isArray(migrated.notifications)).toBe(true);
     expect(typeof migrated.nextNotificationId).toBe('number');
+  });
+
+  it('migriert Version 1: Parkplätze werden auf 3×2 vergrößert', () => {
+    const game = Game.new(1);
+    const raw = JSON.parse(SaveManager.serialize(game.state));
+    raw.version = 1;
+    for (const s of raw.stations) {
+      if (s.kind === 'parking') {
+        s.rect = { x: 5, y: 14, w: 2, h: 1 };
+        s.interact = { x: 5, y: 14 };
+      }
+    }
+    const migrated = SaveManager.parse(JSON.stringify(raw));
+    expect(migrated.version).toBe(2);
+    const park = migrated.stations.find((s) => s.id === 'park1')!;
+    expect(park.rect).toEqual({ x: 4, y: 13, w: 3, h: 2 });
   });
 });
 

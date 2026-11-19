@@ -67,9 +67,9 @@ export class TileMap {
       { id: 'lift1', kind: 'lift', rect: { x: 8, y: 9, w: 3, h: 2 }, interact: { x: 9, y: 11 }, orderId: null, unlocked: true },
       { id: 'lift2', kind: 'lift', rect: { x: 13, y: 9, w: 3, h: 2 }, interact: { x: 14, y: 11 }, orderId: null, unlocked: true },
       { id: 'lift3', kind: 'lift', rect: { x: 18, y: 9, w: 3, h: 2 }, interact: { x: 19, y: 11 }, orderId: null, unlocked: false },
-      { id: 'park1', kind: 'parking', rect: { x: 5, y: 14, w: 2, h: 1 }, interact: { x: 5, y: 14 }, orderId: null, unlocked: true },
-      { id: 'park2', kind: 'parking', rect: { x: 8, y: 14, w: 2, h: 1 }, interact: { x: 8, y: 14 }, orderId: null, unlocked: true },
-      { id: 'park3', kind: 'parking', rect: { x: 11, y: 14, w: 2, h: 1 }, interact: { x: 11, y: 14 }, orderId: null, unlocked: true },
+      { id: 'park1', kind: 'parking', rect: { x: 4, y: 13, w: 3, h: 2 }, interact: { x: 4, y: 13 }, orderId: null, unlocked: true },
+      { id: 'park2', kind: 'parking', rect: { x: 8, y: 13, w: 3, h: 2 }, interact: { x: 8, y: 13 }, orderId: null, unlocked: true },
+      { id: 'park3', kind: 'parking', rect: { x: 12, y: 13, w: 3, h: 2 }, interact: { x: 12, y: 13 }, orderId: null, unlocked: true },
       { id: 'entry', kind: 'entry', rect: { x: 0, y: 15, w: 1, h: 1 }, interact: { x: 1, y: 15 }, orderId: null, unlocked: true },
       { id: 'exit', kind: 'exit', rect: { x: 25, y: 15, w: 1, h: 1 }, interact: { x: 24, y: 15 }, orderId: null, unlocked: true },
     ];
