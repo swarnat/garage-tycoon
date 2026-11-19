@@ -28,15 +28,21 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Build single-file HTML
-        run: npm run build:single
+      - name: Build single-file HTML (Desktop + Mobile)
+        run: |
+          npm run build:single
+          npm run build:single:mobile
 
-      - name: Prepare artifact
-        run: cp dist-single/index.html garage-tycoon.html
+      - name: Prepare artifacts
+        run: |
+          cp dist-single/index.html garage-tycoon.html
+          cp dist-single-mobile/mobile.html garage-tycoon-mobile.html
 
-      - name: Create release with HTML artifact
+      - name: Create release with HTML artifacts
         uses: softprops/action-gh-release@v2
         with:
-          files: garage-tycoon.html
+          files: |
+            garage-tycoon.html
+            garage-tycoon-mobile.html
           generate_release_notes: true
           fail_on_unmatched_files: true

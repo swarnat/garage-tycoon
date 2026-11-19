@@ -329,16 +329,50 @@ export class Renderer {
     this.world.y = (sh - h * this.baseScale) / 2;
   }
 
+  private activePointers = new Map<number, { x: number; y: number }>();
+  private pinchDist = 0;
+
+  private zoomAt(clientX: number, clientY: number, factor: number): void {
+    const rect = this.app.canvas.getBoundingClientRect();
+    const mx = clientX - rect.left;
+    const my = clientY - rect.top;
+    const newScale = Math.max(this.baseScale * 0.5, Math.min(this.baseScale * 3.5, this.world.scale.x * factor));
+    const wx = (mx - this.world.x) / this.world.scale.x;
+    const wy = (my - this.world.y) / this.world.scale.y;
+    this.world.scale.set(newScale);
+    this.world.x = mx - wx * newScale;
+    this.world.y = my - wy * newScale;
+  }
+
   private bindInput(): void {
     const canvas = this.app.canvas;
     canvas.style.touchAction = 'none';
     canvas.addEventListener('pointerdown', (e: PointerEvent) => {
-      this.dragging = true;
-      this.dragMoved = 0;
-      this.lastPointer = { x: e.clientX, y: e.clientY };
+      this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       canvas.setPointerCapture(e.pointerId);
+      if (this.activePointers.size === 2) {
+        const [a, b] = [...this.activePointers.values()];
+        this.pinchDist = Math.hypot(a!.x - b!.x, a!.y - b!.y);
+        this.dragging = false;
+      } else {
+        this.dragging = true;
+        this.dragMoved = 0;
+        this.lastPointer = { x: e.clientX, y: e.clientY };
+      }
     });
     canvas.addEventListener('pointermove', (e: PointerEvent) => {
+      if (!this.activePointers.has(e.pointerId)) return;
+      this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (this.activePointers.size === 2) {
+        // Pinch-Zoom (Touch)
+        const [a, b] = [...this.activePointers.values()];
+        const d = Math.hypot(a!.x - b!.x, a!.y - b!.y);
+        if (this.pinchDist > 0 && d > 0) {
+          this.zoomAt((a!.x + b!.x) / 2, (a!.y + b!.y) / 2, d / this.pinchDist);
+        }
+        this.pinchDist = d;
+        return;
+      }
       if (!this.dragging) return;
       const dx = e.clientX - this.lastPointer.x;
       const dy = e.clientY - this.lastPointer.y;
@@ -347,24 +381,19 @@ export class Renderer {
       this.world.y += dy;
       this.lastPointer = { x: e.clientX, y: e.clientY };
     });
-    canvas.addEventListener('pointerup', (e: PointerEvent) => {
-      this.dragging = false;
-      if (this.dragMoved < 6) {
-        this.handleClick(e);
+    const release = (e: PointerEvent): void => {
+      this.activePointers.delete(e.pointerId);
+      if (this.activePointers.size < 2) this.pinchDist = 0;
+      if (this.activePointers.size === 0) {
+        this.dragging = false;
+        if (this.dragMoved < 6) this.handleClick(e);
       }
-    });
+    };
+    canvas.addEventListener('pointerup', release);
+    canvas.addEventListener('pointercancel', release);
     canvas.addEventListener('wheel', (e: WheelEvent) => {
       e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-      const newScale = Math.max(this.baseScale * 0.5, Math.min(this.baseScale * 3.5, this.world.scale.x * factor));
-      const wx = (mx - this.world.x) / this.world.scale.x;
-      const wy = (my - this.world.y) / this.world.scale.y;
-      this.world.scale.set(newScale);
-      this.world.x = mx - wx * newScale;
-      this.world.y = my - wy * newScale;
+      this.zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1 / 1.12);
     }, { passive: false });
   }
 
