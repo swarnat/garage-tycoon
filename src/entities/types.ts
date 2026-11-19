@@ -138,6 +138,8 @@ export interface Worker {
   motivation: number;
   dailyWorkedMinutes: number;
   dailyOnDutyMinutes: number;
+  /** Krank (Ereignis): nicht einsetzbar bis zu diesem Zeitpunkt. */
+  sickUntilMinute?: number;
 }
 
 export interface Candidate {
@@ -254,6 +256,8 @@ export interface Station {
   interact: Vec;
   orderId: string | null;
   unlocked: boolean;
+  /** Defekt (Ereignis): gesperrt bis zu diesem Zeitpunkt (Spielminute). */
+  brokenUntilMinute?: number;
 }
 
 export interface Delivery {
@@ -347,6 +351,67 @@ export interface GameState {
   /** Assistent: letzter Alert je Variante (Spielminute) – Cooldown 1 Tag. */
   assistantAlertedAt: Record<string, number>;
   assistantNextScanAtMinute: number;
+  activeEvent: GameEvent | null;
+  eventLog: EventLogEntry[];
+  nextEventCheckAtMinute: number;
+  eventsToday: number;
+  lastEventDay: number;
+  marketingLevel: number;
+  soundEnabled: boolean;
+  dailySummaryPending: DailySummary | null;
+}
+
+export type EventEffect =
+  | { type: 'reputation'; delta: number }
+  | { type: 'motivationAll'; delta: number }
+  | { type: 'fixStation'; delayMinutes: number }
+  | { type: 'sick'; hours: number }
+  | { type: 'deliveryExpress' }
+  | { type: 'spawnOrders'; count: number; budgetFactor: number }
+  | { type: 'refund'; pct: number }
+  | { type: 'satisfaction'; delta: number }
+  | { type: 'bribe' }
+  | { type: 'fine'; cents: number };
+
+export interface EventChoice {
+  id: string;
+  label: string;
+  detail: string;
+  costCents?: number;
+  effects: EventEffect[];
+}
+
+export interface GameEvent {
+  id: string;
+  defId: string;
+  title: string;
+  text: string;
+  choices: EventChoice[];
+  defaultChoiceId: string;
+  createdAtMinute: number;
+  expiresAtMinute: number;
+  targetStationId?: string;
+  targetWorkerId?: string;
+  targetDeliveryId?: string;
+  targetDeliveryEta?: number;
+  targetOrderId?: string;
+}
+
+export interface EventLogEntry {
+  defId: string;
+  title: string;
+  chosenId: string;
+  atMinute: number;
+}
+
+export interface DailySummary {
+  day: number;
+  revenueCents: number;
+  profitCents: number;
+  ordersCompleted: number;
+  bestWorkerName: string | null;
+  avgSatisfaction: number | null;
+  feedback: string;
 }
 
 export interface RepairStepDef {
@@ -425,7 +490,7 @@ export interface GameDefs {
   tools: ToolDef[];
 }
 
-export const SAVE_VERSION = 12;
+export const SAVE_VERSION = 13;
 export const MINUTES_PER_DAY = 1440;
 export const GAME_MINUTES_PER_REAL_SECOND = 6;
 export const SIM_STEP_MINUTES = 0.25;

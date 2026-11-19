@@ -18,6 +18,7 @@ import { OrderSystem } from '../simulation/OrderSystem';
 import { CustomerSystem } from '../simulation/CustomerSystem';
 import { WorkerSystem } from '../simulation/WorkerSystem';
 import { AssistantSystem } from '../simulation/AssistantSystem';
+import { EventSystem } from '../simulation/EventSystem';
 import { VehicleSystem } from '../simulation/VehicleSystem';
 import { SupplierSystem } from '../simulation/SupplierSystem';
 import { InventorySystem } from '../simulation/InventorySystem';
@@ -174,6 +175,14 @@ export function createNewGame(seed: number): GameState {
     marketPriceFactors,
     assistantAlertedAt: {},
     assistantNextScanAtMinute: 0,
+    activeEvent: null,
+    eventLog: [],
+    nextEventCheckAtMinute: 0,
+    eventsToday: 0,
+    lastEventDay: 0,
+    marketingLevel: 0,
+    soundEnabled: true,
+    dailySummaryPending: null,
     loans: [],
     notifications: [],
     statistics: {
@@ -265,6 +274,7 @@ export class Game {
     this.state.totalMinutes = this.clock.totalMinutes;
     for (const d of newDays) {
       EconomySystem.closeDay(this.state, d - 1);
+      this.state.dailySummaryPending = EconomySystem.buildDailySummary(this.state, d - 1);
       MarketSystem.update(this.ctx);
       PersonnelSystem.dailyReview(this.ctx);
       this.bus.emit('day:started', d);
@@ -291,6 +301,7 @@ export class Game {
     OrderSystem.update(ctx);
     WorkerSystem.update(ctx, dt);
     AssistantSystem.update(ctx);
+    EventSystem.update(ctx);
     VehicleSystem.update(ctx, dt);
     this.state.rngState = this.rng.state;
     // Tägliche Liquiditätswarnung um 08:00
@@ -458,6 +469,18 @@ export class Game {
     this.bus.emit('upgrade:purchased', park.id);
     notify(this.ctx, 'success', `Parkplatz ${park.id.replace('park', '')} erschlossen (1.200 €).`);
     return true;
+  }
+
+  chooseEvent(choiceId: string): void {
+    EventSystem.choose(this.ctx, choiceId);
+  }
+
+  setMarketing(level: number): void {
+    this.state.marketingLevel = Math.max(0, Math.min(3, Math.round(level)));
+  }
+
+  toggleSound(): void {
+    this.state.soundEnabled = !this.state.soundEnabled;
   }
 
   setOrderRate(value: number): void {

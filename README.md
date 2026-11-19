@@ -35,6 +35,10 @@ Du führst eine Kfz-Werkstatt: Aufträge annehmen, Mitarbeiter diagnostizieren u
 - **Teile-fehlt-Modal**: bei fehlendem Bestand nach der Diagnose – „Um Aufschub bitten & bestellen" (profilabhängige Akzeptanz-Chance, +6 h bis +1 Tag), „Ohne Aufschub bestellen" oder „Abweisen"; Express-Aufpreis zahlt die Werkstatt
 - **Entscheidungs-Modals pausieren das Spiel** und sind minimierbar (Mini-Leiste, Spiel läuft weiter, Öffnen pausiert erneut)
 - **Lager-Modal neu**: Kategorien-Navigation, Variantentabelle mit 24h/48h-Verbrauch, Letzte Bestellung, Ladenhüter-Badge + Verkauf zu 60 % Marktpreis, Sichtbarkeitsregel (0/0/0 ausgeblendet), Suche je Gruppe, Pin, „Alle Varianten"
+- **Ereignisse mit Entscheidungen**: Hebebühnen-Defekt (Express vs. eigene Crew), Krankheit (Auskurieren vs. Halbtags), Lieferverzug (Express-Umleitung vs. Abwarten), Werkstatt-Inspektion (Vorbereiten/Bestechen/Ignorieren), öffentliche Beschwerde (Kulanz vs. Abwimmeln), Großauftrag (Annehmen/Ablehnen). Entscheidungs-Modal pausiert + minimierbar, ⚡-Button, Ablauf wählt automatisch die Standard-Option (max. 2/Tag)
+- **Marketing**: 4 Level (0–300 €/Tag) bringen mehr und zahlungskräftigere Kunden
+- **Tagesabschluss-Modal**: Umsatz, Gewinn, Aufträge, Ø Zufriedenheit, bester Mitarbeiter, Feedback
+- **Juice**: steigende Geld-Beträge bei Rechnung, Tag/Nacht-Lichtstimmung, Defekt-Marker auf kaputten Bühnen, optionale WebAudio-Sounds (Rechnung/Auftrag/Ereignis, Toggle)
 - **Mitarbeiter-Rollen**: Mechaniker (Reparatur/Diagnose/QC), **Lagerhelfer** (bringen Ersatzteile vom Lager zur Bühne – schnell zu Fuß, ab ca. 55 €/Tag; Mechaniker bleiben an der Bühne, ohne Lagerhelfer holen sie selbst) und **Assistent** (max. 1, sitzt im Büro, meldet stündlich Marktpreise ≥ 10 % unter Normal für relevante Varianten, je Variante max. 1 Meldung/Tag, ca. 60 €/Tag)
 - **Termine**: alle Deadlines um 18:00 (Überfälligkeit erst zum Feierabend); Kleinaufträge nach 11 Uhr probabilistisch +1/+2 Tage, große Arbeiten 1–3 Tage
 - **Personalverwaltung**: Kandidaten einstellen/entlassen (max. 6), **Weiterbildung** (+5 Skill für 150 €, 2 h)

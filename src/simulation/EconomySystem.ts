@@ -1,5 +1,6 @@
 import type {
   DailyStats,
+  DailySummary,
   EconomyState,
   GameState,
   Transaction,
@@ -10,6 +11,7 @@ import {
 } from '../entities/types';
 
 const MAX_TRANSACTIONS = 400;
+const MARKETING_COST_CENTS = [0, 5000, 15000, 30000];
 const MAX_DAILY = 90;
 
 /**
@@ -124,8 +126,46 @@ export class EconomySystem {
         });
       }
     }
+    const marketing = MARKETING_COST_CENTS[state.marketingLevel] ?? 0;
+    if (marketing > 0) {
+      EconomySystem.book(eco, {
+        id: `marketing-d${day}`, day, atMinute: state.totalMinutes,
+        amountCents: -marketing, category: 'fixed_costs',
+        label: `Marketing (Level ${state.marketingLevel})`,
+      });
+    }
     const d = EconomySystem.dailyFor(eco, day);
     d.balanceEndCents = eco.balanceCents;
+  }
+
+  /** Tagesabschluss-Zusammenfassung für das Modal (vor dailyReview aufrufen). */
+  static buildDailySummary(state: GameState, day: number): DailySummary {
+    const d = EconomySystem.dailyFor(state.economy, day);
+    const profit = d.revenueCents - d.partsCostCents - d.salaryCents - d.fixedCostCents;
+    let best: { name: string; min: number } | null = null;
+    for (const w of state.workers) {
+      if (!best || w.dailyWorkedMinutes > best.min) best = { name: w.name, min: w.dailyWorkedMinutes };
+    }
+    const delivered = state.orders.filter((o) => o.status === 'delivered' && o.satisfaction !== null);
+    const avg = delivered.length > 0
+      ? Math.round(delivered.reduce((a, o) => a + (o.satisfaction ?? 0), 0) / delivered.length)
+      : null;
+    const feedback = profit > 30000
+      ? 'Starker Tag – die Werkstatt wirft Gewinn ab.'
+      : profit > 0
+        ? 'Solider Tag mit kleinem Plus.'
+        : profit > -20000
+          ? 'Knapp gehalten – Kosten im Blick behalten.'
+          : 'Verlusttag – Auslastung oder Preise prüfen.';
+    return {
+      day,
+      revenueCents: d.revenueCents,
+      profitCents: profit,
+      ordersCompleted: d.ordersCompleted,
+      bestWorkerName: best && best.min > 0 ? best.name : null,
+      avgSatisfaction: avg,
+      feedback,
+    };
   }
 
   static operatingResultToday(state: GameState): number {

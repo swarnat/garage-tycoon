@@ -42,6 +42,7 @@
 .parts-table { font-size: 11px; }
 
 #toasts { left: 8px; right: 8px; bottom: calc(var(--mob-nav) + 8px); max-width: none; }
+#event-fab { top: auto; bottom: calc(var(--mob-nav) + 8px); right: 8px; }
 #modal-mini { bottom: calc(var(--mob-nav) + 8px); right: 8px; left: 8px; }
 
 .btn { min-height: 36px; }

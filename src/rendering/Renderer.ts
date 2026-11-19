@@ -77,6 +77,10 @@ export class Renderer {
   private vehicleLayer = new Container();
   private workerLayer = new Container();
   private fxLayer = new Container();
+  private juiceLayer = new Container();
+  private nightOverlay = new Graphics();
+  private popups: { text: Text; x: number; y: number; age: number }[] = [];
+  private lastTimeSec = 0;
   private vehicleSprites = new Map<string, Container>();
   private vehicleBaseScale = new Map<string, number>();
   private workerSprites = new Map<string, Container>();
@@ -105,7 +109,8 @@ export class Renderer {
     });
     host.appendChild(this.app.canvas);
     this.app.stage.addChild(this.world);
-    this.world.addChild(this.staticLayer, this.vehicleLayer, this.workerLayer, this.fxLayer);
+    this.world.addChild(this.staticLayer, this.vehicleLayer, this.workerLayer, this.fxLayer, this.juiceLayer);
+    this.app.stage.addChild(this.nightOverlay);
     const entries: [string, string][] = [
       ['car', carSvg],
       ['mechanic', mechanicSvg],
@@ -477,10 +482,26 @@ export class Renderer {
     return c;
   }
 
+  /** Steigender Geld-Betrag über einem Fahrzeug (Rechnung bezahlt). */
+  popMoney(amountCents: number, tileX: number, tileY: number): void {
+    if (!this.initialized) return;
+    const positive = amountCents >= 0;
+    const text = new Text({
+      text: `${positive ? '+' : '−'}${Math.abs(amountCents / 100).toFixed(0)} €`,
+      resolution: 3,
+      style: { fontFamily: 'system-ui, sans-serif', fontSize: 15, fontWeight: '700', fill: positive ? 0x7bd88f : 0xff8a80 },
+    });
+    text.anchor.set(0.5, 1);
+    this.juiceLayer.addChild(text);
+    this.popups.push({ text, x: tileX * TILE, y: tileY * TILE, age: 0 });
+  }
+
   update(timeSec: number): void {
     if (!this.initialized) return;
     const game = this.getGame();
     const state = game.state;
+    const dt = Math.min(0.1, Math.max(0, timeSec - this.lastTimeSec));
+    this.lastTimeSec = timeSec;
 
     // Fahrzeuge
     const seenV = new Set<string>();
@@ -532,7 +553,7 @@ export class Renderer {
     // Mitarbeiter (Feierabend = ausgeblendet)
     const seenW = new Set<string>();
     for (const w of state.workers) {
-      if (w.state === 'off_duty') continue;
+      if (w.state === 'off_duty' || (w.sickUntilMinute ?? 0) > state.totalMinutes) continue;
       seenW.add(w.id);
       let sprite = this.workerSprites.get(w.id);
       if (!sprite) {
@@ -617,7 +638,43 @@ export class Renderer {
         }
       }
     }
+    // Defekte Stationen markieren
+    for (const s of state.stations) {
+      if ((s.brokenUntilMinute ?? 0) > state.totalMinutes) {
+        const bx = (s.rect.x + s.rect.w / 2) * TILE;
+        const by = (s.rect.y + s.rect.h / 2) * TILE;
+        fx.circle(bx, by, 13).fill({ color: 0x3a1f1f, alpha: 0.9 });
+        fx.circle(bx, by, 13).stroke({ width: 2, color: 0xff8a80 });
+        fx.moveTo(bx, by - 7).lineTo(bx, by + 1).stroke({ width: 2.5, color: 0xff8a80 });
+        fx.circle(bx, by + 6, 1.4).fill(0xff8a80);
+      }
+    }
     this.fxLayer.addChild(fx);
+
+    // Geld-Popups (steigen & verblassen)
+    for (let i = this.popups.length - 1; i >= 0; i--) {
+      const p = this.popups[i]!;
+      p.age += dt;
+      p.y -= dt * 22;
+      p.text.x = p.x;
+      p.text.y = p.y;
+      p.text.alpha = Math.max(0, 1 - p.age / 1.6);
+      if (p.age >= 1.6) {
+        p.text.destroy();
+        this.popups.splice(i, 1);
+      }
+    }
+
+    // Tag/Nacht-Stimmung (Bildschirm-Overlay)
+    const m = state.totalMinutes % 1440;
+    let dark = 0;
+    if (m >= 1080 || m < 480) dark = 0.34;
+    else if (m < 540) dark = 0.34 * (1 - (m - 480) / 60);
+    else if (m > 1020) dark = 0.34 * ((m - 1020) / 60);
+    this.nightOverlay.clear();
+    if (dark > 0.01) {
+      this.nightOverlay.rect(0, 0, this.app.screen.width, this.app.screen.height).fill({ color: 0x0a1430, alpha: dark });
+    }
   }
 
   resize(): void {

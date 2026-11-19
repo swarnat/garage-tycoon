@@ -81,7 +81,8 @@ describe('Mehrmann-Reparaturen', () => {
     expect(job.stepRemainingMinutes).toBeCloseTo(remaining, 1);
     // Neuen qualifizierten Mitarbeiter einstellen → es geht weiter
     game.refreshCandidates();
-    const cand = game.state.candidates[0]!;
+    const cand = game.state.candidates.find((c) => c.role === 'mechanic') ?? game.state.candidates[0]!;
+    cand.role = 'mechanic';
     game.hireCandidate(cand.id);
     const hired = game.state.workers[game.state.workers.length - 1]!;
     hired.skills.brakes = 70;

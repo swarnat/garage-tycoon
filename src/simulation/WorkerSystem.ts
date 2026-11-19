@@ -31,6 +31,7 @@ export function moveAlongPath(pos: Vec, path: Vec[], distance: number): void {
 }
 
 function isOnDuty(state: { totalMinutes: number }, w: Worker): boolean {
+  if ((w.sickUntilMinute ?? 0) > state.totalMinutes) return false;
   const m = state.totalMinutes % 1440;
   return m >= w.shiftStartMinute && m < w.shiftEndMinute;
 }
@@ -50,6 +51,14 @@ export class WorkerSystem {
   static update(ctx: SimContext, dt: number): void {
     const { state } = ctx;
     for (const w of state.workers) {
+      if ((w.sickUntilMinute ?? 0) > state.totalMinutes) {
+        if (w.task) {
+          const order = state.orders.find((o) => o.id === w.task!.orderId);
+          if (order) WorkerSystem.releaseSpecific(ctx, order, w);
+        }
+        w.state = 'off_duty';
+        continue;
+      }
       const onDuty = isOnDuty(state, w);
       if (onDuty) {
         w.onDutyMinutes += dt;

@@ -27,6 +27,8 @@ const PROFILE_FACTORS: Record<CustomerProfile, number> = {
   business: 1.35,
 };
 
+const MARKETING_RATE = [1, 1.3, 1.6, 2.0];
+
 const WEAR_REPAIRS = new Set([
   'replace_brake_pads',
   'replace_brake_discs',
@@ -53,7 +55,7 @@ export class CustomerSystem {
         o.status !== 'cancelled',
     ).length;
     if (incoming >= 4 || active >= 8) return;
-    const chance = (0.25 + state.reputation / 300) * state.orderRateFactor;
+    const chance = (0.25 + state.reputation / 300) * state.orderRateFactor * (MARKETING_RATE[state.marketingLevel] ?? 1);
     if (ctx.rng.chance(chance)) {
       CustomerSystem.generateOffer(ctx);
     }
@@ -104,9 +106,10 @@ export class CustomerSystem {
 
     const firstDef = ctx.defs.repairs.find((r) => r.id === defectIds[0])!;
     const complaint = rng.pick(firstDef.complaints);
+    const ml = state.marketingLevel;
     const profile = rng.weighted<CustomerProfile>(
       ['price_sensitive', 'quality_oriented', 'time_critical', 'regular', 'business'],
-      [25, 20, 15, 25, 15],
+      [Math.max(5, 25 - ml * 4), 20 + ml * 3, 15, 25, 15 + ml * 5],
     );
     // Stammkunden: zufriedene Kunden (>= 80) kommen mit 25 % wieder
     const returningPool = state.customers.filter(

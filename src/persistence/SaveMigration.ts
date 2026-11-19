@@ -245,6 +245,19 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     version = 12;
     raw.version = version;
   }
+  if (version === 12) {
+    // v12 → v13: Ereignisse, Marketing, Sound, Tagesabschluss
+    raw.activeEvent ??= null;
+    raw.eventLog ??= [];
+    raw.nextEventCheckAtMinute ??= 0;
+    raw.eventsToday ??= 0;
+    raw.lastEventDay ??= 0;
+    raw.marketingLevel ??= 0;
+    raw.soundEnabled ??= true;
+    raw.dailySummaryPending ??= null;
+    version = 13;
+    raw.version = version;
+  }
   if (version !== SAVE_VERSION) {
     throw new SaveError(`Keine Migration für Version ${version} verfügbar`);
   }

@@ -297,7 +297,7 @@ export class OrderSystem {
     }
     if (v.state !== 'at_diagnosis' && v.state !== 'waiting') return;
     const lift = state.stations.find(
-      (s) => s.kind === 'lift' && s.unlocked && s.orderId === null,
+      (s) => s.kind === 'lift' && s.unlocked && s.orderId === null && (s.brokenUntilMinute ?? 0) <= state.totalMinutes,
     );
     if (!lift) return;
     const old = order.stationId ? stationById(state, order.stationId) : null;
@@ -577,7 +577,7 @@ export class OrderSystem {
         if (v?.state === 'driving_to_lift') return 'Fahrzeug fährt zur Hebebühne.';
         if (
           RepairSystem.orderNeedsLift(ctx, order) &&
-          !state.stations.some((s) => s.kind === 'lift' && s.unlocked && s.orderId === null)
+          !state.stations.some((s) => s.kind === 'lift' && s.unlocked && s.orderId === null && (s.brokenUntilMinute ?? 0) <= state.totalMinutes)
         ) {
           return 'Wartet auf eine freie Hebebühne.';
         }

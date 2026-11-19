@@ -21,7 +21,9 @@ export type GameEvent =
   | 'day:started'
   | 'liquidity:warning'
   | 'save:completed'
-  | 'upgrade:purchased';
+  | 'upgrade:purchased'
+  | 'event:created'
+  | 'event:resolved';
 
 type Handler = (payload: unknown) => void;
 

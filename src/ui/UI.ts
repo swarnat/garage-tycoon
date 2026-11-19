@@ -57,6 +57,10 @@ export interface UIActions {
   refreshCandidates(): void;
   toggleAuto(partId: string): void;
   setAutoSupplier(id: string): void;
+  chooseEvent(choiceId: string): void;
+  dismissSummary(): void;
+  setMarketing(level: number): void;
+  toggleSound(): void;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -182,7 +186,7 @@ export class UI {
   private lastDrawerSig = '';
   private lastModalSig = '';
   private interacting = false;
-  private modalKind: 'inventory' | 'tool' | 'approval' | 'parts' = 'inventory';
+  private modalKind: 'inventory' | 'tool' | 'approval' | 'parts' | 'event' | 'summary' = 'inventory';
   private toolOrderId: string | null = null;
   private approvalOrderId: string | null = null;
   private partsOrderId: string | null = null;
@@ -242,6 +246,7 @@ export class UI {
         <aside id="drawer"></aside>
       </div>
       <div id="toasts"></div>
+      <button id="event-fab" class="hidden" data-action="open-event" title="Ereignis – Entscheidung nötig">⚡ Ereignis</button>
       <div id="modal-backdrop" class="hidden">
         <div id="modal">
           <div class="modal-head"><h2 id="modal-title">Ersatzteillager</h2><div class="btn-row"><button class="btn small" data-action="minimize-modal" title="Minimieren – Spiel läuft weiter">— Minimieren</button><button class="btn small" data-action="close-modal">✕ Schließen</button></div></div>
@@ -349,6 +354,7 @@ export class UI {
   }
 
   closeModal(): void {
+    if (this.modalKind === 'summary') this.getGame().state.dailySummaryPending = null;
     this.modalOpen = false;
     this.modalKind = 'inventory';
     this.toolOrderId = null;
@@ -405,6 +411,26 @@ export class UI {
     this.refresh(true);
   }
 
+  /** Ereignis-Modal: pausiert, minimierbar; Ablauf wählt automatisch die Default-Option. */
+  showEventPrompt(): void {
+    if (!this.getGame().state.activeEvent) return;
+    this.pauseForModal();
+    this.modalKind = 'event';
+    this.modalOpen = true;
+    this.refresh(true);
+  }
+
+  /** Tagesabschluss-Zusammenfassung (informativ, schließbar). */
+  showDailySummary(): void {
+    const s = this.getGame().state;
+    if (!s.dailySummaryPending) return;
+    if (this.modalOpen && this.modalKind !== 'summary') return;
+    this.pauseForModal();
+    this.modalKind = 'summary';
+    this.modalOpen = true;
+    this.refresh(true);
+  }
+
   setSelection(sel: Selection | null): void {
     this.selection = sel;
     if (sel) this.refresh(true);
@@ -450,7 +476,19 @@ export class UI {
         break;
       }
       case 'supplier': this.supplierId = id; this.refresh(true); break;
-      case 'close-modal': this.closeModal(); break;
+      case 'close-modal':
+        if (this.modalKind === 'event') {
+          this.modalMinimized = true;
+          this.getGame().setSpeed(this.preModalSpeed || 1);
+        } else {
+          this.closeModal();
+        }
+        break;
+      case 'open-event': this.showEventPrompt(); break;
+      case 'choose-event': this.actions.chooseEvent(id); break;
+      case 'dismiss-summary': this.actions.dismissSummary(); break;
+      case 'set-marketing': this.actions.setMarketing(Number(id)); break;
+      case 'toggle-sound': this.actions.toggleSound(); break;
       case 'close-toast': btn.closest('.toast')?.remove(); break;
       case 'minimize-modal':
         this.modalMinimized = true;
@@ -569,12 +607,18 @@ export class UI {
     const modalTitle = this.root.querySelector('#modal-title') as HTMLElement;
     const mini = this.root.querySelector('#modal-mini') as HTMLElement;
     const miniTitle = this.root.querySelector('#modal-mini-title') as HTMLElement;
+    const fab = this.root.querySelector('#event-fab') as HTMLElement;
+    fab.classList.toggle('hidden', !s.activeEvent || (this.modalOpen && this.modalKind === 'event' && !this.modalMinimized));
+    // Tagesabschluss anzeigen, sobald pending und kein anderes Modal offen
+    if (s.dailySummaryPending && !this.modalOpen && !this.interacting) this.showDailySummary();
     backdrop.classList.toggle('hidden', !this.modalOpen || this.modalMinimized);
     mini.classList.toggle('hidden', !this.modalOpen || !this.modalMinimized);
     modalTitle.textContent =
       this.modalKind === 'tool' ? 'Spezialwerkzeug benötigt'
       : this.modalKind === 'approval' ? 'Kunde droht abzulehnen'
       : this.modalKind === 'parts' ? 'Ersatzteile fehlen – Entscheidung nötig'
+      : this.modalKind === 'event' ? (s.activeEvent?.title ?? 'Ereignis')
+      : this.modalKind === 'summary' ? `Tagesabschluss – Tag ${s.dailySummaryPending?.day ?? ''}`
       : 'Ersatzteillager';
     miniTitle.textContent = modalTitle.textContent + ' (Spiel läuft)';
     // Nachfrage-Modal schließt sich, sobald die Entscheidung gefallen ist
@@ -592,6 +636,14 @@ export class UI {
         return;
       }
     }
+    if (this.modalKind === 'event' && this.modalOpen && !s.activeEvent) {
+      this.closeModal();
+      return;
+    }
+    if (this.modalKind === 'summary' && this.modalOpen && !s.dailySummaryPending) {
+      this.closeModal();
+      return;
+    }
     const activeEl = document.activeElement;
     const editingModal =
       activeEl && modalBody.contains(activeEl) &&
@@ -603,6 +655,8 @@ export class UI {
         this.modalKind === 'tool' ? this.renderToolPrompt()
         : this.modalKind === 'approval' ? this.renderApprovalPrompt()
         : this.modalKind === 'parts' ? this.renderPartsPrompt()
+        : this.modalKind === 'event' ? this.renderEventPrompt()
+        : this.modalKind === 'summary' ? this.renderDailySummary()
         : this.renderInventory();
     }
     // Drawer nur bei Inhaltsänderung neu aufbauen (verhindert Klick-Flackern)
@@ -628,8 +682,11 @@ export class UI {
       this.highlightParts.size,
       Math.floor(s.totalMinutes / 5), s.speed, s.economy.balanceCents, s.orderRateFactor,
       Math.floor(s.reputation), s.economy.hourlyRateCents, s.economy.partsMarkupPct,
-      s.notifications.length,
+      s.notifications.length, s.marketingLevel, s.soundEnabled ? 1 : 0,
+      s.activeEvent ? s.activeEvent.id : '', s.dailySummaryPending ? s.dailySummaryPending.day : -1,
+      s.eventsToday,
     ];
+    for (const st of s.stations) parts.push(st.id, st.brokenUntilMinute ?? 0);
     for (const o of s.orders) {
       parts.push(
         o.id, o.status, o.priority, o.offerAtRisk ? 1 : 0, o.discountPct,
@@ -645,7 +702,7 @@ export class UI {
       parts.push(
         w.id, w.state, Math.floor(w.pos.x * 2), Math.floor(w.pos.y * 2),
         Math.floor(w.trainingMinutes), Math.floor(w.motivation),
-        Object.values(w.skills).join(','), w.speedTilesPerMinute,
+        Object.values(w.skills).join(','), w.speedTilesPerMinute, w.sickUntilMinute ?? 0,
       );
     }
     for (const c of s.candidates) parts.push(c.id, c.salaryCentsPerDay, c.role);
@@ -880,7 +937,7 @@ export class UI {
     const utilization = w.onDutyMinutes > 0 ? Math.round((w.workedMinutes / w.onDutyMinutes) * 100) : 0;
     let html = `
       <div class="card ${detailed ? '' : 'order-row'}" ${detailed ? '' : `data-action="select-worker" data-id="${w.id}"`}>
-        <div class="card-title">${esc(w.name)} <span class="chip role-${w.role}">${ROLE_LABELS[w.role] ?? w.role}</span> <span class="chip st-${w.state}">${WORKER_STATE_LABELS[w.state] ?? w.state}</span></div>
+        <div class="card-title">${esc(w.name)} <span class="chip role-${w.role}">${ROLE_LABELS[w.role] ?? w.role}</span> ${(w.sickUntilMinute ?? 0) > s.totalMinutes ? '<span class="chip st-cancelled">Krank</span>' : `<span class="chip st-${w.state}">${WORKER_STATE_LABELS[w.state] ?? w.state}</span>`}</div>
         <div class="meta">${order ? `Auftrag ${order.id}` : w.trainingMinutes > 0 ? `Weiterbildung: noch ${Math.ceil(w.trainingMinutes)} min` : 'Keine Aufgabe'} · Auslastung ${utilization}% · ${eur(w.salaryCentsPerDay)}/Tag</div>`;
     if (detailed && w.role !== 'mechanic') {
       html += `<div class="meta">${w.role === 'warehouse'
@@ -909,6 +966,43 @@ export class UI {
     }
     html += `</div>`;
     return html;
+  }
+
+  private renderEventPrompt(): string {
+    const s = this.getGame().state;
+    const ev = s.activeEvent;
+    if (!ev) return '<p class="empty">Kein aktives Ereignis.</p>';
+    const minsLeft = Math.max(0, Math.ceil(ev.expiresAtMinute - s.totalMinutes));
+    let html = `<div class="card warn-card"><div class="card-title">⚡ ${esc(ev.title)}</div>
+      <div class="meta">${esc(ev.text)}</div>
+      <div class="meta muted">Ohne Entscheidung wird in ${minsLeft} min automatisch die Standard-Option gewählt.</div></div>`;
+    for (const c of ev.choices) {
+      html += `<div class="card">
+        <div class="card-title">${esc(c.label)}</div>
+        <div class="meta">${esc(c.detail)}</div>
+        <div class="btn-row"><button class="btn primary" data-action="choose-event" data-id="${c.id}">Wählen</button></div>
+      </div>`;
+    }
+    return html;
+  }
+
+  private renderDailySummary(): string {
+    const s = this.getGame().state;
+    const sum = s.dailySummaryPending;
+    if (!sum) return '<p class="empty">Kein Tagesabschluss.</p>';
+    const profitCls = sum.profitCents >= 0 ? 'pos' : 'neg';
+    return `<div class="card">
+      <div class="card-title">Tag ${sum.day} abgeschlossen</div>
+      <div class="summary-grid">
+        <div><label>Umsatz</label><strong>${eur(sum.revenueCents)}</strong></div>
+        <div><label>Gewinn</label><strong class="${profitCls}">${eur(sum.profitCents)}</strong></div>
+        <div><label>Aufträge</label><strong>${sum.ordersCompleted}</strong></div>
+        <div><label>Ø Zufriedenheit</label><strong>${sum.avgSatisfaction !== null ? sum.avgSatisfaction + ' %' : '–'}</strong></div>
+      </div>
+      <div class="meta">${sum.bestWorkerName ? `Bester Mitarbeiter: <strong>${esc(sum.bestWorkerName)}</strong>` : 'Keine Arbeitszeit erfasst.'}</div>
+      <div class="meta">${esc(sum.feedback)}</div>
+      <div class="btn-row"><button class="btn primary" data-action="dismiss-summary">Weiter</button></div>
+    </div>`;
   }
 
   private renderPartsPrompt(): string {
@@ -1211,6 +1305,16 @@ export class UI {
         <label class="field">Auftragsfrequenz (Faktor) ${help('Multiplikator für neue Kundenaufträge: 0.5 = ruhig, 1 = normal, 3 = voll. Basis hängt zusätzlich von der Reputation ab. Mehr Aufträge = mehr Umsatz, aber auch mehr Engpässe bei Personal und Parkplätzen.')}
           <input type="number" min="0.5" max="3" step="0.1" value="${s.orderRateFactor}" data-field="orderrate">
         </label>
+      </div>
+      <div class="card">
+        <div class="card-title">Marketing ${help('Werbung bringt mehr und zahlungskräftigere Kunden (mehr Business/Qualität, weniger preissensibel). Kostet täglich: Level 1 = 50 €, 2 = 150 €, 3 = 300 €. Level 0 = keine Werbung.')}</div>
+        <div class="btn-row">${[0, 1, 2, 3].map((l) => `<button class="btn small ${s.marketingLevel === l ? 'primary' : ''}" data-action="set-marketing" data-id="${l}">${['Keins', 'Level 1', 'Level 2', 'Level 3'][l]}</button>`).join('')}</div>
+        <div class="meta muted">Aktuell: ${['keine Werbung', '50 €/Tag', '150 €/Tag', '300 €/Tag'][s.marketingLevel]}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Sound</div>
+        <div class="btn-row"><button class="btn small ${s.soundEnabled ? 'primary' : ''}" data-action="toggle-sound">${s.soundEnabled ? '🔊 An' : '🔇 Aus'}</button></div>
+        <div class="meta muted">Dezente Signale für Rechnung, Auftrag und Ereignis.</div>
       </div>
       <div class="card">
         <div class="card-title">Spielstand</div>

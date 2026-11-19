@@ -4,6 +4,7 @@ import { Renderer, type Selection } from './rendering/Renderer';
 import { UI, type UIActions } from './ui/UI';
 import { OrderSystem } from './simulation/OrderSystem';
 import { notify } from './simulation/context';
+import { SoundSystem } from './simulation/SoundSystem';
 
 declare global {
   interface Window {
@@ -19,6 +20,7 @@ let lastFrame = performance.now();
 let lastAutosave = performance.now();
 let lastSaveAttempt = 0;
 let saveDirty = false;
+const sound = new SoundSystem();
 
 async function saveNow(): Promise<void> {
   const ok = await SaveManager.saveAsync(game.state);
@@ -30,7 +32,18 @@ async function saveNow(): Promise<void> {
 
 function bindBus(): void {
   game.bus.on('upgrade:purchased', () => renderer.rebuildStatic());
-  game.bus.on('invoice:paid', () => { saveDirty = true; });
+  game.bus.on('invoice:paid', (payload) => {
+    saveDirty = true;
+    sound.invoice();
+    const { orderId, amountCents } = payload as { orderId: string; amountCents: number };
+    const o = game.state.orders.find((x) => x.id === orderId);
+    const v = o ? game.state.vehicles.find((x) => x.id === o.vehicleId) : null;
+    if (v) renderer.popMoney(amountCents, v.pos.x + 1, v.pos.y);
+  });
+  game.bus.on('order:created', () => { sound.order(); });
+  game.bus.on('event:created', () => { sound.event(); ui.showEventPrompt(); });
+  game.bus.on('event:resolved', () => { saveDirty = true; ui.refresh(true); });
+  game.bus.on('day:started', () => { ui.showDailySummary(); });
   game.bus.on('parts:delivered', () => { saveDirty = true; });
   game.bus.on('order:accepted', () => { saveDirty = true; });
   game.bus.on('order:delivered', () => { saveDirty = true; });
@@ -58,6 +71,7 @@ function replaceGame(next: Game, message: string): void {
   renderer.rebuildStatic();
   renderer.resetCamera();
   renderer.setSelection(null);
+  sound.enabled = game.state.soundEnabled;
   ui.openPanel('orders');
   notify(game.ctx, 'info', message);
   saveNow();
@@ -148,6 +162,10 @@ const actions: UIActions = {
   refreshCandidates: () => { game.refreshCandidates(); },
   toggleAuto: (partId) => { game.toggleAutoReorder(partId); },
   setAutoSupplier: (id) => { game.setAutoSupplier(id); },
+  chooseEvent: (id) => { game.chooseEvent(id); sound.click(); },
+  dismissSummary: () => { game.state.dailySummaryPending = null; ui.closeModal(); },
+  setMarketing: (level) => { game.setMarketing(level); sound.click(); },
+  toggleSound: () => { game.toggleSound(); sound.enabled = game.state.soundEnabled; if (sound.enabled) { sound.resume(); sound.click(); } },
 };
 
 function advanceSimulation(now: number): void {
@@ -184,6 +202,8 @@ async function boot(): Promise<void> {
     },
   );
   await renderer.init(ui.canvasHost);
+  sound.enabled = game.state.soundEnabled;
+  window.addEventListener('pointerdown', () => sound.resume(), { once: true });
   bindBus();
   window.__garage = {
     get game() {
