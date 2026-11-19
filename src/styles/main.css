@@ -244,3 +244,8 @@ body {
   #drawer { width: 320px; }
   .top-stats { gap: 14px; }
 }
+
+.toast { display: flex; align-items: flex-start; gap: 8px; }
+.toast span { flex: 1; }
+.toast-close { background: none; border: none; color: inherit; cursor: pointer; font-size: 12px; opacity: 0.6; padding: 0 2px; }
+.toast-close:hover { opacity: 1; }

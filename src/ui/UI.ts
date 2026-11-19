@@ -383,6 +383,7 @@ export class UI {
       }
       case 'supplier': this.supplierId = id; this.refresh(true); break;
       case 'close-modal': this.closeModal(); break;
+      case 'close-toast': btn.closest('.toast')?.remove(); break;
       case 'tool-wait': this.closeModal(); break;
       case 'tool-shop': this.closeModal(); this.openPanel('upgrades'); break;
       case 'tool-decline':
@@ -570,11 +571,29 @@ export class UI {
       <div class="card-title">⚠️ ${esc(c?.name ?? 'Kunde')} droht, das Angebot abzulehnen</div>
       <div class="meta">${v ? `${esc(v.make)} ${esc(v.model)} · ` : ''}Angebot: <strong>${eur(o.estimateCents ?? 0)}</strong> · Budget des Kunden: <strong>${eur(o.budgetCents)}</strong></div>
       <div class="meta">Kundenhistorie: ${history.length === 0 ? 'Neukunde (keine vergangenen Aufträge)' : `${history.length} Aufträge · Umsatz ${eur(histRevenue)} · Ø Zufriedenheit ${avgSat}%`}${(c?.visits ?? 0) >= 2 ? ' · Stammkunde' : ''}</div>
-      <div class="meta">Ohne Reaktion entscheidet sich der Kunde in ${minsLeft} Spielminuten gegen die Werkstatt.</div>
+      <div class="meta">Ohne Reaktion entscheidet sich der Kunde in ${minsLeft} Spielminuten gegen die Werkstatt. Ein Rabatt-Versuch ist einmalig – lehnt der Kunde ab, geht er (selten akzeptiert er auch Mehrkosten).</div>
+      ${(() => {
+        const b = OrderSystem.profitBreakdown(game.ctx, o);
+        let t = `<table class="parts-table"><thead><tr><th>Kalkulation</th><th>Kosten</th><th>Erlös</th></tr></thead><tbody>`;
+        for (const n of o.partsNeeded) {
+          const pd = game.defs.parts.find((x) => x.id === n.partId);
+          if (!pd) continue;
+          const buy = EconomySystem.marketBuyCents(s, pd);
+          t += `<tr><td>${esc(pd.name)} ×${n.quantity}</td><td class="num">${eur(buy * n.quantity)}</td><td class="num">${eur(EconomySystem.sellPrice(buy, s.economy.partsMarkupPct) * n.quantity)}</td></tr>`;
+        }
+        t += `<tr><td>Arbeit ${Math.round(b.laborMinutes)} min</td><td class="num">${eur(b.laborCost)}</td><td class="num">${eur(b.laborRevenue)}</td></tr>`;
+        t += `<tr><td>Diagnosepauschale</td><td class="num">–</td><td class="num">${eur(b.fee)}</td></tr>`;
+        if (b.discount > 0) t += `<tr><td>Rabatt</td><td class="num">–</td><td class="num neg">−${eur(b.discount)}</td></tr>`;
+        t += `<tr><td><strong>Summe</strong></td><td class="num"><strong>${eur(b.cost)}</strong></td><td class="num"><strong>${eur(b.revenue)}</strong></td></tr></tbody></table>`;
+        t += `<div class="meta">Gewinn: <strong class="${b.profit >= 0 ? 'pos' : 'neg'}">${eur(b.profit)}</strong> (${b.revenue > 0 ? Math.round((b.profit / b.revenue) * 100) : 0} % Marge)</div>`;
+        return t;
+      })()}
       <div class="btn-row">
-        <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="5">5 % Rabatt</button>
-        <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="10">10 % Rabatt</button>
-        <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="15">15 % Rabatt</button>
+        <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="5">5 %</button>
+        <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="10">10 %</button>
+        <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="15">15 %</button>
+        <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="20">20 %</button>
+        <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="25">25 %</button>
       </div>
       <div class="btn-row">
         <button class="btn primary" data-action="accept-budget" data-id="${o.id}">Budget akzeptieren – Kunde halten (Rechnung = ${eur(o.budgetCents)})</button>
@@ -617,7 +636,7 @@ export class UI {
       this.lastToastId = Math.max(this.lastToastId, n.id);
       const div = document.createElement('div');
       div.className = `toast toast-${n.kind}`;
-      div.textContent = n.text;
+      div.innerHTML = `<span>${esc(n.text)}</span><button class="toast-close" data-action="close-toast" title="Schließen">✕</button>`;
       this.toastHost.appendChild(div);
       setTimeout(() => div.classList.add('show'), 10);
       setTimeout(() => {
@@ -1071,9 +1090,11 @@ export class UI {
         <div class="meta">Kundenhistorie: ${history.length === 0 ? 'Neukunde (keine vergangenen Aufträge)' : `${history.length} Aufträge · Umsatz ${eur(histRevenue)} · Ø Zufriedenheit ${avgSat}%`}${(c?.visits ?? 0) >= 2 ? ' · Stammkunde – Rabatt empfohlen' : ''}</div>
         <div class="meta">Ohne Reaktion entscheidet sich der Kunde in ${minsLeft} Spielminuten gegen die Werkstatt.</div>
         <div class="btn-row">
-          <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="5">5 % Rabatt</button>
-          <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="10">10 % Rabatt</button>
-          <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="15">15 % Rabatt</button>
+          <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="5">5 %</button>
+          <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="10">10 %</button>
+          <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="15">15 %</button>
+          <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="20">20 %</button>
+          <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="25">25 %</button>
           <button class="btn small danger" data-action="insist-price" data-id="${o.id}">Preis bestehen</button>
         </div>
       </div>`;

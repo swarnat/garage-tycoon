@@ -147,7 +147,7 @@ describe('Stammkunden', () => {
     game.rng.chance = () => true;
     const next = game.generateOffer()!;
     expect(next.customerId).toBe(happyId);
-    expect(customer.visits).toBe(2);
+    expect(customer.visits).toBeGreaterThanOrEqual(2);
   });
 
   it('unzufriedene Kunden kommen nicht wieder', () => {

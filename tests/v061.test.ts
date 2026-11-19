@@ -112,6 +112,7 @@ describe('Zufriedenheit und Storno-Gründe sind sichtbar', () => {
     const game = Game.new(1021);
     stockEverything(game);
     const offer = accept(game);
+    game.rng.chance = () => false; // keine QC-Fehler / Reklamationen
     runUntil(game, () => offer.status === 'delivered');
     expect(offer.satisfactionReason.length).toBeGreaterThan(0);
     expect(offer.satisfactionReason).toContain('Pünktlich');

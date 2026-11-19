@@ -15,9 +15,10 @@ export class RepairSystem {
     return Math.max(0.5, 1.5 - skill / 100);
   }
 
-  /** Tatsächliche Arbeitsrate inkl. Motivation (0.9–1.1). */
+  /** Tatsächliche Arbeitsrate inkl. Motivation (0.9–1.1).
+   *  Hoeherer Skill = schneller: Rate ist der Kehrwert des Zeitfaktors. */
   static workRate(skill: number, motivation: number): number {
-    return RepairSystem.durationFactor(skill) * (0.9 + motivation / 500);
+    return (1 / RepairSystem.durationFactor(skill)) * (0.9 + motivation / 500);
   }
 
   static canWorkerDo(worker: Worker, def: RepairDef): boolean {

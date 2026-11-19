@@ -387,15 +387,27 @@ export class Game {
   offerDiscount(orderId: string, pct: number): boolean {
     const order = this.state.orders.find((o) => o.id === orderId);
     if (!order || order.status !== 'waiting_for_approval' || !order.offerAtRisk) return false;
-    if (![5, 10, 15].includes(pct)) return false;
+    if (![5, 10, 15, 20, 25].includes(pct)) return false;
     order.discountPct = pct;
     const customer = this.state.customers.find((c) => c.id === order.customerId);
     const effective = Math.round((order.estimateCents ?? 0) * (1 - pct / 100));
+    // Kleine Chance, dass der Kunde auch Mehrkosten akzeptiert (Stammkunden eher)
+    const extraChance = Math.min(
+      0.4,
+      0.15 +
+        (customer && customer.visits >= 2 ? 0.15 : 0) +
+        (customer && (customer.lastSatisfaction ?? 0) >= 80 ? 0.1 : 0),
+    );
     if (effective <= order.budgetCents) {
       OrderSystem.approve(this.ctx, order);
       notify(this.ctx, 'success', `${customer?.name ?? 'Kunde'} nimmt das Angebot mit ${pct} % Rabatt an.`);
+    } else if (this.rng.chance(extraChance)) {
+      OrderSystem.approve(this.ctx, order);
+      notify(this.ctx, 'success', `${customer?.name ?? 'Kunde'} akzeptiert die Mehrkosten und bleibt – mit ${pct} % Rabatt.`);
     } else {
-      notify(this.ctx, 'warning', `${customer?.name ?? 'Kunde'} lehnt auch mit ${pct} % Rabatt ab (Budget ${(order.budgetCents / 100).toFixed(2)} €).`);
+      // Einmaliger Versuch: lehnt der Kunde ab, geht er endgültig
+      OrderSystem.cancelOrder(this.ctx, order, `Rabatt ${pct} % abgelehnt – Kunde geht`);
+      notify(this.ctx, 'warning', `${customer?.name ?? 'Kunde'} lehnt auch mit ${pct} % Rabatt ab und geht (Budget ${(order.budgetCents / 100).toFixed(2)} €).`);
     }
     return true;
   }

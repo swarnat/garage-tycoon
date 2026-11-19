@@ -167,9 +167,25 @@ export class CustomerSystem {
     const budgetCents = Math.round(
       fair * PROFILE_FACTORS[profile] * rng.range(0.95, 1.3),
     );
-    const dueAtMinute =
-      state.totalMinutes +
-      (profile === 'time_critical' ? 720 : rng.intRange(1, 3) * 1440);
+    // Termine: große Arbeiten (>= 240 min) 1-2 Tage; Kleines vor 11 Uhr noch
+    // am selben Tag (18:00), danach immer am Folgetag (12:00)
+    const laborMinutes = defectIds.reduce((acc, id) => {
+      const d = ctx.defs.repairs.find((r) => r.id === id);
+      return acc + (d ? d.baseDurationMinutes * (d.requiredWorkers ?? 1) : 0);
+    }, 0);
+    const day = Math.floor(state.totalMinutes / 1440);
+    const minuteOfDay = state.totalMinutes % 1440;
+    let dueAtMinute: number;
+    if (laborMinutes >= 240) {
+      dueAtMinute = (day + rng.intRange(1, 2)) * 1440 + 1080;
+    } else if (minuteOfDay < 660) {
+      dueAtMinute = day * 1440 + 1080;
+    } else {
+      dueAtMinute = (day + 1) * 1440 + 720;
+    }
+    if (profile === 'time_critical') {
+      dueAtMinute = Math.min(dueAtMinute, state.totalMinutes + 720);
+    }
 
     const order: RepairOrder = {
       id: `o${state.nextId++}`,

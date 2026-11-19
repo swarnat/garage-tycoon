@@ -229,7 +229,7 @@ export class Renderer {
       gates.rect(gx * TILE, 15 * TILE - 5, TILE, 5).fill(0x3d434e);
     }
     this.staticLayer.addChild(gates);
-    this.staticLayer.addChild(this.label('EINFERT', 1.6 * TILE, 13.4 * TILE, 9, 0x6fdc8c));
+    this.staticLayer.addChild(this.label('EINFAHRT', 1.6 * TILE, 13.4 * TILE, 9, 0x6fdc8c));
     this.staticLayer.addChild(this.label('AUSFAHRT', (map.width - 1.6) * TILE, 13.4 * TILE, 9, 0xff7b72));
 
     for (const s of game.state.stations) {

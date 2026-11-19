@@ -350,15 +350,28 @@ export class OrderSystem {
     const exit = ctx.state.stations.find((s) => s.kind === 'exit');
     if (!exit) return;
     vehicle.state = 'driving_out';
-    const path = findPath(
+    // Erst auf die Fahrspur (y15) auffahren, dann auf der Straße zur Ausfahrt
+    const laneY = 15;
+    const lx = Math.max(1, Math.min(ctx.map.width - 2, Math.round(vehicle.pos.x)));
+    const toRoad = findPath(ctx.map, vehicle.pos, { x: lx, y: laneY }) ?? [];
+    const alongRoad = findPath(
       ctx.map,
-      vehicle.pos,
+      { x: lx, y: laneY },
       { x: exit.rect.x, y: exit.rect.y },
       { vehicleTargetRect: exit.rect },
-    );
-    vehicle.path = path ?? [];
+    ) ?? [];
+    let path = [...toRoad, ...alongRoad];
+    if (path.length === 0) {
+      path = findPath(
+        ctx.map,
+        vehicle.pos,
+        { x: exit.rect.x, y: exit.rect.y },
+        { vehicleTargetRect: exit.rect },
+      ) ?? [];
+    }
+    vehicle.path = path;
     vehicle.targetStationId = null;
-    if (!path) {
+    if (path.length === 0) {
       vehicle.state = 'gone';
     }
   }
