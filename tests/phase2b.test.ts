@@ -85,8 +85,8 @@ describe('Zusätzliche Lieferanten', () => {
 
   it('Budget-Lieferant ist billiger, aber langsamer', () => {
     const game = Game.new(211);
-    game.orderParts('battery', 1, 'teileprofi');
-    game.orderParts('battery', 1, 'budgetteile');
+    game.orderParts('battery__60__standard', 1, 'teileprofi');
+    game.orderParts('battery__60__standard', 1, 'budgetteile');
     const [std, budget] = game.state.deliveries;
     expect(budget!.costCents).toBeLessThan(std!.costCents);
     expect(budget!.arriveAtMinute).toBeGreaterThan(std!.arriveAtMinute);
@@ -180,7 +180,7 @@ describe('Save-Migration v3 → v4', () => {
     for (const c of raw.customers) delete c.lastSatisfaction;
     raw.stations = raw.stations.filter((s: { id: string }) => s.id !== 'diag2');
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(10);
+    expect(migrated.version).toBe(11);
     expect(migrated.orders[0]!.diagnosisExtended).toBe(false);
     expect(migrated.customers[0]!.lastSatisfaction).toBeNull();
     const diag2 = migrated.stations.find((s) => s.id === 'diag2');

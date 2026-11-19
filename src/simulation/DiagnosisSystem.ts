@@ -1,5 +1,7 @@
 import type { RepairOrder, Worker } from '../entities/types';
 import { DIAGNOSIS_BASE_MINUTES, DIAGNOSIS_FEE_CENTS } from '../entities/types';
+import { resolveVariant } from './PartsResolver';
+import { vehicleById } from './context';
 import { RepairSystem } from './RepairSystem';
 import { OrderSystem } from './OrderSystem';
 import type { SimContext } from './context';
@@ -39,11 +41,18 @@ export class DiagnosisSystem {
     order.jobs = order.defectRepairIds.map((id) =>
       RepairSystem.buildJob(repairDef(ctx, id)),
     );
+    // Konkrete Varianten aus Fahrzeug-Steckbrief + Kundenprofil auflösen
+    const vehicle = vehicleById(ctx.state, order.vehicleId);
+    const model = ctx.defs.vehicles.find((m) => m.id === vehicle.modelId);
+    const customer = ctx.state.customers.find((c) => c.id === order.customerId);
+    const profile = customer?.profile ?? 'regular';
     const needMap = new Map<string, number>();
     for (const job of order.jobs) {
       const def = repairDef(ctx, job.repairId);
       for (const p of def.requiredParts) {
-        needMap.set(p.partId, (needMap.get(p.partId) ?? 0) + p.quantity);
+        const variant = model ? resolveVariant(ctx, p.partId, model, profile) : null;
+        const key = variant?.id ?? p.partId;
+        needMap.set(key, (needMap.get(key) ?? 0) + p.quantity);
       }
     }
     order.partsNeeded = [...needMap.entries()].map(([partId, quantity]) => ({

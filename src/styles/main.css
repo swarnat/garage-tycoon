@@ -214,7 +214,7 @@ body {
 #modal-backdrop.hidden { display: none; }
 #modal {
   background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
-  width: min(940px, 94vw); max-height: 88vh;
+  width: min(940px, 94vw); max-height: 92vh;
   display: flex; flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
 }
@@ -254,3 +254,16 @@ body {
 .legend { margin: 6px 0; }
 .legend-low { color: var(--warn); font-weight: 700; }
 .legend-highlight { background: #2a2413; padding: 1px 5px; border-radius: 3px; }
+
+#modal { width: min(1200px, 96vw); max-width: 96vw; }
+#modal-body { max-height: calc(92vh - 70px); }
+.inv-layout { display: grid; grid-template-columns: 210px 1fr; gap: 12px; }
+.inv-cats { display: flex; flex-direction: column; gap: 3px; max-height: calc(92vh - 200px); overflow-y: auto; }
+.inv-cat { text-align: left; background: #1b1e24; border: 1px solid #2c3038; color: #dfe5ee; padding: 6px 9px; border-radius: 6px; cursor: pointer; font-size: 12px; display: flex; justify-content: space-between; gap: 6px; }
+.inv-cat:hover { border-color: #3a4150; }
+.inv-cat.active { border-color: var(--accent); background: #2a2413; }
+.inv-main { overflow-x: auto; }
+.inv-search { flex: 1; min-width: 220px; background: #0e1116; border: 1px solid #2c3038; color: #dfe5ee; border-radius: 6px; padding: 6px 10px; font-size: 12px; }
+.chip.slow { background: #3a2f1b; color: #d9a441; }
+#modal-mini { position: fixed; right: 18px; bottom: 18px; z-index: 900; display: flex; align-items: center; gap: 10px; background: #1b1e24; border: 1px solid var(--accent); border-radius: 8px; padding: 10px 14px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.5); }
+#modal-mini.hidden { display: none; }

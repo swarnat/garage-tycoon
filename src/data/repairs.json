@@ -959,5 +959,98 @@
       "Bitte eine komplette Inspektion vor der HU.",
       "Das Fahrzeug soll durchgecheckt werden."
     ]
+  },
+  {
+    "id": "tire_change",
+    "name": "Reifen erneuern (4 Stück)",
+    "category": "tires",
+    "baseDurationMinutes": 60,
+    "requiredSkill": "brakes",
+    "minimumSkillLevel": 20,
+    "requiredWorkstation": "lift",
+    "requiredTools": [
+      "tire_machine"
+    ],
+    "requiredParts": [
+      {
+        "partId": "tires",
+        "quantity": 4
+      }
+    ],
+    "complaints": [
+      "Reifen sind verschlissen",
+      "Reifenprofil zu gering",
+      "Reifen porös und rissig"
+    ],
+    "steps": [
+      {
+        "id": "remove_wheels",
+        "durationMinutes": 15
+      },
+      {
+        "id": "dismount_old",
+        "durationMinutes": 15,
+        "dependsOn": [
+          "remove_wheels"
+        ]
+      },
+      {
+        "id": "mount_new",
+        "durationMinutes": 20,
+        "dependsOn": [
+          "dismount_old"
+        ]
+      },
+      {
+        "id": "balance",
+        "durationMinutes": 10,
+        "dependsOn": [
+          "mount_new"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rim_replace",
+    "name": "Felge ersetzen",
+    "category": "rims",
+    "baseDurationMinutes": 45,
+    "requiredSkill": "suspension",
+    "minimumSkillLevel": 30,
+    "requiredWorkstation": "lift",
+    "requiredTools": [
+      "tire_machine"
+    ],
+    "requiredParts": [
+      {
+        "partId": "rims",
+        "quantity": 1
+      }
+    ],
+    "complaints": [
+      "Felge hat einen Bordsteinschaden",
+      "Felge ist verbogen",
+      "Felge rostet stark"
+    ],
+    "steps": [
+      {
+        "id": "remove_wheel",
+        "durationMinutes": 10
+      },
+      {
+        "id": "swap_rim",
+        "durationMinutes": 25,
+        "dependsOn": [
+          "remove_wheel"
+        ]
+      },
+      {
+        "id": "mount_wheel",
+        "durationMinutes": 10,
+        "dependsOn": [
+          "swap_rim"
+        ]
+      }
+    ]
   }
 ]

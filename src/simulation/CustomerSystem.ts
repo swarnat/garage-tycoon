@@ -160,7 +160,11 @@ export class CustomerSystem {
       const def = ctx.defs.repairs.find((r) => r.id === id)!;
       fair += Math.round(((def.baseDurationMinutes * (def.requiredWorkers ?? 1)) / 60) * state.economy.hourlyRateCents);
       for (const p of def.requiredParts) {
-        const part = ctx.defs.parts.find((x) => x.id === p.partId)!;
+        // Kategorie-Preis (Standard-Variante) für die faire Schätzung vor der Diagnose
+        const part =
+          ctx.defs.parts.find((x) => x.category === p.partId && x.quality === 'standard' && x.spec === 'M') ??
+          ctx.defs.parts.find((x) => x.category === p.partId && x.quality === 'standard') ??
+          ctx.defs.parts.find((x) => x.category === p.partId)!;
         fair += EconomySystem.sellPrice(EconomySystem.marketBuyCents(state, part), state.economy.partsMarkupPct) * p.quantity;
       }
     }
@@ -175,16 +179,24 @@ export class CustomerSystem {
     }, 0);
     const day = Math.floor(state.totalMinutes / 1440);
     const minuteOfDay = state.totalMinutes % 1440;
+    // Alle Terminen liegen auf 18:00 (Feierabend) – Überfälligkeit gibt es
+    // erst zum Ende des Arbeitstags, nicht schon mittags.
     let dueAtMinute: number;
     if (laborMinutes >= 240) {
       dueAtMinute = (day + rng.intRange(1, 2)) * 1440 + 1080;
+      if (rng.chance(0.3)) dueAtMinute += 1440; // manchmal zusätzlich Zeit
     } else if (minuteOfDay < 660) {
       dueAtMinute = day * 1440 + 1080;
     } else {
-      dueAtMinute = (day + 1) * 1440 + 720;
+      dueAtMinute = (day + 1) * 1440 + 1080;
+      // Wahrscheinlichkeit für mehr Zeit: 50 % Basis, 35 % +1 Tag, 15 % +2 Tage
+      const roll = rng.next();
+      if (roll < 0.15) dueAtMinute += 2 * 1440;
+      else if (roll < 0.5) dueAtMinute += 1440;
     }
     if (profile === 'time_critical') {
-      dueAtMinute = Math.min(dueAtMinute, state.totalMinutes + 720);
+      // Zeitkritisch: knapp, aber ebenfalls zum Feierabend
+      dueAtMinute = (minuteOfDay < 1080 ? day : day + 1) * 1440 + 1080;
     }
 
     const order: RepairOrder = {
@@ -217,6 +229,7 @@ export class CustomerSystem {
       approvalDeadline: null,
       discountPct: 0,
       toolPromptShown: false,
+      partsPromptShown: false,
       pickupAtMinute: null,
       cancelReason: null,
       satisfactionReason: '',

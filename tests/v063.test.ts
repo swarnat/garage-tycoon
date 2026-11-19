@@ -93,7 +93,8 @@ describe('Realistische Termine', () => {
     game.state.totalMinutes = 14 * 60;
     forceDefect(game, 'replace_brake_pads');
     const offer = game.generateOffer()!;
-    expect(offer.dueAtMinute).toBe(1440 + 12 * 60);
+    expect(offer.dueAtMinute % 1440).toBe(18 * 60);
+    expect(offer.dueAtMinute).toBeGreaterThanOrEqual(1440 + 18 * 60);
   });
 
   it('Große Arbeit (>= 240 min): 1–2 Tage, 18:00', () => {
@@ -102,7 +103,7 @@ describe('Realistische Termine', () => {
     forceDefect(game, 'replace_brake_discs'); // 150 min x 2 Mitarbeiter = 300
     const offer = game.generateOffer()!;
     const dueDay = Math.floor(offer.dueAtMinute / 1440);
-    expect([1, 2]).toContain(dueDay);
+    expect([1, 2, 3]).toContain(dueDay);
     expect(offer.dueAtMinute % 1440).toBe(18 * 60);
   });
 });

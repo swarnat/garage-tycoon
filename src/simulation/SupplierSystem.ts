@@ -41,6 +41,7 @@ export class SupplierSystem {
       label: `${quantity}× ${part.name} (${supplier.name})`,
     });
     ctx.state.statistics.totalPartsCostCents += cost;
+    ctx.state.inventory.lastOrdered[partId] = ctx.state.totalMinutes;
     ctx.state.deliveries.push({
       id,
       partId,

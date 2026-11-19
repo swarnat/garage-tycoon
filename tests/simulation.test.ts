@@ -90,38 +90,38 @@ describe('Lager & Reservierungen', () => {
   it('reserviert nur, was verfügbar ist (alles oder nichts)', () => {
     const game = Game.new(3);
     const inv = game.state.inventory;
-    inv.stock['brake_pads'] = 1;
-    inv.reserved['brake_pads'] = 0;
-    const ok = InventorySystem.reserve(inv, [{ partId: 'brake_pads', quantity: 1 }]);
+    inv.stock['brake_pads__M__standard'] = 1;
+    inv.reserved['brake_pads__M__standard'] = 0;
+    const ok = InventorySystem.reserve(inv, [{ partId: 'brake_pads__M__standard', quantity: 1 }]);
     expect(ok).toBe(true);
-    const again = InventorySystem.reserve(inv, [{ partId: 'brake_pads', quantity: 1 }]);
+    const again = InventorySystem.reserve(inv, [{ partId: 'brake_pads__M__standard', quantity: 1 }]);
     expect(again).toBe(false);
-    expect(inv.reserved['brake_pads']).toBe(1);
+    expect(inv.reserved['brake_pads__M__standard']).toBe(1);
   });
 
   it('gibt bei Fehlschlag keine Teilreservierung zurück', () => {
     const game = Game.new(3);
     const inv = game.state.inventory;
-    inv.stock['brake_pads'] = 5;
-    inv.stock['battery'] = 0;
+    inv.stock['brake_pads__M__standard'] = 5;
+    inv.stock['battery__60__standard'] = 0;
     const ok = InventorySystem.reserve(inv, [
-      { partId: 'brake_pads', quantity: 2 },
-      { partId: 'battery', quantity: 1 },
+      { partId: 'brake_pads__M__standard', quantity: 2 },
+      { partId: 'battery__60__standard', quantity: 1 },
     ]);
     expect(ok).toBe(false);
-    expect(inv.reserved['brake_pads'] ?? 0).toBe(0);
+    expect(inv.reserved['brake_pads__M__standard'] ?? 0).toBe(0);
   });
 
   it('verbraucht reservierte Teile genau einmal', () => {
     const game = Game.new(3);
     const inv = game.state.inventory;
-    inv.stock['brake_pads'] = 3;
-    InventorySystem.reserve(inv, [{ partId: 'brake_pads', quantity: 2 }]);
-    InventorySystem.consumeReserved(inv, [{ partId: 'brake_pads', quantity: 2 }]);
-    expect(inv.stock['brake_pads']).toBe(1);
-    expect(inv.reserved['brake_pads']).toBe(0);
+    inv.stock['brake_pads__M__standard'] = 3;
+    InventorySystem.reserve(inv, [{ partId: 'brake_pads__M__standard', quantity: 2 }]);
+    InventorySystem.consumeReserved(inv, [{ partId: 'brake_pads__M__standard', quantity: 2 }]);
+    expect(inv.stock['brake_pads__M__standard']).toBe(1);
+    expect(inv.reserved['brake_pads__M__standard']).toBe(0);
     expect(() =>
-      InventorySystem.consumeReserved(inv, [{ partId: 'brake_pads', quantity: 2 }]),
+      InventorySystem.consumeReserved(inv, [{ partId: 'brake_pads__M__standard', quantity: 2 }]),
     ).toThrow();
   });
 });
@@ -130,21 +130,21 @@ describe('Bestellungen & Lieferungen', () => {
   it('bucht Einkaufskosten sofort und liefert nach Lieferzeit', () => {
     const game = Game.new(5);
     const before = game.state.economy.balanceCents;
-    const stockBefore = game.state.inventory.stock['battery'] ?? 0;
-    expect(game.orderParts('battery', 2, 'teileprofi')).toBe(true);
+    const stockBefore = game.state.inventory.stock['battery__60__standard'] ?? 0;
+    expect(game.orderParts('battery__60__standard', 2, 'teileprofi')).toBe(true);
     expect(game.state.economy.balanceCents).toBeLessThan(before);
     expect(game.state.deliveries).toHaveLength(1);
     game.tick(479);
-    expect(game.state.inventory.stock['battery']).toBe(stockBefore);
+    expect(game.state.inventory.stock['battery__60__standard']).toBe(stockBefore);
     game.tick(2);
-    expect(game.state.inventory.stock['battery']).toBe(stockBefore + 2);
+    expect(game.state.inventory.stock['battery__60__standard']).toBe(stockBefore + 2);
     expect(game.state.deliveries[0]!.done).toBe(true);
   });
 
   it('Expresslieferung ist schneller und teurer', () => {
     const game = Game.new(5);
-    game.orderParts('battery', 1, 'teileprofi');
-    game.orderParts('battery', 1, 'expressparts');
+    game.orderParts('battery__60__standard', 1, 'teileprofi');
+    game.orderParts('battery__60__standard', 1, 'expressparts');
     const [std, exp] = game.state.deliveries;
     expect(exp!.arriveAtMinute).toBeLessThan(std!.arriveAtMinute);
     expect(exp!.costCents).toBeGreaterThan(std!.costCents);
@@ -153,7 +153,7 @@ describe('Bestellungen & Lieferungen', () => {
   it('kann keine Bestellung bei fehlendem Geld auslösen', () => {
     const game = Game.new(5);
     game.state.economy.balanceCents = 100;
-    expect(game.orderParts('alternator', 5, 'teileprofi')).toBe(false);
+    expect(game.orderParts('alternator__M__standard', 5, 'teileprofi')).toBe(false);
     expect(game.state.deliveries).toHaveLength(0);
   });
 });

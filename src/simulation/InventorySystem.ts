@@ -54,6 +54,25 @@ export class InventorySystem {
    * wenn verfügbarer Bestand (ohne Reservierungen) darunter liegt
    * und keine Lieferung des Teils offen ist.
    */
+  /** Sichtbarkeitsregel im Lager-Modal: 0/0/0 ohne Pin/order ausgeblendet. */
+  static isVisible(
+    inv: InventoryState,
+    variantId: string,
+    deliveries: { partId: string; done: boolean }[],
+    search: string,
+    showAll: boolean,
+    name: string,
+  ): boolean {
+    if (showAll) return true;
+    const q = search.trim();
+    if (q && name.toLowerCase().includes(q)) return true;
+    if (inv.pinned[variantId]) return true;
+    if ((inv.stock[variantId] ?? 0) > 0) return true;
+    if ((inv.minStock[variantId] ?? 0) > 0) return true;
+    if (deliveries.some((d) => !d.done && d.partId === variantId)) return true;
+    return false;
+  }
+
   /** Verbrauch eines Teils im Zeitfenster (in Spielminuten vor now). */
   static usageWithin(inv: InventoryState, partId: string, minutes: number, now: number): number {
     const cutoff = now - minutes;

@@ -96,7 +96,7 @@ describe('Importvalidierung', () => {
   it('erkennt Reservierungen über Bestand', () => {
     const game = Game.new(1);
     const raw = JSON.parse(SaveManager.serialize(game.state));
-    raw.inventory.reserved['brake_pads'] = 9999;
+    raw.inventory.reserved['brake_pads__M__standard'] = 9999;
     expect(() => SaveManager.parse(JSON.stringify(raw))).toThrow(SaveError);
   });
 });
@@ -109,7 +109,7 @@ describe('Savegame-Migration', () => {
     delete raw.notifications;
     delete raw.nextNotificationId;
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(10);
+    expect(migrated.version).toBe(11);
     expect(Array.isArray(migrated.notifications)).toBe(true);
     expect(typeof migrated.nextNotificationId).toBe('number');
   });
@@ -125,7 +125,7 @@ describe('Savegame-Migration', () => {
       }
     }
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(10);
+    expect(migrated.version).toBe(11);
     const parks = migrated.stations.filter((s) => s.kind === 'parking');
     expect(parks).toHaveLength(8);
     const park = parks.find((s) => s.id === 'park1')!;

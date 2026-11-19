@@ -110,6 +110,7 @@ export class OrderSystem {
             order.partsReserved = true;
             OrderSystem.setStatus(state, order, 'ready_for_repair');
           } else {
+            OrderSystem.checkPartsPrompt(ctx, order);
             // Warten auf Teile passiert auf dem Parkplatz, nicht auf der Diagnose
             const v = vehicleById(state, order.vehicleId);
             if (v.state === 'at_diagnosis' || v.state === 'at_lift') {
@@ -204,6 +205,7 @@ export class OrderSystem {
       OrderSystem.setStatus(state, order, 'ready_for_repair');
     } else {
       OrderSystem.setStatus(state, order, 'waiting_for_parts');
+      OrderSystem.checkPartsPrompt(ctx, order);
       const missing = order.partsNeeded
         .filter((n) => InventorySystem.available(state.inventory, n.partId) < n.quantity)
         .map((n) => {
@@ -315,6 +317,18 @@ export class OrderSystem {
       const ps = stationById(state, parkId);
       if (ps.kind === 'parking') ps.orderId = null;
     }
+  }
+
+  /** Einmaliges Teile-fehlt-Modal, wenn nach der Freigabe Bestand fehlt. */
+  static checkPartsPrompt(ctx: SimContext, order: RepairOrder): void {
+    const { state } = ctx;
+    if (order.partsPromptShown || order.status !== 'waiting_for_parts') return;
+    const missing = order.partsNeeded.some(
+      (n) => InventorySystem.available(state.inventory, n.partId) < n.quantity,
+    );
+    if (!missing) return;
+    order.partsPromptShown = true;
+    ctx.bus.emit('parts:missing', order.id);
   }
 
   /** Bereinigt Parkplatz-Belegungen, deren Auftrag/Fahrzeug nicht mehr dort ist. */

@@ -191,6 +191,8 @@ export interface RepairOrder {
   discountPct: number;
   /** Werkzeug-Hinweis-Modal wurde bereits angezeigt. */
   toolPromptShown: boolean;
+  /** Teile-fehlt-Modal wurde bereits angezeigt. */
+  partsPromptShown: boolean;
   /** Kunde holt das Fahrzeug zu diesem Zeitpunkt ab (verzögert). */
   pickupAtMinute: number | null;
   cancelReason: string | null;
@@ -276,6 +278,10 @@ export interface InventoryState {
   autoSupplierId: string;
   /** Verbrauch durch Reparaturen (letzte 48 h), fuer die Lagerstatistik. */
   usageLog: PartUsage[];
+  /** Zeitpunkt der letzten Bestellung je Variante (Ladenhüter-Erkennung). */
+  lastOrdered: Record<string, number>;
+  /** Manuell eingeblendete Varianten (sonst ausgeblendet bei 0/0/0). */
+  pinned: Record<string, boolean>;
 }
 
 export interface GameNotification {
@@ -366,11 +372,22 @@ export interface ToolDef {
   description: string;
 }
 
+export type PartQuality = 'budget' | 'standard' | 'premium';
+
 export interface PartDef {
   id: string;
   name: string;
+  /** Kategorie = frühere generische Teil-ID (z. B. brake_pads). */
   category: string;
+  /** Größen-/Typ-Token (z. B. 15, 280, 5W30, S/M/L). */
+  spec: string;
+  quality: PartQuality;
   buyCents: number;
+}
+
+export interface PartCategoryDef {
+  id: string;
+  name: string;
 }
 
 export interface VehicleModelDef {
@@ -380,6 +397,8 @@ export interface VehicleModelDef {
   vehicleClass: string;
   years: [number, number];
   colors: number[];
+  /** Festgelegte Teile-Specs je Kategorie (bei Ankunft bekannt). */
+  partSpecs: Record<string, string>;
 }
 
 export interface SupplierDef {
@@ -393,12 +412,13 @@ export interface SupplierDef {
 export interface GameDefs {
   vehicles: VehicleModelDef[];
   parts: PartDef[];
+  categories: PartCategoryDef[];
   repairs: RepairDef[];
   suppliers: SupplierDef[];
   tools: ToolDef[];
 }
 
-export const SAVE_VERSION = 10;
+export const SAVE_VERSION = 11;
 export const MINUTES_PER_DAY = 1440;
 export const GAME_MINUTES_PER_REAL_SECOND = 6;
 export const SIM_STEP_MINUTES = 0.25;

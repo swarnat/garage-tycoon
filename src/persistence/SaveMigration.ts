@@ -1,5 +1,6 @@
 import { SAVE_VERSION } from '../entities/types';
 import { TileMap } from '../world/TileMap';
+import { LEGACY_PART_MAP } from '../data';
 import { DEFS } from '../data';
 import { SaveError } from './SaveValidation';
 
@@ -132,6 +133,38 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     const inv = raw.inventory as Record<string, unknown> | undefined;
     if (inv) inv.usageLog ??= [];
     version = 10;
+    raw.version = version;
+  }
+  if (version === 10) {
+    const inv = raw.inventory as Record<string, unknown> | undefined;
+    if (inv) {
+      const mapKeys = (rec: unknown): Record<string, unknown> => {
+        const out: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries((rec as Record<string, unknown>) ?? {})) {
+          out[LEGACY_PART_MAP[k] ?? k] = v;
+        }
+        return out;
+      };
+      inv.stock = mapKeys(inv.stock);
+      inv.reserved = mapKeys(inv.reserved);
+      inv.minStock = mapKeys(inv.minStock);
+      inv.autoReorder = mapKeys(inv.autoReorder);
+      inv.lastOrdered ??= {};
+      inv.pinned ??= {};
+      for (const u of (inv.usageLog as Array<Record<string, unknown>>) ?? []) {
+        u.partId = LEGACY_PART_MAP[u.partId as string] ?? u.partId;
+      }
+    }
+    for (const d of (raw.deliveries as Array<Record<string, unknown>>) ?? []) {
+      d.partId = LEGACY_PART_MAP[d.partId as string] ?? d.partId;
+    }
+    for (const o of (raw.orders as Array<Record<string, unknown>>) ?? []) {
+      o.partsPromptShown ??= false;
+      for (const n of (o.partsNeeded as Array<Record<string, unknown>>) ?? []) {
+        n.partId = LEGACY_PART_MAP[n.partId as string] ?? n.partId;
+      }
+    }
+    version = 11;
     raw.version = version;
   }
   // Idempotente Normalisierung neuer Felder (auch für aktuelle Version)

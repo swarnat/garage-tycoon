@@ -31,18 +31,22 @@ describe('Parkplatz-Belegung wird korrekt freigegeben (Bugfix)', () => {
   it('Parkplatz wird frei, wenn das Fahrzeug zur Hebebühne fährt', () => {
     const game = Game.new(1400);
     stockEverything(game);
-    game.state.inventory.capacity = 1000;
-    game.state.inventory.stock['brake_caliper'] = 0;
-    game.state.inventory.minStock['brake_caliper'] = 0;
-    game.state.inventory.autoReorder['brake_caliper'] = false;
+    game.state.inventory.capacity = 5000;
+    game.state.inventory.stock['brake_caliper__M__standard'] = 0;
+    game.state.inventory.minStock['brake_caliper__M__standard'] = 0;
+    game.state.inventory.autoReorder['brake_caliper__M__standard'] = false;
     const offer = accept(game, 'replace_brake_caliper');
+    const vFix = game.state.vehicles.find((x) => x.id === offer.vehicleId)!;
+    vFix.modelId = 'vw_golf';
+    const cFix = game.state.customers.find((c) => c.id === offer.customerId)!;
+    cFix.profile = 'regular';
     runUntil(game, () => offer.status === 'waiting_for_parts', 1440);
     const v = game.state.vehicles.find((x) => x.id === offer.vehicleId)!;
     runUntil(game, () => v.state === 'waiting', 240);
     const parkedAt = v.targetStationId!;
     expect(game.state.stations.find((s) => s.id === parkedAt)!.orderId).toBe(offer.id);
     // Teile liefern → Reparatur beginnt → Parkplatz muss frei sein
-    game.orderParts('brake_caliper', 1, 'expressparts');
+    game.orderParts('brake_caliper__M__standard', 1, 'expressparts');
     runUntil(game, () => offer.status === 'repairing' && v.state === 'at_lift');
     expect(game.state.stations.find((s) => s.id === parkedAt)!.orderId).toBeNull();
     runUntil(game, () => offer.status === 'delivered');
@@ -52,11 +56,15 @@ describe('Parkplatz-Belegung wird korrekt freigegeben (Bugfix)', () => {
   it('Stornierung gibt den Parkplatz frei', () => {
     const game = Game.new(1401);
     stockEverything(game);
-    game.state.inventory.capacity = 1000;
-    game.state.inventory.stock['brake_caliper'] = 0;
-    game.state.inventory.minStock['brake_caliper'] = 0;
-    game.state.inventory.autoReorder['brake_caliper'] = false;
+    game.state.inventory.capacity = 5000;
+    game.state.inventory.stock['brake_caliper__M__standard'] = 0;
+    game.state.inventory.minStock['brake_caliper__M__standard'] = 0;
+    game.state.inventory.autoReorder['brake_caliper__M__standard'] = false;
     const offer = accept(game, 'replace_brake_caliper');
+    const vFix = game.state.vehicles.find((x) => x.id === offer.vehicleId)!;
+    vFix.modelId = 'vw_golf';
+    const cFix = game.state.customers.find((c) => c.id === offer.customerId)!;
+    cFix.profile = 'regular';
     runUntil(game, () => offer.status === 'waiting_for_parts', 1440);
     const v = game.state.vehicles.find((x) => x.id === offer.vehicleId)!;
     runUntil(game, () => v.state === 'waiting', 240);
@@ -78,13 +86,17 @@ describe('Parkplatz-Belegung wird korrekt freigegeben (Bugfix)', () => {
   it('zwei Teile-Warte-Aufträge hintereinander blockieren nicht alle Plätze', () => {
     const game = Game.new(1403);
     stockEverything(game);
-    game.state.inventory.capacity = 1000;
+    game.state.inventory.capacity = 5000;
     game.state.nextOrderAttemptAtMinute = 999999;
     for (let i = 0; i < 2; i++) {
-      game.state.inventory.stock['brake_caliper'] = 0;
+      game.state.inventory.stock['brake_caliper__M__standard'] = 0;
       const offer = accept(game, 'replace_brake_caliper');
+      const vFix = game.state.vehicles.find((x) => x.id === offer.vehicleId)!;
+      vFix.modelId = 'vw_golf';
+      const cFix = game.state.customers.find((c) => c.id === offer.customerId)!;
+      cFix.profile = 'regular';
       runUntil(game, () => offer.status === 'waiting_for_parts', 1440);
-      game.orderParts('brake_caliper', 1, 'expressparts');
+      game.orderParts('brake_caliper__M__standard', 1, 'expressparts');
       runUntil(game, () => offer.status === 'delivered');
       expect(offer.status).toBe('delivered');
     }

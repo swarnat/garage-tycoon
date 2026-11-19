@@ -97,12 +97,16 @@ describe('Warten auf Teile passiert auf dem Parkplatz', () => {
   it('Fahrzeug gibt die Diagnose frei und wartet auf dem Parkplatz', () => {
     const game = Game.new(1110);
     stockEverything(game);
-    game.state.inventory.capacity = 1000;
+    game.state.inventory.capacity = 5000;
     const offer = accept(game, 'replace_brake_caliper');
+    const vFix = game.state.vehicles.find((x) => x.id === offer.vehicleId)!;
+    vFix.modelId = 'vw_golf';
+    const cFix = game.state.customers.find((c) => c.id === offer.customerId)!;
+    cFix.profile = 'regular';
     // Benötigtes Teil komplett leeren (inkl. Reservierungspuffer)
-    game.state.inventory.stock['brake_caliper'] = 0;
-    game.state.inventory.minStock['brake_caliper'] = 0;
-    game.state.inventory.autoReorder['brake_caliper'] = false;
+    game.state.inventory.stock['brake_caliper__M__standard'] = 0;
+    game.state.inventory.minStock['brake_caliper__M__standard'] = 0;
+    game.state.inventory.autoReorder['brake_caliper__M__standard'] = false;
     runUntil(game, () => offer.status === 'waiting_for_parts', 1440);
     const v = game.state.vehicles.find((x) => x.id === offer.vehicleId)!;
     runUntil(game, () => v.state === 'waiting', 240);
@@ -110,7 +114,7 @@ describe('Warten auf Teile passiert auf dem Parkplatz', () => {
     const diag = game.state.stations.find((s) => s.id === 'diag1')!;
     expect(diag.orderId).toBeNull();
     // Lieferung kommt → Reparatur läuft → Auftrag wird fertig
-    game.orderParts('brake_caliper', 1, 'expressparts');
+    game.orderParts('brake_caliper__M__standard', 1, 'expressparts');
     runUntil(game, () => offer.status === 'delivered');
     expect(offer.status).toBe('delivered');
   });
@@ -142,7 +146,7 @@ describe('Save-Migration v8 → v9', () => {
     const l3 = stations.find((s) => s.id === 'lift3')!;
     l3.rect = { x: 18, y: 9, w: 3, h: 2 };
     const migrated = migrate(raw);
-    expect(migrated.version).toBe(10);
+    expect(migrated.version).toBe(11);
     const m3 = (migrated.stations as Array<Record<string, unknown>>).find((s) => s.id === 'lift3')!;
     expect(m3.unlocked).toBe(true);
     expect(m3.rect).toEqual({ x: 18, y: 3, w: 3, h: 2 });

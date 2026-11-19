@@ -66,10 +66,10 @@ describe('Nacht-Automatik (8x außerhalb, 1x bei Auftrag/Arbeitsbeginn)', () => 
     const game = Game.new(705);
     game.state.totalMinutes = 18 * 60;
     game.setSpeed(8);
-    game.orderParts('battery', 1, 'teileprofi'); // kommt 02:00 nachts
-    const before = game.state.inventory.stock['battery'] ?? 0;
+    game.orderParts('battery__60__standard', 1, 'teileprofi'); // kommt 02:00 nachts
+    const before = game.state.inventory.stock['battery__60__standard'] ?? 0;
     game.tick(840); // bis 08:00 nächsten Tages
-    expect(game.state.inventory.stock['battery']).toBe(before + 1);
+    expect(game.state.inventory.stock['battery__60__standard']).toBe(before + 1);
     expect(game.state.speed).toBe(1);
   });
 });

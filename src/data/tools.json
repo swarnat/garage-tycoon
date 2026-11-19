@@ -1,7 +1,38 @@
 [
-  { "id": "brake_bleeder", "name": "Bremsen-Entlüftungsgerät", "costCents": 90000, "description": "Für Bremssattel-Reparaturen. Gehört zur Grundausstattung." },
-  { "id": "spring_compressor", "name": "Federspanner", "costCents": 180000, "description": "Nötig für Federwechsel (Team-Reparatur)." },
-  { "id": "timing_tool", "name": "Steuerzeiten-Werkzeugsatz", "costCents": 240000, "description": "Nötig für Wasserpumpen-Reparaturen." },
-  { "id": "ac_station", "name": "Klimaservice-Station", "costCents": 320000, "description": "Nötig für Klimaservice (Kältemittel absaugen/auffüllen)." },
-  { "id": "transmission_jack", "name": "Getriebeheber", "costCents": 260000, "description": "Nötig für Getriebeölwechsel an schweren Getrieben." }
+  {
+    "id": "brake_bleeder",
+    "name": "Bremsen-Entlüftungsgerät",
+    "costCents": 90000,
+    "description": "Für Bremssattel-Reparaturen. Gehört zur Grundausstattung."
+  },
+  {
+    "id": "spring_compressor",
+    "name": "Federspanner",
+    "costCents": 180000,
+    "description": "Nötig für Federwechsel (Team-Reparatur)."
+  },
+  {
+    "id": "timing_tool",
+    "name": "Steuerzeiten-Werkzeugsatz",
+    "costCents": 240000,
+    "description": "Nötig für Wasserpumpen-Reparaturen."
+  },
+  {
+    "id": "ac_station",
+    "name": "Klimaservice-Station",
+    "costCents": 320000,
+    "description": "Nötig für Klimaservice (Kältemittel absaugen/auffüllen)."
+  },
+  {
+    "id": "transmission_jack",
+    "name": "Getriebeheber",
+    "costCents": 260000,
+    "description": "Nötig für Getriebeölwechsel an schweren Getrieben."
+  },
+  {
+    "id": "tire_machine",
+    "name": "Reifenmontagemaschine",
+    "costCents": 250000,
+    "description": "Reifen von Felgen trennen, neue aufziehen und auswuchten. Nötig für Reifen- und Felgenwechsel."
+  }
 ]

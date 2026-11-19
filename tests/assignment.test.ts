@@ -122,8 +122,8 @@ describe('Wartegrund-Anzeige', () => {
     const reason = OrderSystem.waitReason(game.ctx, offer);
     expect(reason).toContain('Bremssattel');
     expect(reason).toMatch(/nicht bestellt|Lieferung/);
-    game.orderParts('brake_caliper', 1, 'expressparts');
-    game.orderParts('brake_fluid', 1, 'expressparts');
+    game.orderParts('brake_caliper__M__standard', 1, 'expressparts');
+    game.orderParts('brake_fluid__DOT4__standard', 1, 'expressparts');
     const reason2 = OrderSystem.waitReason(game.ctx, offer);
     expect(reason2).toContain('Lieferung');
   });

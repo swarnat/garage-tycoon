@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { Game, createNewGame } from '../src/core/Game';
-import { DEFS, CLASS_SPRITES } from '../src/data';
+import { DEFS, CLASS_SPRITES, LEGACY_PART_MAP } from '../src/data';
 import { TileMap, ROOM_DEFS } from '../src/world/TileMap';
 import { findPath } from '../src/world/Pathfinding';
 import { OrderSystem } from '../src/simulation/OrderSystem';
 import { migrate } from '../src/persistence/SaveMigration';
 
 describe('Neues Spiel: Lager-Defaults', () => {
-  it('jeder Artikel hat einen sinnvollen Mindestbestand (>= 1)', () => {
+  it('jede Standard-Variante hat einen sinnvollen Mindestbestand (>= 1)', () => {
     const state = createNewGame(900);
-    for (const p of DEFS.parts) {
-      expect(state.inventory.minStock[p.id]).toBeGreaterThanOrEqual(1);
+    for (const vid of Object.values(LEGACY_PART_MAP)) {
+      expect(state.inventory.minStock[vid]).toBeGreaterThanOrEqual(1);
     }
   });
 
@@ -23,9 +23,9 @@ describe('Neues Spiel: Lager-Defaults', () => {
 
   it('Verschleißteile haben höhere Mindestbestände als seltene Teile', () => {
     const state = createNewGame(902);
-    expect(state.inventory.minStock['brake_pads']).toBeGreaterThanOrEqual(2);
-    expect(state.inventory.minStock['motor_oil']).toBeGreaterThanOrEqual(2);
-    expect(state.inventory.minStock['alternator']).toBe(1);
+    expect(state.inventory.minStock['brake_pads__M__standard']).toBeGreaterThanOrEqual(2);
+    expect(state.inventory.minStock['motor_oil__5W30__standard']).toBeGreaterThanOrEqual(2);
+    expect(state.inventory.minStock['alternator__M__standard']).toBe(1);
   });
 
   it('Startbestand ist deterministisch und unabhängig von früherem Spiel', () => {
@@ -118,7 +118,7 @@ describe('Save-Migration v6 → v7', () => {
     const br = stations.find((s) => s.id === 'break_room')!;
     br.interact = { x: 3, y: 12 }; // alter Punkt wäre jetzt eine Wand
     const migrated = migrate(raw);
-    expect(migrated.version).toBe(10);
+    expect(migrated.version).toBe(11);
     expect((migrated.orders as Array<Record<string, unknown>>)[0]!.toolPromptShown).toBe(false);
     const mbr = (migrated.stations as Array<Record<string, unknown>>).find((s) => s.id === 'break_room')!;
     expect(mbr.interact).toEqual({ x: 3, y: 9 });

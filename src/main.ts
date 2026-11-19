@@ -35,6 +35,9 @@ function bindBus(): void {
   game.bus.on('parts:delivered', () => { saveDirty = true; });
   game.bus.on('order:accepted', () => { saveDirty = true; });
   game.bus.on('order:delivered', () => { saveDirty = true; });
+  game.bus.on('parts:missing', (payload) => {
+    ui.showPartsPrompt(String(payload));
+  });
   game.bus.on('approval:at-risk', (payload) => {
     ui.showApprovalPrompt(String(payload));
   });
@@ -131,6 +134,11 @@ const actions: UIActions = {
   buyParking: () => { game.buyParking(); },
   setOrderRate: (v) => { game.setOrderRate(v); },
   setAllAuto: (on) => { game.setAllAutoReorder(on); },
+  requestPartsDelay: (id, sup) => game.requestPartsDelay(id, sup),
+  orderMissing: (id, sup) => game.orderMissingParts(id, sup),
+  declineParts: (id) => { game.declinePartsOrder(id); },
+  sellVariant: (id) => { game.sellVariant(id); },
+  pinVariant: (id) => { game.pinVariant(id); },
   insistPrice: (id) => { game.insistPrice(id); },
   buyTool: (id) => { game.buyTool(id); },
   takeLoan: (cents) => { game.takeLoan(cents); },

@@ -8,11 +8,11 @@ describe('Auto-Nachbestellung: Zielbestand = Mindestbestand', () => {
   it('bestellt exakt auf den Mindestbestand auf (nicht 2x)', () => {
     const game = Game.new(501);
     const inv = game.state.inventory;
-    inv.stock['brake_pads'] = 2;
-    inv.minStock['brake_pads'] = 3;
-    inv.autoReorder['brake_pads'] = true;
+    inv.stock['brake_pads__M__standard'] = 2;
+    inv.minStock['brake_pads__M__standard'] = 3;
+    inv.autoReorder['brake_pads__M__standard'] = true;
     game.tick(61);
-    const d = game.state.deliveries.filter((x) => x.partId === 'brake_pads');
+    const d = game.state.deliveries.filter((x) => x.partId === 'brake_pads__M__standard');
     expect(d).toHaveLength(1);
     expect(d[0]!.quantity).toBe(1); // 3 - 2 = 1, nicht 4
   });
@@ -20,22 +20,22 @@ describe('Auto-Nachbestellung: Zielbestand = Mindestbestand', () => {
   it('bestellt nichts, wenn Bestand den Mindestbestand erreicht', () => {
     const game = Game.new(502);
     const inv = game.state.inventory;
-    inv.stock['brake_pads'] = 3;
-    inv.minStock['brake_pads'] = 3;
-    inv.autoReorder['brake_pads'] = true;
+    inv.stock['brake_pads__M__standard'] = 3;
+    inv.minStock['brake_pads__M__standard'] = 3;
+    inv.autoReorder['brake_pads__M__standard'] = true;
     game.tick(180);
-    expect(game.state.deliveries.filter((x) => x.partId === 'brake_pads')).toHaveLength(0);
+    expect(game.state.deliveries.filter((x) => x.partId === 'brake_pads__M__standard')).toHaveLength(0);
   });
 
   it('berücksichtigt Reservierungen beim Auffüllen', () => {
     const game = Game.new(503);
     const inv = game.state.inventory;
-    inv.stock['battery'] = 4;
-    inv.minStock['battery'] = 3;
-    inv.autoReorder['battery'] = true;
-    inv.reserved['battery'] = 3; // verfügbar = 1
+    inv.stock['battery__60__standard'] = 4;
+    inv.minStock['battery__60__standard'] = 3;
+    inv.autoReorder['battery__60__standard'] = true;
+    inv.reserved['battery__60__standard'] = 3; // verfügbar = 1
     game.tick(61);
-    const d = game.state.deliveries.filter((x) => x.partId === 'battery');
+    const d = game.state.deliveries.filter((x) => x.partId === 'battery__60__standard');
     expect(d).toHaveLength(1);
     expect(d[0]!.quantity).toBe(2); // verfügbar 1 -> Ziel 3
   });
@@ -58,10 +58,10 @@ describe('Dynamische Marktpreise', () => {
 
   it('Einkaufspreis folgt dem Marktfaktor', () => {
     const game = Game.new(511);
-    game.state.marketPriceFactors['battery'] = 1.1;
-    const cost = EconomySystem.marketBuyCents(game.state, game.defs.parts.find((p) => p.id === 'battery')!);
+    game.state.marketPriceFactors['battery__60__standard'] = 1.1;
+    const cost = EconomySystem.marketBuyCents(game.state, game.defs.parts.find((p) => p.id === 'battery__60__standard')!);
     expect(cost).toBe(12100); // 11000 * 1.1
-    game.orderParts('battery', 1, 'teileprofi');
+    game.orderParts('battery__60__standard', 1, 'teileprofi');
     const d = game.state.deliveries[0]!;
     expect(d.costCents).toBe(12100 + 990);
   });
@@ -188,7 +188,7 @@ describe('Save-Migration v4 → v5', () => {
     delete raw.statistics.complaints;
     delete raw.statistics.repairsByType;
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(10);
+    expect(migrated.version).toBe(11);
     expect(Array.isArray(migrated.ownedTools)).toBe(true);
     expect(Array.isArray(migrated.loans)).toBe(true);
     expect(migrated.workers[0]!.motivation).toBe(80);

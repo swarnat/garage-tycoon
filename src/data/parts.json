@@ -1,25 +1,1154 @@
 [
-  { "id": "brake_pads", "name": "Bremsbeläge", "category": "brakes", "buyCents": 4500 },
-  { "id": "brake_discs", "name": "Bremsscheiben", "category": "brakes", "buyCents": 9000 },
-  { "id": "brake_caliper", "name": "Bremssattel", "category": "brakes", "buyCents": 12000 },
-  { "id": "brake_fluid", "name": "Bremsflüssigkeit", "category": "brakes", "buyCents": 1500 },
-  { "id": "spark_plugs", "name": "Zündkerzen", "category": "engine", "buyCents": 3500 },
-  { "id": "ignition_coil", "name": "Zündspule", "category": "engine", "buyCents": 6000 },
-  { "id": "oil_filter", "name": "Ölfilter", "category": "engine", "buyCents": 1200 },
-  { "id": "motor_oil", "name": "Motoröl 5W-30", "category": "engine", "buyCents": 4000 },
-  { "id": "air_filter", "name": "Luftfilter", "category": "engine", "buyCents": 1800 },
-  { "id": "accessory_belt", "name": "Keilriemen", "category": "engine", "buyCents": 5500 },
-  { "id": "water_pump", "name": "Wasserpumpe", "category": "engine", "buyCents": 8500 },
-  { "id": "thermostat", "name": "Thermostat", "category": "engine", "buyCents": 3000 },
-  { "id": "battery", "name": "Batterie", "category": "electrical", "buyCents": 11000 },
-  { "id": "alternator", "name": "Lichtmaschine", "category": "electrical", "buyCents": 18000 },
-  { "id": "starter", "name": "Anlasser", "category": "electrical", "buyCents": 14000 },
-  { "id": "sensor", "name": "Sensor", "category": "electrical", "buyCents": 4500 },
-  { "id": "shock_absorber", "name": "Stoßdämpfer", "category": "suspension", "buyCents": 7500 },
-  { "id": "spring", "name": "Feder", "category": "suspension", "buyCents": 5000 },
-  { "id": "control_arm", "name": "Querlenker", "category": "suspension", "buyCents": 9500 },
-  { "id": "wheel_bearing", "name": "Radlager", "category": "suspension", "buyCents": 6500 },
-  { "id": "muffler", "name": "Auspuff-Endschalldämpfer", "category": "exhaust", "buyCents": 13000 },
-  { "id": "transmission_oil", "name": "Getriebeöl", "category": "transmission", "buyCents": 6000 },
-  { "id": "refrigerant", "name": "Kältemittel", "category": "ac", "buyCents": 2500 }
+  {
+    "id": "brake_pads__S__budget",
+    "name": "Bremsbeläge klein (Budget)",
+    "category": "brake_pads",
+    "spec": "S",
+    "quality": "budget",
+    "buyCents": 3040
+  },
+  {
+    "id": "brake_pads__S__standard",
+    "name": "Bremsbeläge klein (Standard)",
+    "category": "brake_pads",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 4050
+  },
+  {
+    "id": "brake_pads__S__premium",
+    "name": "Bremsbeläge klein (Premium)",
+    "category": "brake_pads",
+    "spec": "S",
+    "quality": "premium",
+    "buyCents": 5670
+  },
+  {
+    "id": "brake_pads__M__budget",
+    "name": "Bremsbeläge mittel (Budget)",
+    "category": "brake_pads",
+    "spec": "M",
+    "quality": "budget",
+    "buyCents": 3380
+  },
+  {
+    "id": "brake_pads__M__standard",
+    "name": "Bremsbeläge mittel (Standard)",
+    "category": "brake_pads",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 4500
+  },
+  {
+    "id": "brake_pads__M__premium",
+    "name": "Bremsbeläge mittel (Premium)",
+    "category": "brake_pads",
+    "spec": "M",
+    "quality": "premium",
+    "buyCents": 6300
+  },
+  {
+    "id": "brake_pads__L__budget",
+    "name": "Bremsbeläge groß (Budget)",
+    "category": "brake_pads",
+    "spec": "L",
+    "quality": "budget",
+    "buyCents": 3880
+  },
+  {
+    "id": "brake_pads__L__standard",
+    "name": "Bremsbeläge groß (Standard)",
+    "category": "brake_pads",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 5180
+  },
+  {
+    "id": "brake_pads__L__premium",
+    "name": "Bremsbeläge groß (Premium)",
+    "category": "brake_pads",
+    "spec": "L",
+    "quality": "premium",
+    "buyCents": 7240
+  },
+  {
+    "id": "brake_discs__240__budget",
+    "name": "Bremsscheiben 240 mm (Budget)",
+    "category": "brake_discs",
+    "spec": "240",
+    "quality": "budget",
+    "buyCents": 5740
+  },
+  {
+    "id": "brake_discs__240__standard",
+    "name": "Bremsscheiben 240 mm (Standard)",
+    "category": "brake_discs",
+    "spec": "240",
+    "quality": "standard",
+    "buyCents": 7650
+  },
+  {
+    "id": "brake_discs__240__premium",
+    "name": "Bremsscheiben 240 mm (Premium)",
+    "category": "brake_discs",
+    "spec": "240",
+    "quality": "premium",
+    "buyCents": 10710
+  },
+  {
+    "id": "brake_discs__260__budget",
+    "name": "Bremsscheiben 260 mm (Budget)",
+    "category": "brake_discs",
+    "spec": "260",
+    "quality": "budget",
+    "buyCents": 6410
+  },
+  {
+    "id": "brake_discs__260__standard",
+    "name": "Bremsscheiben 260 mm (Standard)",
+    "category": "brake_discs",
+    "spec": "260",
+    "quality": "standard",
+    "buyCents": 8550
+  },
+  {
+    "id": "brake_discs__260__premium",
+    "name": "Bremsscheiben 260 mm (Premium)",
+    "category": "brake_discs",
+    "spec": "260",
+    "quality": "premium",
+    "buyCents": 11970
+  },
+  {
+    "id": "brake_discs__280__budget",
+    "name": "Bremsscheiben 280 mm (Budget)",
+    "category": "brake_discs",
+    "spec": "280",
+    "quality": "budget",
+    "buyCents": 6750
+  },
+  {
+    "id": "brake_discs__280__standard",
+    "name": "Bremsscheiben 280 mm (Standard)",
+    "category": "brake_discs",
+    "spec": "280",
+    "quality": "standard",
+    "buyCents": 9000
+  },
+  {
+    "id": "brake_discs__280__premium",
+    "name": "Bremsscheiben 280 mm (Premium)",
+    "category": "brake_discs",
+    "spec": "280",
+    "quality": "premium",
+    "buyCents": 12600
+  },
+  {
+    "id": "brake_discs__300__budget",
+    "name": "Bremsscheiben 300 mm (Budget)",
+    "category": "brake_discs",
+    "spec": "300",
+    "quality": "budget",
+    "buyCents": 8100
+  },
+  {
+    "id": "brake_discs__300__standard",
+    "name": "Bremsscheiben 300 mm (Standard)",
+    "category": "brake_discs",
+    "spec": "300",
+    "quality": "standard",
+    "buyCents": 10800
+  },
+  {
+    "id": "brake_discs__300__premium",
+    "name": "Bremsscheiben 300 mm (Premium)",
+    "category": "brake_discs",
+    "spec": "300",
+    "quality": "premium",
+    "buyCents": 15120
+  },
+  {
+    "id": "brake_discs__320__budget",
+    "name": "Bremsscheiben 320 mm (Budget)",
+    "category": "brake_discs",
+    "spec": "320",
+    "quality": "budget",
+    "buyCents": 9790
+  },
+  {
+    "id": "brake_discs__320__standard",
+    "name": "Bremsscheiben 320 mm (Standard)",
+    "category": "brake_discs",
+    "spec": "320",
+    "quality": "standard",
+    "buyCents": 13050
+  },
+  {
+    "id": "brake_discs__320__premium",
+    "name": "Bremsscheiben 320 mm (Premium)",
+    "category": "brake_discs",
+    "spec": "320",
+    "quality": "premium",
+    "buyCents": 18270
+  },
+  {
+    "id": "brake_caliper__S__standard",
+    "name": "Bremssattel klein (Standard)",
+    "category": "brake_caliper",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 10800
+  },
+  {
+    "id": "brake_caliper__M__standard",
+    "name": "Bremssattel mittel (Standard)",
+    "category": "brake_caliper",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 12000
+  },
+  {
+    "id": "brake_caliper__L__standard",
+    "name": "Bremssattel groß (Standard)",
+    "category": "brake_caliper",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 13800
+  },
+  {
+    "id": "brake_fluid__DOT4__standard",
+    "name": "Bremsflüssigkeit DOT 4 (Standard)",
+    "category": "brake_fluid",
+    "spec": "DOT4",
+    "quality": "standard",
+    "buyCents": 1500
+  },
+  {
+    "id": "brake_fluid__DOT51__standard",
+    "name": "Bremsflüssigkeit DOT 5.1 (Standard)",
+    "category": "brake_fluid",
+    "spec": "DOT51",
+    "quality": "standard",
+    "buyCents": 1950
+  },
+  {
+    "id": "spark_plugs__S__standard",
+    "name": "Zündkerzen klein (Standard)",
+    "category": "spark_plugs",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 3150
+  },
+  {
+    "id": "spark_plugs__M__standard",
+    "name": "Zündkerzen mittel (Standard)",
+    "category": "spark_plugs",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 3500
+  },
+  {
+    "id": "spark_plugs__L__standard",
+    "name": "Zündkerzen groß (Standard)",
+    "category": "spark_plugs",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 4020
+  },
+  {
+    "id": "ignition_coil__S__standard",
+    "name": "Zündspule klein (Standard)",
+    "category": "ignition_coil",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 5400
+  },
+  {
+    "id": "ignition_coil__M__standard",
+    "name": "Zündspule mittel (Standard)",
+    "category": "ignition_coil",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 6000
+  },
+  {
+    "id": "ignition_coil__L__standard",
+    "name": "Zündspule groß (Standard)",
+    "category": "ignition_coil",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 6900
+  },
+  {
+    "id": "oil_filter__S__standard",
+    "name": "Ölfilter klein (Standard)",
+    "category": "oil_filter",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 1080
+  },
+  {
+    "id": "oil_filter__M__standard",
+    "name": "Ölfilter mittel (Standard)",
+    "category": "oil_filter",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 1200
+  },
+  {
+    "id": "oil_filter__L__standard",
+    "name": "Ölfilter groß (Standard)",
+    "category": "oil_filter",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 1380
+  },
+  {
+    "id": "motor_oil__0W20__standard",
+    "name": "Motoröl 5W-30 0W-20 (Standard)",
+    "category": "motor_oil",
+    "spec": "0W20",
+    "quality": "standard",
+    "buyCents": 4400
+  },
+  {
+    "id": "motor_oil__5W30__standard",
+    "name": "Motoröl 5W-30 5W-30 (Standard)",
+    "category": "motor_oil",
+    "spec": "5W30",
+    "quality": "standard",
+    "buyCents": 4000
+  },
+  {
+    "id": "motor_oil__5W40__standard",
+    "name": "Motoröl 5W-30 5W-40 (Standard)",
+    "category": "motor_oil",
+    "spec": "5W40",
+    "quality": "standard",
+    "buyCents": 4200
+  },
+  {
+    "id": "motor_oil__10W40__standard",
+    "name": "Motoröl 5W-30 10W-40 (Standard)",
+    "category": "motor_oil",
+    "spec": "10W40",
+    "quality": "standard",
+    "buyCents": 3800
+  },
+  {
+    "id": "motor_oil__0W40__standard",
+    "name": "Motoröl 5W-30 0W-40 (Standard)",
+    "category": "motor_oil",
+    "spec": "0W40",
+    "quality": "standard",
+    "buyCents": 4800
+  },
+  {
+    "id": "air_filter__S__standard",
+    "name": "Luftfilter klein (Standard)",
+    "category": "air_filter",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 1620
+  },
+  {
+    "id": "air_filter__M__standard",
+    "name": "Luftfilter mittel (Standard)",
+    "category": "air_filter",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 1800
+  },
+  {
+    "id": "air_filter__L__standard",
+    "name": "Luftfilter groß (Standard)",
+    "category": "air_filter",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 2070
+  },
+  {
+    "id": "accessory_belt__S__standard",
+    "name": "Keilriemen klein (Standard)",
+    "category": "accessory_belt",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 4950
+  },
+  {
+    "id": "accessory_belt__M__standard",
+    "name": "Keilriemen mittel (Standard)",
+    "category": "accessory_belt",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 5500
+  },
+  {
+    "id": "accessory_belt__L__standard",
+    "name": "Keilriemen groß (Standard)",
+    "category": "accessory_belt",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 6320
+  },
+  {
+    "id": "water_pump__S__standard",
+    "name": "Wasserpumpe klein (Standard)",
+    "category": "water_pump",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 7650
+  },
+  {
+    "id": "water_pump__M__standard",
+    "name": "Wasserpumpe mittel (Standard)",
+    "category": "water_pump",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 8500
+  },
+  {
+    "id": "water_pump__L__standard",
+    "name": "Wasserpumpe groß (Standard)",
+    "category": "water_pump",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 9780
+  },
+  {
+    "id": "thermostat__S__standard",
+    "name": "Thermostat klein (Standard)",
+    "category": "thermostat",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 2700
+  },
+  {
+    "id": "thermostat__M__standard",
+    "name": "Thermostat mittel (Standard)",
+    "category": "thermostat",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 3000
+  },
+  {
+    "id": "thermostat__L__standard",
+    "name": "Thermostat groß (Standard)",
+    "category": "thermostat",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 3450
+  },
+  {
+    "id": "battery__45__budget",
+    "name": "Batterie 45 Ah (Budget)",
+    "category": "battery",
+    "spec": "45",
+    "quality": "budget",
+    "buyCents": 6600
+  },
+  {
+    "id": "battery__45__standard",
+    "name": "Batterie 45 Ah (Standard)",
+    "category": "battery",
+    "spec": "45",
+    "quality": "standard",
+    "buyCents": 8800
+  },
+  {
+    "id": "battery__45__premium",
+    "name": "Batterie 45 Ah (Premium)",
+    "category": "battery",
+    "spec": "45",
+    "quality": "premium",
+    "buyCents": 12320
+  },
+  {
+    "id": "battery__60__budget",
+    "name": "Batterie 60 Ah (Budget)",
+    "category": "battery",
+    "spec": "60",
+    "quality": "budget",
+    "buyCents": 8250
+  },
+  {
+    "id": "battery__60__standard",
+    "name": "Batterie 60 Ah (Standard)",
+    "category": "battery",
+    "spec": "60",
+    "quality": "standard",
+    "buyCents": 11000
+  },
+  {
+    "id": "battery__60__premium",
+    "name": "Batterie 60 Ah (Premium)",
+    "category": "battery",
+    "spec": "60",
+    "quality": "premium",
+    "buyCents": 15400
+  },
+  {
+    "id": "battery__80__budget",
+    "name": "Batterie 80 Ah (Budget)",
+    "category": "battery",
+    "spec": "80",
+    "quality": "budget",
+    "buyCents": 10720
+  },
+  {
+    "id": "battery__80__standard",
+    "name": "Batterie 80 Ah (Standard)",
+    "category": "battery",
+    "spec": "80",
+    "quality": "standard",
+    "buyCents": 14300
+  },
+  {
+    "id": "battery__80__premium",
+    "name": "Batterie 80 Ah (Premium)",
+    "category": "battery",
+    "spec": "80",
+    "quality": "premium",
+    "buyCents": 20020
+  },
+  {
+    "id": "alternator__S__standard",
+    "name": "Lichtmaschine klein (Standard)",
+    "category": "alternator",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 16200
+  },
+  {
+    "id": "alternator__M__standard",
+    "name": "Lichtmaschine mittel (Standard)",
+    "category": "alternator",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 18000
+  },
+  {
+    "id": "alternator__L__standard",
+    "name": "Lichtmaschine groß (Standard)",
+    "category": "alternator",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 20700
+  },
+  {
+    "id": "starter__S__standard",
+    "name": "Anlasser klein (Standard)",
+    "category": "starter",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 12600
+  },
+  {
+    "id": "starter__M__standard",
+    "name": "Anlasser mittel (Standard)",
+    "category": "starter",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 14000
+  },
+  {
+    "id": "starter__L__standard",
+    "name": "Anlasser groß (Standard)",
+    "category": "starter",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 16100
+  },
+  {
+    "id": "sensor__S__standard",
+    "name": "Sensor klein (Standard)",
+    "category": "sensor",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 4050
+  },
+  {
+    "id": "sensor__M__standard",
+    "name": "Sensor mittel (Standard)",
+    "category": "sensor",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 4500
+  },
+  {
+    "id": "sensor__L__standard",
+    "name": "Sensor groß (Standard)",
+    "category": "sensor",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 5180
+  },
+  {
+    "id": "shock_absorber__S__budget",
+    "name": "Stoßdämpfer klein (Budget)",
+    "category": "shock_absorber",
+    "spec": "S",
+    "quality": "budget",
+    "buyCents": 5060
+  },
+  {
+    "id": "shock_absorber__S__standard",
+    "name": "Stoßdämpfer klein (Standard)",
+    "category": "shock_absorber",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 6750
+  },
+  {
+    "id": "shock_absorber__S__premium",
+    "name": "Stoßdämpfer klein (Premium)",
+    "category": "shock_absorber",
+    "spec": "S",
+    "quality": "premium",
+    "buyCents": 9450
+  },
+  {
+    "id": "shock_absorber__M__budget",
+    "name": "Stoßdämpfer mittel (Budget)",
+    "category": "shock_absorber",
+    "spec": "M",
+    "quality": "budget",
+    "buyCents": 5620
+  },
+  {
+    "id": "shock_absorber__M__standard",
+    "name": "Stoßdämpfer mittel (Standard)",
+    "category": "shock_absorber",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 7500
+  },
+  {
+    "id": "shock_absorber__M__premium",
+    "name": "Stoßdämpfer mittel (Premium)",
+    "category": "shock_absorber",
+    "spec": "M",
+    "quality": "premium",
+    "buyCents": 10500
+  },
+  {
+    "id": "shock_absorber__L__budget",
+    "name": "Stoßdämpfer groß (Budget)",
+    "category": "shock_absorber",
+    "spec": "L",
+    "quality": "budget",
+    "buyCents": 6470
+  },
+  {
+    "id": "shock_absorber__L__standard",
+    "name": "Stoßdämpfer groß (Standard)",
+    "category": "shock_absorber",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 8620
+  },
+  {
+    "id": "shock_absorber__L__premium",
+    "name": "Stoßdämpfer groß (Premium)",
+    "category": "shock_absorber",
+    "spec": "L",
+    "quality": "premium",
+    "buyCents": 12080
+  },
+  {
+    "id": "shock_absorber__SPORT__budget",
+    "name": "Stoßdämpfer Sport (Budget)",
+    "category": "shock_absorber",
+    "spec": "SPORT",
+    "quality": "budget",
+    "buyCents": 7590
+  },
+  {
+    "id": "shock_absorber__SPORT__standard",
+    "name": "Stoßdämpfer Sport (Standard)",
+    "category": "shock_absorber",
+    "spec": "SPORT",
+    "quality": "standard",
+    "buyCents": 10120
+  },
+  {
+    "id": "shock_absorber__SPORT__premium",
+    "name": "Stoßdämpfer Sport (Premium)",
+    "category": "shock_absorber",
+    "spec": "SPORT",
+    "quality": "premium",
+    "buyCents": 14180
+  },
+  {
+    "id": "spring__S__standard",
+    "name": "Feder klein (Standard)",
+    "category": "spring",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 4500
+  },
+  {
+    "id": "spring__M__standard",
+    "name": "Feder mittel (Standard)",
+    "category": "spring",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 5000
+  },
+  {
+    "id": "spring__L__standard",
+    "name": "Feder groß (Standard)",
+    "category": "spring",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 5750
+  },
+  {
+    "id": "spring__SPORT__standard",
+    "name": "Feder Sport (Standard)",
+    "category": "spring",
+    "spec": "SPORT",
+    "quality": "standard",
+    "buyCents": 6750
+  },
+  {
+    "id": "control_arm__S__standard",
+    "name": "Querlenker klein (Standard)",
+    "category": "control_arm",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 8550
+  },
+  {
+    "id": "control_arm__M__standard",
+    "name": "Querlenker mittel (Standard)",
+    "category": "control_arm",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 9500
+  },
+  {
+    "id": "control_arm__L__standard",
+    "name": "Querlenker groß (Standard)",
+    "category": "control_arm",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 10920
+  },
+  {
+    "id": "wheel_bearing__S__standard",
+    "name": "Radlager klein (Standard)",
+    "category": "wheel_bearing",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 5850
+  },
+  {
+    "id": "wheel_bearing__M__standard",
+    "name": "Radlager mittel (Standard)",
+    "category": "wheel_bearing",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 6500
+  },
+  {
+    "id": "wheel_bearing__L__standard",
+    "name": "Radlager groß (Standard)",
+    "category": "wheel_bearing",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 7470
+  },
+  {
+    "id": "muffler__S__standard",
+    "name": "Auspuff-Endschalldämpfer klein (Standard)",
+    "category": "muffler",
+    "spec": "S",
+    "quality": "standard",
+    "buyCents": 11700
+  },
+  {
+    "id": "muffler__M__standard",
+    "name": "Auspuff-Endschalldämpfer mittel (Standard)",
+    "category": "muffler",
+    "spec": "M",
+    "quality": "standard",
+    "buyCents": 13000
+  },
+  {
+    "id": "muffler__L__standard",
+    "name": "Auspuff-Endschalldämpfer groß (Standard)",
+    "category": "muffler",
+    "spec": "L",
+    "quality": "standard",
+    "buyCents": 14950
+  },
+  {
+    "id": "transmission_oil__MTF__standard",
+    "name": "Getriebeöl MTF (Schaltgetriebe) (Standard)",
+    "category": "transmission_oil",
+    "spec": "MTF",
+    "quality": "standard",
+    "buyCents": 6000
+  },
+  {
+    "id": "transmission_oil__ATF__standard",
+    "name": "Getriebeöl ATF (Automatik) (Standard)",
+    "category": "transmission_oil",
+    "spec": "ATF",
+    "quality": "standard",
+    "buyCents": 6900
+  },
+  {
+    "id": "refrigerant__R134a__standard",
+    "name": "Kältemittel R134a (Standard)",
+    "category": "refrigerant",
+    "spec": "R134a",
+    "quality": "standard",
+    "buyCents": 2500
+  },
+  {
+    "id": "refrigerant__R1234yf__standard",
+    "name": "Kältemittel R1234yf (Standard)",
+    "category": "refrigerant",
+    "spec": "R1234yf",
+    "quality": "standard",
+    "buyCents": 3750
+  },
+  {
+    "id": "tires__14__budget",
+    "name": "Reifen 175/65 R14 (Budget)",
+    "category": "tires",
+    "spec": "14",
+    "quality": "budget",
+    "buyCents": 4500
+  },
+  {
+    "id": "tires__14__standard",
+    "name": "Reifen 175/65 R14 (Standard)",
+    "category": "tires",
+    "spec": "14",
+    "quality": "standard",
+    "buyCents": 6000
+  },
+  {
+    "id": "tires__14__premium",
+    "name": "Reifen 175/65 R14 (Premium)",
+    "category": "tires",
+    "spec": "14",
+    "quality": "premium",
+    "buyCents": 8400
+  },
+  {
+    "id": "tires__15__budget",
+    "name": "Reifen 195/65 R15 (Budget)",
+    "category": "tires",
+    "spec": "15",
+    "quality": "budget",
+    "buyCents": 5060
+  },
+  {
+    "id": "tires__15__standard",
+    "name": "Reifen 195/65 R15 (Standard)",
+    "category": "tires",
+    "spec": "15",
+    "quality": "standard",
+    "buyCents": 6750
+  },
+  {
+    "id": "tires__15__premium",
+    "name": "Reifen 195/65 R15 (Premium)",
+    "category": "tires",
+    "spec": "15",
+    "quality": "premium",
+    "buyCents": 9450
+  },
+  {
+    "id": "tires__16__budget",
+    "name": "Reifen 205/55 R16 (Budget)",
+    "category": "tires",
+    "spec": "16",
+    "quality": "budget",
+    "buyCents": 5620
+  },
+  {
+    "id": "tires__16__standard",
+    "name": "Reifen 205/55 R16 (Standard)",
+    "category": "tires",
+    "spec": "16",
+    "quality": "standard",
+    "buyCents": 7500
+  },
+  {
+    "id": "tires__16__premium",
+    "name": "Reifen 205/55 R16 (Premium)",
+    "category": "tires",
+    "spec": "16",
+    "quality": "premium",
+    "buyCents": 10500
+  },
+  {
+    "id": "tires__16C__budget",
+    "name": "Reifen 215/65 R16C (Budget)",
+    "category": "tires",
+    "spec": "16C",
+    "quality": "budget",
+    "buyCents": 6470
+  },
+  {
+    "id": "tires__16C__standard",
+    "name": "Reifen 215/65 R16C (Standard)",
+    "category": "tires",
+    "spec": "16C",
+    "quality": "standard",
+    "buyCents": 8620
+  },
+  {
+    "id": "tires__16C__premium",
+    "name": "Reifen 215/65 R16C (Premium)",
+    "category": "tires",
+    "spec": "16C",
+    "quality": "premium",
+    "buyCents": 12080
+  },
+  {
+    "id": "tires__17__budget",
+    "name": "Reifen 225/45 R17 (Budget)",
+    "category": "tires",
+    "spec": "17",
+    "quality": "budget",
+    "buyCents": 6470
+  },
+  {
+    "id": "tires__17__standard",
+    "name": "Reifen 225/45 R17 (Standard)",
+    "category": "tires",
+    "spec": "17",
+    "quality": "standard",
+    "buyCents": 8620
+  },
+  {
+    "id": "tires__17__premium",
+    "name": "Reifen 225/45 R17 (Premium)",
+    "category": "tires",
+    "spec": "17",
+    "quality": "premium",
+    "buyCents": 12080
+  },
+  {
+    "id": "tires__17SUV__budget",
+    "name": "Reifen 225/65 R17 (Budget)",
+    "category": "tires",
+    "spec": "17SUV",
+    "quality": "budget",
+    "buyCents": 7030
+  },
+  {
+    "id": "tires__17SUV__standard",
+    "name": "Reifen 225/65 R17 (Standard)",
+    "category": "tires",
+    "spec": "17SUV",
+    "quality": "standard",
+    "buyCents": 9380
+  },
+  {
+    "id": "tires__17SUV__premium",
+    "name": "Reifen 225/65 R17 (Premium)",
+    "category": "tires",
+    "spec": "17SUV",
+    "quality": "premium",
+    "buyCents": 13120
+  },
+  {
+    "id": "tires__18__budget",
+    "name": "Reifen 245/40 R18 (Budget)",
+    "category": "tires",
+    "spec": "18",
+    "quality": "budget",
+    "buyCents": 8160
+  },
+  {
+    "id": "tires__18__standard",
+    "name": "Reifen 245/40 R18 (Standard)",
+    "category": "tires",
+    "spec": "18",
+    "quality": "standard",
+    "buyCents": 10880
+  },
+  {
+    "id": "tires__18__premium",
+    "name": "Reifen 245/40 R18 (Premium)",
+    "category": "tires",
+    "spec": "18",
+    "quality": "premium",
+    "buyCents": 15220
+  },
+  {
+    "id": "rims__14__budget",
+    "name": "Felgen 175/65 R14 (Stahl)",
+    "category": "rims",
+    "spec": "14",
+    "quality": "budget",
+    "buyCents": 5400
+  },
+  {
+    "id": "rims__14__standard",
+    "name": "Felgen 175/65 R14 (Alu)",
+    "category": "rims",
+    "spec": "14",
+    "quality": "standard",
+    "buyCents": 7200
+  },
+  {
+    "id": "rims__14__premium",
+    "name": "Felgen 175/65 R14 (Premium-Alu)",
+    "category": "rims",
+    "spec": "14",
+    "quality": "premium",
+    "buyCents": 10080
+  },
+  {
+    "id": "rims__15__budget",
+    "name": "Felgen 195/65 R15 (Stahl)",
+    "category": "rims",
+    "spec": "15",
+    "quality": "budget",
+    "buyCents": 6080
+  },
+  {
+    "id": "rims__15__standard",
+    "name": "Felgen 195/65 R15 (Alu)",
+    "category": "rims",
+    "spec": "15",
+    "quality": "standard",
+    "buyCents": 8100
+  },
+  {
+    "id": "rims__15__premium",
+    "name": "Felgen 195/65 R15 (Premium-Alu)",
+    "category": "rims",
+    "spec": "15",
+    "quality": "premium",
+    "buyCents": 11340
+  },
+  {
+    "id": "rims__16__budget",
+    "name": "Felgen 205/55 R16 (Stahl)",
+    "category": "rims",
+    "spec": "16",
+    "quality": "budget",
+    "buyCents": 6750
+  },
+  {
+    "id": "rims__16__standard",
+    "name": "Felgen 205/55 R16 (Alu)",
+    "category": "rims",
+    "spec": "16",
+    "quality": "standard",
+    "buyCents": 9000
+  },
+  {
+    "id": "rims__16__premium",
+    "name": "Felgen 205/55 R16 (Premium-Alu)",
+    "category": "rims",
+    "spec": "16",
+    "quality": "premium",
+    "buyCents": 12600
+  },
+  {
+    "id": "rims__16C__budget",
+    "name": "Felgen 215/65 R16C (Stahl)",
+    "category": "rims",
+    "spec": "16C",
+    "quality": "budget",
+    "buyCents": 7760
+  },
+  {
+    "id": "rims__16C__standard",
+    "name": "Felgen 215/65 R16C (Alu)",
+    "category": "rims",
+    "spec": "16C",
+    "quality": "standard",
+    "buyCents": 10350
+  },
+  {
+    "id": "rims__16C__premium",
+    "name": "Felgen 215/65 R16C (Premium-Alu)",
+    "category": "rims",
+    "spec": "16C",
+    "quality": "premium",
+    "buyCents": 14490
+  },
+  {
+    "id": "rims__17__budget",
+    "name": "Felgen 225/45 R17 (Stahl)",
+    "category": "rims",
+    "spec": "17",
+    "quality": "budget",
+    "buyCents": 7760
+  },
+  {
+    "id": "rims__17__standard",
+    "name": "Felgen 225/45 R17 (Alu)",
+    "category": "rims",
+    "spec": "17",
+    "quality": "standard",
+    "buyCents": 10350
+  },
+  {
+    "id": "rims__17__premium",
+    "name": "Felgen 225/45 R17 (Premium-Alu)",
+    "category": "rims",
+    "spec": "17",
+    "quality": "premium",
+    "buyCents": 14490
+  },
+  {
+    "id": "rims__17SUV__budget",
+    "name": "Felgen 225/65 R17 (Stahl)",
+    "category": "rims",
+    "spec": "17SUV",
+    "quality": "budget",
+    "buyCents": 8440
+  },
+  {
+    "id": "rims__17SUV__standard",
+    "name": "Felgen 225/65 R17 (Alu)",
+    "category": "rims",
+    "spec": "17SUV",
+    "quality": "standard",
+    "buyCents": 11250
+  },
+  {
+    "id": "rims__17SUV__premium",
+    "name": "Felgen 225/65 R17 (Premium-Alu)",
+    "category": "rims",
+    "spec": "17SUV",
+    "quality": "premium",
+    "buyCents": 15750
+  },
+  {
+    "id": "rims__18__budget",
+    "name": "Felgen 245/40 R18 (Stahl)",
+    "category": "rims",
+    "spec": "18",
+    "quality": "budget",
+    "buyCents": 9790
+  },
+  {
+    "id": "rims__18__standard",
+    "name": "Felgen 245/40 R18 (Alu)",
+    "category": "rims",
+    "spec": "18",
+    "quality": "standard",
+    "buyCents": 13050
+  },
+  {
+    "id": "rims__18__premium",
+    "name": "Felgen 245/40 R18 (Premium-Alu)",
+    "category": "rims",
+    "spec": "18",
+    "quality": "premium",
+    "buyCents": 18270
+  }
 ]

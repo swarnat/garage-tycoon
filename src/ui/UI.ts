@@ -4,6 +4,7 @@ import type { Selection } from '../rendering/Renderer';
 import { InventorySystem } from '../simulation/InventorySystem';
 import { EconomySystem } from '../simulation/EconomySystem';
 import { OrderSystem } from '../simulation/OrderSystem';
+import { DELAY_BY_PROFILE, delayChance } from '../simulation/PartsResolver';
 
 export type PanelId =
   | 'workshop'
@@ -41,6 +42,11 @@ export interface UIActions {
   buyParking(): void;
   setOrderRate(v: number): void;
   setAllAuto(on: boolean): void;
+  requestPartsDelay(id: string, supplierId: string): string;
+  orderMissing(id: string, supplierId: string): boolean;
+  declineParts(id: string): void;
+  sellVariant(id: string): void;
+  pinVariant(id: string): void;
   insistPrice(id: string): void;
   buyTool(id: string): void;
   takeLoan(cents: number): void;
@@ -84,6 +90,12 @@ const WORKER_STATE_LABELS: Record<string, string> = {
 /** Kurzes Erklär-Icon mit Tooltip (Hover/Fokus). */
 function help(text: string): string {
   return `<button type="button" class="help" data-help="${text.replace(/"/g, '&quot;')}">?</button>`;
+}
+
+function relTime(minutes: number): string {
+  if (minutes < 60) return 'gerade eben';
+  if (minutes < 1440) return `vor ${Math.round(minutes / 60)} h`;
+  return `vor ${Math.round(minutes / 1440)} Tag${Math.round(minutes / 1440) === 1 ? '' : 'en'}`;
 }
 
 function tempoLabel(sp: number): string {
@@ -159,9 +171,16 @@ export class UI {
   private lastDrawerSig = '';
   private lastModalSig = '';
   private interacting = false;
-  private modalKind: 'inventory' | 'tool' | 'approval' = 'inventory';
+  private modalKind: 'inventory' | 'tool' | 'approval' | 'parts' = 'inventory';
   private toolOrderId: string | null = null;
   private approvalOrderId: string | null = null;
+  private partsOrderId: string | null = null;
+  private partsSupplierId = 'teileprofi';
+  private preModalSpeed = 0;
+  private modalMinimized = false;
+  private invCategory = 'brake_pads';
+  private invSearch = '';
+  private invShowAll = false;
   private lastToastId = 0;
   private toastHost!: HTMLElement;
   private drawer!: HTMLElement;
@@ -214,10 +233,11 @@ export class UI {
       <div id="toasts"></div>
       <div id="modal-backdrop" class="hidden">
         <div id="modal">
-          <div class="modal-head"><h2 id="modal-title">Ersatzteillager</h2><button class="btn small" data-action="close-modal">✕ Schließen</button></div>
+          <div class="modal-head"><h2 id="modal-title">Ersatzteillager</h2><div class="btn-row"><button class="btn small" data-action="minimize-modal" title="Minimieren – Spiel läuft weiter">— Minimieren</button><button class="btn small" data-action="close-modal">✕ Schließen</button></div></div>
           <div id="modal-body"></div>
         </div>
       </div>
+      <div id="modal-mini" class="hidden"><span id="modal-mini-title"></span><button class="btn small primary" data-action="restore-modal">Öffnen (Spiel pausiert)</button></div>
       <input type="file" id="import-file" accept="application/json,.json" hidden>
     `;
     this.drawer = this.root.querySelector('#drawer') as HTMLElement;
@@ -280,6 +300,16 @@ export class UI {
       if ((e as MouseEvent).detail === 0) this.onClick(e);
     });
     this.root.addEventListener('change', (e) => this.onChange(e));
+    this.root.addEventListener('input', (e) => {
+      const t = e.target as HTMLInputElement;
+      if (t.dataset.field === 'inv-search') {
+        this.invSearch = t.value;
+        this.refresh(true);
+        // Fokus behalten: Render baut das Feld neu auf
+        const again = this.root.querySelector('[data-field="inv-search"]') as HTMLInputElement | null;
+        if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+      }
+    });
     this.fileInput.addEventListener('change', () => {
       const f = this.fileInput.files?.[0];
       if (f) this.actions.importSave(f);
@@ -311,6 +341,13 @@ export class UI {
     this.modalOpen = false;
     this.modalKind = 'inventory';
     this.toolOrderId = null;
+    this.approvalOrderId = null;
+    this.partsOrderId = null;
+    this.modalMinimized = false;
+    if (this.preModalSpeed > 0) {
+      this.getGame().setSpeed(this.preModalSpeed);
+      this.preModalSpeed = 0;
+    }
     this.refresh(true);
   }
 
@@ -323,14 +360,34 @@ export class UI {
 
   /** Hinweis-Modal: Reparatur braucht ein Spezialwerkzeug, das noch fehlt. */
   showToolPrompt(orderId: string): void {
+    this.pauseForModal();
     this.modalKind = 'tool';
     this.toolOrderId = orderId;
     this.modalOpen = true;
     this.refresh(true);
   }
 
+  /** Entscheidungs-Modals pausieren das Spiel, damit in Ruhe geprüft werden kann. */
+  private pauseForModal(): void {
+    const g = this.getGame();
+    if (g.state.speed > 0) this.preModalSpeed = g.state.speed;
+    g.setSpeed(0);
+    this.modalMinimized = false;
+  }
+
+  /** Teile-fehlt-Modal: Aufschub bitten & bestellen, ohne Aufschub bestellen, abweisen. */
+  showPartsPrompt(orderId: string): void {
+    this.pauseForModal();
+    this.modalKind = 'parts';
+    this.partsOrderId = orderId;
+    this.partsSupplierId = this.getGame().state.inventory.autoSupplierId || 'teileprofi';
+    this.modalOpen = true;
+    this.refresh(true);
+  }
+
   /** Nachfrage-Modal: Kunde droht abzulehnen – Rabatt, Budget akzeptieren oder Preis bestehen. */
   showApprovalPrompt(orderId: string): void {
+    this.pauseForModal();
     this.modalKind = 'approval';
     this.approvalOrderId = orderId;
     this.modalOpen = true;
@@ -384,6 +441,32 @@ export class UI {
       case 'supplier': this.supplierId = id; this.refresh(true); break;
       case 'close-modal': this.closeModal(); break;
       case 'close-toast': btn.closest('.toast')?.remove(); break;
+      case 'minimize-modal':
+        this.modalMinimized = true;
+        this.getGame().setSpeed(this.preModalSpeed || 1);
+        break;
+      case 'restore-modal':
+        this.modalMinimized = false;
+        this.getGame().setSpeed(0);
+        break;
+      case 'parts-supplier': this.partsSupplierId = id; break;
+      case 'parts-delay':
+        if (this.partsOrderId) this.actions.requestPartsDelay(this.partsOrderId, this.partsSupplierId);
+        this.closeModal();
+        break;
+      case 'parts-order':
+        if (this.partsOrderId && this.actions.orderMissing(this.partsOrderId, this.partsSupplierId)) {
+          this.closeModal();
+        }
+        break;
+      case 'parts-decline':
+        if (this.partsOrderId) this.actions.declineParts(this.partsOrderId);
+        this.closeModal();
+        break;
+      case 'inv-category': this.invCategory = id; break;
+      case 'inv-showall': this.invShowAll = !this.invShowAll; break;
+      case 'pin-variant': this.actions.pinVariant(btn.dataset.part ?? ''); break;
+      case 'sell-variant': this.actions.sellVariant(btn.dataset.part ?? ''); break;
       case 'tool-wait': this.closeModal(); break;
       case 'tool-shop': this.closeModal(); this.openPanel('upgrades'); break;
       case 'tool-decline':
@@ -473,15 +556,27 @@ export class UI {
     const backdrop = this.root.querySelector('#modal-backdrop') as HTMLElement;
     const modalBody = this.root.querySelector('#modal-body') as HTMLElement;
     const modalTitle = this.root.querySelector('#modal-title') as HTMLElement;
-    backdrop.classList.toggle('hidden', !this.modalOpen);
+    const mini = this.root.querySelector('#modal-mini') as HTMLElement;
+    const miniTitle = this.root.querySelector('#modal-mini-title') as HTMLElement;
+    backdrop.classList.toggle('hidden', !this.modalOpen || this.modalMinimized);
+    mini.classList.toggle('hidden', !this.modalOpen || !this.modalMinimized);
     modalTitle.textContent =
       this.modalKind === 'tool' ? 'Spezialwerkzeug benötigt'
       : this.modalKind === 'approval' ? 'Kunde droht abzulehnen'
+      : this.modalKind === 'parts' ? 'Ersatzteile fehlen – Entscheidung nötig'
       : 'Ersatzteillager';
+    miniTitle.textContent = modalTitle.textContent + ' (Spiel läuft)';
     // Nachfrage-Modal schließt sich, sobald die Entscheidung gefallen ist
     if (this.modalKind === 'approval' && this.modalOpen) {
       const ao = s.orders.find((x) => x.id === this.approvalOrderId);
       if (!ao || !ao.offerAtRisk || ao.status !== 'waiting_for_approval') {
+        this.closeModal();
+        return;
+      }
+    }
+    if (this.modalKind === 'parts' && this.modalOpen) {
+      const po = s.orders.find((x) => x.id === this.partsOrderId);
+      if (!po || po.status !== 'waiting_for_parts') {
         this.closeModal();
         return;
       }
@@ -491,11 +586,12 @@ export class UI {
       activeEl && modalBody.contains(activeEl) &&
       (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
     const modalSig = this.modalOpen ? this.signature() : '';
-    if (this.modalOpen && !editingModal && (force || (!this.interacting && modalSig !== this.lastModalSig))) {
+    if (this.modalOpen && !this.modalMinimized && !editingModal && (force || (!this.interacting && modalSig !== this.lastModalSig))) {
       this.lastModalSig = modalSig;
       modalBody.innerHTML =
         this.modalKind === 'tool' ? this.renderToolPrompt()
         : this.modalKind === 'approval' ? this.renderApprovalPrompt()
+        : this.modalKind === 'parts' ? this.renderPartsPrompt()
         : this.renderInventory();
     }
     // Drawer nur bei Inhaltsänderung neu aufbauen (verhindert Klick-Flackern)
@@ -516,7 +612,7 @@ export class UI {
   private signature(): string {
     const s = this.getGame().state;
     const parts: (string | number)[] = [
-      this.panel, this.modalKind, this.toolOrderId ?? '', this.modalOpen ? 1 : 0,
+      this.panel, this.modalKind, this.toolOrderId ?? '', this.partsOrderId ?? '', this.modalOpen ? 1 : 0, this.modalMinimized ? 1 : 0, this.invCategory, this.invSearch, this.invShowAll ? 1 : 0, this.partsSupplierId,
       this.selection ? `${this.selection.kind}:${this.selection.id}` : '',
       this.highlightParts.size,
       Math.floor(s.totalMinutes / 5), s.speed, s.economy.balanceCents, s.orderRateFactor,
@@ -549,6 +645,8 @@ export class UI {
         Math.floor((s.marketPriceFactors[pid] ?? 1) * 100),
         InventorySystem.usageWithin(s.inventory, pid, 1440, s.totalMinutes),
         InventorySystem.usageWithin(s.inventory, pid, 2880, s.totalMinutes),
+        s.inventory.pinned[pid] ? 1 : 0, Math.floor((s.inventory.lastOrdered[pid] ?? 0) / 60),
+        s.deliveries.filter((d) => !d.done && d.partId === pid).length,
       );
     }
     for (const d of s.deliveries) parts.push(d.id, Math.floor(d.arriveAtMinute / 30));
@@ -789,66 +887,117 @@ export class UI {
     return html;
   }
 
+  private renderPartsPrompt(): string {
+    const game = this.getGame();
+    const s = game.state;
+    const o = s.orders.find((x) => x.id === this.partsOrderId);
+    if (!o) return '<p class="empty">Auftrag nicht gefunden.</p>';
+    const v = s.vehicles.find((x) => x.id === o.vehicleId);
+    const c = s.customers.find((x) => x.id === o.customerId);
+    const profile = c?.profile ?? 'regular';
+    const chance = delayChance(s, profile, c?.lastSatisfaction ?? null);
+    const delayH = Math.round(DELAY_BY_PROFILE[profile] / 60);
+    const history = s.orders.filter((x) => x.customerId === o.customerId && x.status === 'delivered');
+    let html = `<div class="card warn-card">
+      <div class="card-title">⚠️ Diagnose abgeschlossen – Ersatzteile fehlen</div>
+      <div class="meta">${v ? `${esc(v.make)} ${esc(v.model)} · ` : ''}Auftrag ${o.id} · Termin: ${dueLabel(o, s.totalMinutes)}</div>
+      <div class="meta">Kunde: ${esc(c?.name ?? '?')} (${PROFILE_LABELS[profile] ?? profile})${history.length > 0 ? ` · ${history.length} frühere Aufträge` : ' · Neukunde'}</div>
+      <table class="parts-table"><thead><tr><th>Benötigte Variante</th><th>Bedarf</th><th>Verfügbar</th><th>Fehlt</th><th>EK</th></tr></thead><tbody>`;
+    for (const n of o.partsNeeded) {
+      const pd = game.defs.parts.find((x) => x.id === n.partId);
+      if (!pd) continue;
+      const avail = InventorySystem.available(s.inventory, n.partId);
+      const missing = Math.max(0, n.quantity - avail);
+      if (missing === 0) continue;
+      html += `<tr class="low"><td>${esc(pd.name)}</td><td class="num">${n.quantity}</td><td class="num">${avail}</td><td class="num"><strong>${missing}</strong></td><td class="num">${eur(EconomySystem.marketBuyCents(s, pd))}</td></tr>`;
+    }
+    html += `</tbody></table>
+      <div class="meta">Lieferant wählen (Express-Aufpreis zahlt die Werkstatt):</div>
+      <div class="btn-row">${game.defs.suppliers.map((sup) => `<button class="btn small ${this.partsSupplierId === sup.id ? 'primary' : ''}" data-action="parts-supplier" data-id="${sup.id}">${esc(sup.name)} (${Math.round(sup.leadMinutes / 60)} h, ${sup.priceFactor > 1 ? '+' : ''}${Math.round((sup.priceFactor - 1) * 100)} %)</button>`).join('')}</div>
+      <div class="meta">Aufschub-Chance: <strong>${Math.round(chance * 100)} %</strong> – bei Zusage +${delayH} h Termin (profilabhängig). Lehnt der Kunde ab, geht er.</div>
+      <div class="btn-row">
+        <button class="btn primary" data-action="parts-delay">Um Aufschub bitten &amp; bestellen</button>
+        <button class="btn" data-action="parts-order">Ohne Aufschub bestellen (Termin bleibt)</button>
+        <button class="btn danger" data-action="parts-decline">Abweisen</button>
+      </div>
+    </div>`;
+    return html;
+  }
+
   private renderInventory(): string {
     const game = this.getGame();
     const s = game.state;
     const inv = s.inventory;
-    const total = InventorySystem.totalStock(inv);
-    let html = `<div class="drawer-head"><h2>Ersatzteillager</h2></div>`;
-    html += `<div class="meta">Kapazität: ${total} / ${inv.capacity} Teile</div>
-      <div class="bar capacity"><div style="width:${Math.min(100, (total / inv.capacity) * 100)}%"></div></div>`;
-    html += `<div class="supplier-row">Lieferant (manuell):
-      ${game.defs.suppliers.map((sup) => `<button class="btn small ${this.supplierId === sup.id ? 'primary' : ''}" data-action="supplier" data-id="${sup.id}">${esc(sup.name)} (${Math.round(sup.leadMinutes / 60)} h, +${Math.round((sup.priceFactor - 1) * 100)}%)</button>`).join('')}
+    const search = this.invSearch.trim().toLowerCase();
+    let html = `<div class="btn-row">
+      <button class="btn small ${this.invShowAll ? 'primary' : ''}" data-action="inv-showall">${this.invShowAll ? 'Alle Varianten sichtbar' : 'Nur relevante Varianten'}</button>
+      <input class="inv-search" type="search" placeholder="Variante suchen (Blendet alle Treffer ein)…" value="${esc(this.invSearch)}" data-field="inv-search">
     </div>`;
     const allOn = game.defs.parts.every((p) => inv.autoReorder[p.id]);
     const allOff = game.defs.parts.every((p) => !inv.autoReorder[p.id]);
-    html += `<div class="btn-row"><button class="btn small ${allOn ? 'primary' : ''}" data-action="auto-all" data-on="1" ${allOn ? 'disabled' : ''}>Alle Auto AN</button><button class="btn small ${allOff ? 'primary' : ''}" data-action="auto-all" data-on="0" ${allOff ? 'disabled' : ''}>Alle Auto AUS</button></div>`;
-    html += `<div class="supplier-row">Auto-Nachbestellung bei ≤ Mindestmenge → Lieferant:
+    html += `<div class="btn-row"><button class="btn small ${allOn ? 'primary' : ''}" data-action="auto-all" data-on="1" ${allOn ? 'disabled' : ''}>Alle Auto AN</button><button class="btn small ${allOff ? 'primary' : ''}" data-action="auto-all" data-on="0" ${allOff ? 'disabled' : ''}>Alle Auto AUS</button>
+      <span class="muted">Auto-Nachbestellung bei &lt; Mindestbestand → Lieferant:</span>
       ${game.defs.suppliers.map((sup) => `<button class="btn small ${inv.autoSupplierId === sup.id ? 'primary' : ''}" data-action="auto-supplier" data-id="${sup.id}">${esc(sup.name)}</button>`).join('')}
-      <span class="muted">Zielbestand: Mindestbestand</span>
-      <button type="button" class="help" data-help="Lieferanten: Prozent = Auf-/Abschlag auf den Marktpreis. Express +35 % (1 h), Standard 0 % (8 h), Budget −15 % (24 h), jeweils plus Versandkosten.">?</button>
+      <button type="button" class="help" data-help="Auto-Nachbestellung pro Variante: Fällt der verfügbare Bestand (Lager minus Reservierungen) unter den Mindestbestand, wird automatisch die Differenz beim gewählten Lieferanten bestellt. Zielbestand = Mindestbestand.">?</button>
     </div>`;
-    html += `<div class="meta muted legend">Legende: <span class="legend-low">Gelber Name</span> = Bestand ≤ Mindestbestand (Nachbestell-Warnung) · <span class="legend-highlight">Dunkler Hintergrund</span> = Teil wird für einen ausgewählten Auftrag gebraucht.</div>`;
-    html += `<table class="parts-table"><thead><tr><th>Teil</th><th>Bestand</th><th>Reserv.</th><th>Min</th><th>Auto <button type="button" class="help" data-help="Auto-Nachbestellung pro Artikel: Fällt der verfügbare Bestand (Lager minus Reservierungen) unter den Mindestbestand, wird automatisch die Differenz beim gewählten Lieferanten bestellt. Standard: aus.">?</button></th><th>EK <button type="button" class="help" data-help="EK = aktueller Marktpreis (schwankt täglich ±15 %). VK = EK × (1 + Teileaufschlag). Der Pfeil zeigt den Trend zum Vortag.">?</button></th><th>VK</th><th>24h <button type="button" class="help" data-help="Verbrauch durch Reparaturen in den letzten 24 Spielstunden. Hilft bei der Entscheidung über Mindestbestand und Auto-Nachbestellung.">?</button></th><th>48h <button type="button" class="help" data-help="Verbrauch durch Reparaturen in den letzten 48 Spielstunden.">?</button></th><th>Bestellen</th></tr></thead><tbody>`;
-    for (const p of game.defs.parts) {
-      const stock = inv.stock[p.id] ?? 0;
-      const reserved = inv.reserved[p.id] ?? 0;
-      const min = inv.minStock[p.id] ?? 0;
-      const low = stock <= min;
-      const highlight = this.highlightParts.has(p.id);
-      const auto = !!inv.autoReorder[p.id];
-      const market = EconomySystem.marketBuyCents(s, p);
-      const factor = s.marketPriceFactors[p.id] ?? 1;
-      const trend = factor > 1.02 ? '▲' : factor < 0.98 ? '▼' : '·';
-      const trendClass = factor > 1.02 ? 'trend-up' : factor < 0.98 ? 'trend-down' : 'muted';
-      const used24 = InventorySystem.usageWithin(inv, p.id, 1440, s.totalMinutes);
-      const used48 = InventorySystem.usageWithin(inv, p.id, 2880, s.totalMinutes);
-      html += `<tr class="${highlight ? 'highlight' : ''} ${low ? 'low' : ''}">
-        <td>${esc(p.name)}</td>
-        <td class="num">${stock}</td>
-        <td class="num">${reserved}</td>
-        <td><input class="min-input" type="number" min="0" max="20" value="${min}" data-field="minstock" data-part="${p.id}"></td>
-        <td><button class="btn small ${auto ? 'primary' : ''}" data-action="toggle-auto" data-part="${p.id}" title="Automatisch nachbestellen">${auto ? 'AN' : 'AUS'}</button></td>
-        <td class="num" title="Marktpreis (Basis ${eur(p.buyCents)}, Faktor ${factor.toFixed(2)})">${eur(market)} <span class="${trendClass}">${trend}</span></td>
-        <td class="num">${eur(EconomySystem.sellPrice(market, s.economy.partsMarkupPct))}</td>
-        <td class="num ${used24 > 0 ? 'usage-hot' : 'muted'}">${used24}</td>
-        <td class="num ${used48 > 0 ? 'usage-hot' : 'muted'}">${used48}</td>
-        <td class="btn-cell">
-          <button class="btn small" data-action="order-part" data-part="${p.id}" data-qty="1">+1</button>
-          <button class="btn small" data-action="order-part" data-part="${p.id}" data-qty="5">+5</button>
-        </td>
-      </tr>`;
+    html += `<div class="meta muted legend">Legende: <span class="legend-low">Gelber Name</span> = Bestand ≤ Mindestbestand · <span class="legend-highlight">Dunkler Hintergrund</span> = Teil für ausgewählten Auftrag gebraucht · 🐌 = Ladenhüter (Bestand &gt; 0, kein Verbrauch 48 h, letzte Bestellung &gt; 3 Tage her). Ausgeblendet: Bestand 0, Min 0, keine offene Bestellung – über Suche oder „Alle Varianten" einblenden und 📌 pinnen.</div>`;
+    html += `<div class="inv-layout"><div class="inv-cats">`;
+    for (const cat of game.defs.categories) {
+      const vars = game.defs.parts.filter((p) => p.category === cat.id);
+      const sum = vars.reduce((a, p) => a + (inv.stock[p.id] ?? 0), 0);
+      html += `<button class="inv-cat ${this.invCategory === cat.id ? 'active' : ''}" data-action="inv-category" data-id="${cat.id}">${esc(cat.name)} <span class="muted">${sum}</span></button>`;
     }
-    html += `</tbody></table>`;
-    const open = s.deliveries.filter((d) => !d.done);
-    html += `<h3 class="section">Offene Bestellungen (${open.length})</h3>`;
-    if (open.length === 0) html += `<p class="empty">Keine offenen Bestellungen.</p>`;
-    for (const d of open) {
-      const p = game.defs.parts.find((x) => x.id === d.partId)!;
-      const sup = game.defs.suppliers.find((x) => x.id === d.supplierId)!;
-      const etaH = Math.max(0, (d.arriveAtMinute - s.totalMinutes) / 60);
-      html += `<div class="card compact">${d.quantity}× ${esc(p.name)} · ${esc(sup.name)} · Lieferung in ${etaH.toFixed(1)} h · ${eur(d.costCents)}</div>`;
+    html += `</div><div class="inv-main">`;
+    const cat = game.defs.categories.find((c) => c.id === this.invCategory) ?? game.defs.categories[0]!;
+    const variants = game.defs.parts.filter((p) => p.category === cat.id);
+    const visible = variants.filter((p) =>
+      InventorySystem.isVisible(inv, p.id, s.deliveries, search, this.invShowAll, p.name),
+    );
+    const used48cat = variants.reduce((a, p) => a + InventorySystem.usageWithin(inv, p.id, 2880, s.totalMinutes), 0);
+    html += `<h3 class="section">${esc(cat.name)} <span class="muted">· ${visible.length}/${variants.length} Varianten · Verbrauch 48h: ${used48cat}</span></h3>`;
+    if (visible.length === 0) {
+      html += `<p class="empty">Keine sichtbaren Varianten. Suche nutzen oder „Alle Varianten" einblenden.</p>`;
+    } else {
+      html += `<table class="parts-table"><thead><tr><th>Variante</th><th>Bestand</th><th>Reserv.</th><th>Min</th><th>Auto</th><th>EK</th><th>VK</th><th>24h</th><th>48h</th><th>Letzte Bestellung</th><th>Bestellen</th><th></th></tr></thead><tbody>`;
+      for (const p of visible) {
+        const stock = inv.stock[p.id] ?? 0;
+        const reserved = inv.reserved[p.id] ?? 0;
+        const min = inv.minStock[p.id] ?? 0;
+        const low = stock <= min;
+        const highlight = this.highlightParts.has(p.id);
+        const auto = !!inv.autoReorder[p.id];
+        const market = EconomySystem.marketBuyCents(s, p);
+        const used24 = InventorySystem.usageWithin(inv, p.id, 1440, s.totalMinutes);
+        const used48 = InventorySystem.usageWithin(inv, p.id, 2880, s.totalMinutes);
+        const lastOrd = inv.lastOrdered[p.id];
+        const lastLabel = lastOrd === undefined ? 'nie' : relTime(s.totalMinutes - lastOrd);
+        const slowMover = stock > 0 && used48 === 0 && (lastOrd === undefined || s.totalMinutes - lastOrd > 4320);
+        const openDel = s.deliveries.filter((d) => !d.done && d.partId === p.id);
+        const pinned = !!inv.pinned[p.id];
+        html += `<tr class="${highlight ? 'highlight' : ''} ${low ? 'low' : ''}">
+          <td>${esc(p.name)}${slowMover ? ' <span class="chip slow" title="Ladenhüter: Bestand > 0, kein Verbrauch in 48 h, letzte Bestellung > 3 Tage her">🐌</span>' : ''}${openDel.length > 0 ? ` <span class="chip st-waiting_for_parts" title="Offene Lieferung">🚚 ${openDel.length}</span>` : ''}</td>
+          <td class="num">${stock}</td>
+          <td class="num">${reserved}</td>
+          <td><input class="min-input" type="number" min="0" max="20" value="${min}" data-field="minstock" data-part="${p.id}"></td>
+          <td><button class="btn small ${auto ? 'primary' : ''}" data-action="toggle-auto" data-part="${p.id}">${auto ? 'AN' : 'AUS'}</button></td>
+          <td class="num">${eur(market)}</td>
+          <td class="num">${eur(EconomySystem.sellPrice(market, s.economy.partsMarkupPct))}</td>
+          <td class="num ${used24 > 0 ? 'usage-hot' : 'muted'}">${used24}</td>
+          <td class="num ${used48 > 0 ? 'usage-hot' : 'muted'}">${used48}</td>
+          <td class="num muted">${lastLabel}</td>
+          <td class="btn-cell">
+            <button class="btn small" data-action="order-part" data-part="${p.id}" data-qty="1">+1</button>
+            <button class="btn small" data-action="order-part" data-part="${p.id}" data-qty="5">+5</button>
+          </td>
+          <td class="btn-cell">
+            <button class="btn small ${pinned ? 'primary' : ''}" data-action="pin-variant" data-part="${p.id}" title="Variante dauerhaft einblenden">📌</button>
+            ${slowMover ? `<button class="btn small" data-action="sell-variant" data-part="${p.id}" title="Unreserved Bestand zu 60 % Marktpreis verkaufen">Verkauf</button>` : ''}
+          </td>
+        </tr>`;
+      }
+      html += `</tbody></table>`;
     }
+    html += `</div></div>`;
     return html;
   }
 

@@ -6,13 +6,13 @@ describe('Nacht-Skip bei 8×', () => {
     const game = Game.new(401);
     game.state.totalMinutes = 18 * 60; // 18:00, Feierabend
     game.setSpeed(2);
-    game.orderParts('battery', 1, 'teileprofi'); // +480 min → 02:00 nachts
-    const stockBefore = game.state.inventory.stock['battery'] ?? 0;
+    game.orderParts('battery__60__standard', 1, 'teileprofi'); // +480 min → 02:00 nachts
+    const stockBefore = game.state.inventory.stock['battery__60__standard'] ?? 0;
     game.tick(1);
     expect(game.state.speed).toBe(16);
     game.tick(840); // bis 08:00 nächsten Tages
     expect(Math.floor(game.state.totalMinutes / 1440)).toBe(1);
-    expect(game.state.inventory.stock['battery']).toBe(stockBefore + 1);
+    expect(game.state.inventory.stock['battery__60__standard']).toBe(stockBefore + 1);
     expect(game.state.economy.transactions.some((t) => t.id === 'fixed-d1')).toBe(true);
     expect(game.state.speed).toBe(1); // Arbeitsbeginn
   });

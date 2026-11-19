@@ -1,0 +1,102 @@
+[
+  {
+    "id": "brake_pads",
+    "name": "Bremsbeläge"
+  },
+  {
+    "id": "brake_discs",
+    "name": "Bremsscheiben"
+  },
+  {
+    "id": "brake_caliper",
+    "name": "Bremssattel"
+  },
+  {
+    "id": "brake_fluid",
+    "name": "Bremsflüssigkeit"
+  },
+  {
+    "id": "spark_plugs",
+    "name": "Zündkerzen"
+  },
+  {
+    "id": "ignition_coil",
+    "name": "Zündspule"
+  },
+  {
+    "id": "oil_filter",
+    "name": "Ölfilter"
+  },
+  {
+    "id": "motor_oil",
+    "name": "Motoröl 5W-30"
+  },
+  {
+    "id": "air_filter",
+    "name": "Luftfilter"
+  },
+  {
+    "id": "accessory_belt",
+    "name": "Keilriemen"
+  },
+  {
+    "id": "water_pump",
+    "name": "Wasserpumpe"
+  },
+  {
+    "id": "thermostat",
+    "name": "Thermostat"
+  },
+  {
+    "id": "battery",
+    "name": "Batterie"
+  },
+  {
+    "id": "alternator",
+    "name": "Lichtmaschine"
+  },
+  {
+    "id": "starter",
+    "name": "Anlasser"
+  },
+  {
+    "id": "sensor",
+    "name": "Sensor"
+  },
+  {
+    "id": "shock_absorber",
+    "name": "Stoßdämpfer"
+  },
+  {
+    "id": "spring",
+    "name": "Feder"
+  },
+  {
+    "id": "control_arm",
+    "name": "Querlenker"
+  },
+  {
+    "id": "wheel_bearing",
+    "name": "Radlager"
+  },
+  {
+    "id": "muffler",
+    "name": "Auspuff-Endschalldämpfer"
+  },
+  {
+    "id": "transmission_oil",
+    "name": "Getriebeöl"
+  },
+  {
+    "id": "refrigerant",
+    "name": "Kältemittel"
+  },
+  {
+    "id": "tires",
+    "name": "Reifen"
+  },
+  {
+    "id": "rims",
+    "name": "Felgen"
+  }
+]

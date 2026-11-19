@@ -7,6 +7,7 @@ export type GameEvent =
   | 'estimate:approved'
   | 'estimate:rejected'
   | 'approval:at-risk'
+  | 'parts:missing'
   | 'parts:ordered'
   | 'parts:delivered'
   | 'parts:low'

@@ -22,6 +22,8 @@ import { SupplierSystem } from '../simulation/SupplierSystem';
 import { InventorySystem } from '../simulation/InventorySystem';
 import { PersonnelSystem } from '../simulation/PersonnelSystem';
 import { MarketSystem } from '../simulation/MarketSystem';
+import { DELAY_BY_PROFILE, delayChance } from '../simulation/PartsResolver';
+import { LEGACY_PART_MAP } from '../data';
 import type { SkillId } from '../entities/types';
 import { findPath } from '../world/Pathfinding';
 
@@ -102,11 +104,21 @@ export function createNewGame(seed: number): GameState {
   const minStock: Record<string, number> = {};
   const marketPriceFactors: Record<string, number> = {};
   for (const p of DEFS.parts) {
-    stock[p.id] = INITIAL_STOCK[p.id] ?? 0;
+    stock[p.id] = 0;
     reserved[p.id] = 0;
-    minStock[p.id] = DEFAULT_MIN_STOCK[p.id] ?? 1;
+    minStock[p.id] = 0;
     marketPriceFactors[p.id] = 1;
   }
+  // Startbestand & Mindestbestände auf die Standard-Varianten abbilden
+  for (const [oldId, qty] of Object.entries(INITIAL_STOCK)) {
+    const vid = LEGACY_PART_MAP[oldId];
+    if (vid) stock[vid] = qty;
+  }
+  for (const [oldId, min] of Object.entries(DEFAULT_MIN_STOCK)) {
+    const vid = LEGACY_PART_MAP[oldId];
+    if (vid) minStock[vid] = min;
+  }
+  stock['tires__15__standard'] = 4; // ein Satz Kompakt-Reifen zum Start
   return {
     version: SAVE_VERSION,
     seed,
@@ -148,6 +160,8 @@ export function createNewGame(seed: number): GameState {
       capacity: 120,
       autoReorder: {},
       usageLog: [],
+      lastOrdered: {},
+      pinned: {},
       autoSupplierId: 'teileprofi',
     },
     deliveries: [],
@@ -454,6 +468,73 @@ export class Game {
     const customer = this.state.customers.find((c) => c.id === order.customerId);
     notify(this.ctx, 'success', `${customer?.name ?? 'Kunde'} bleibt: Rechnung zum Budget ${(order.budgetCents / 100).toFixed(2)} € akzeptiert.`);
     return true;
+  }
+
+  /** Bestellt die Fehlmenge aller benötigten Varianten eines Auftrags. */
+  orderMissingParts(orderId: string, supplierId: string): boolean {
+    const order = this.state.orders.find((o) => o.id === orderId);
+    if (!order) return false;
+    let all = true;
+    for (const n of order.partsNeeded) {
+      const avail = InventorySystem.available(this.state.inventory, n.partId);
+      const shortfall = n.quantity - avail;
+      if (shortfall > 0) {
+        const ok = SupplierSystem.orderParts(this.ctx, n.partId, shortfall, supplierId);
+        if (!ok) all = false;
+      }
+    }
+    return all;
+  }
+
+  /** Kunde um Terminaufschub bitten; bei Zusage wird bestellt. */
+  requestPartsDelay(orderId: string, supplierId: string): 'accepted' | 'rejected' | 'invalid' {
+    const order = this.state.orders.find((o) => o.id === orderId);
+    if (!order || order.status !== 'waiting_for_parts') return 'invalid';
+    const customer = this.state.customers.find((c) => c.id === order.customerId);
+    const profile = customer?.profile ?? 'regular';
+    const chance = delayChance(this.state, profile, customer?.lastSatisfaction ?? null);
+    if (!this.rng.chance(chance)) {
+      OrderSystem.cancelOrder(this.ctx, order, 'Aufschub abgelehnt – Kunde geht');
+      notify(this.ctx, 'warning', `${customer?.name ?? 'Kunde'} lehnt den Aufschub ab und geht.`);
+      return 'rejected';
+    }
+    const extra = DELAY_BY_PROFILE[profile];
+    order.dueAtMinute += extra;
+    this.orderMissingParts(orderId, supplierId);
+    notify(this.ctx, 'success', `${customer?.name ?? 'Kunde'} gewährt Aufschub (+${Math.round(extra / 60)} h). Fehlende Teile bestellt.`);
+    return 'accepted';
+  }
+
+  declinePartsOrder(orderId: string): void {
+    const order = this.state.orders.find((o) => o.id === orderId);
+    if (!order) return;
+    OrderSystem.cancelOrder(this.ctx, order, 'Teile fehlen – Auftrag abgewiesen');
+  }
+
+  /** Ladenhüter verkaufen: unreserved Bestand zu 60 % des Marktpreises. */
+  sellVariant(variantId: string): boolean {
+    const part = this.defs.parts.find((p) => p.id === variantId);
+    if (!part) return false;
+    const inv = this.state.inventory;
+    const qty = (inv.stock[variantId] ?? 0) - (inv.reserved[variantId] ?? 0);
+    if (qty <= 0) return false;
+    const revenue = Math.round(EconomySystem.marketBuyCents(this.state, part) * 0.6) * qty;
+    EconomySystem.book(this.state.economy, {
+      id: `sell-${variantId}-${this.state.nextId++}`,
+      day: Math.floor(this.state.totalMinutes / 1440) + 1,
+      atMinute: this.state.totalMinutes,
+      amountCents: revenue,
+      category: 'other',
+      label: `Lagerverkauf: ${part.name} ×${qty}`,
+    });
+    inv.stock[variantId] = (inv.stock[variantId] ?? 0) - qty;
+    notify(this.ctx, 'success', `${qty}× ${part.name} verkauft (${(revenue / 100).toFixed(2)} €).`);
+    return true;
+  }
+
+  pinVariant(variantId: string): void {
+    const inv = this.state.inventory;
+    inv.pinned[variantId] = !inv.pinned[variantId];
   }
 
   takeLoan(amountCents: number): boolean {

@@ -13,12 +13,12 @@ describe('Automatische Nachbestellung', () => {
   it('bestellt nach, wenn Bestand <= Mindestmenge und Auto aktiv ist', () => {
     const game = Game.new(101);
     const inv = game.state.inventory;
-    inv.stock['brake_pads'] = 2;
-    inv.minStock['brake_pads'] = 3;
-    inv.autoReorder['brake_pads'] = true;
+    inv.stock['brake_pads__M__standard'] = 2;
+    inv.minStock['brake_pads__M__standard'] = 3;
+    inv.autoReorder['brake_pads__M__standard'] = true;
     const balanceBefore = game.state.economy.balanceCents;
     game.tick(61);
-    const deliveries = game.state.deliveries.filter((d) => d.partId === 'brake_pads');
+    const deliveries = game.state.deliveries.filter((d) => d.partId === 'brake_pads__M__standard');
     expect(deliveries).toHaveLength(1);
     expect(deliveries[0]!.quantity).toBe(1); // Ziel Mindestmenge 3, Bestand 2
     expect(game.state.economy.balanceCents).toBeLessThan(balanceBefore);
@@ -27,59 +27,59 @@ describe('Automatische Nachbestellung', () => {
   it('bestellt nicht doppelt, solange eine Lieferung offen ist', () => {
     const game = Game.new(102);
     const inv = game.state.inventory;
-    inv.stock['brake_pads'] = 1;
-    inv.minStock['brake_pads'] = 3;
-    inv.autoReorder['brake_pads'] = true;
+    inv.stock['brake_pads__M__standard'] = 1;
+    inv.minStock['brake_pads__M__standard'] = 3;
+    inv.autoReorder['brake_pads__M__standard'] = true;
     game.tick(180);
-    expect(game.state.deliveries.filter((d) => d.partId === 'brake_pads')).toHaveLength(1);
+    expect(game.state.deliveries.filter((d) => d.partId === 'brake_pads__M__standard')).toHaveLength(1);
   });
 
   it('bestellt nach Lieferung erneut, wenn Bestand wieder niedrig ist', () => {
     const game = Game.new(103);
     const inv = game.state.inventory;
-    inv.stock['brake_pads'] = 1;
-    inv.minStock['brake_pads'] = 3;
-    inv.autoReorder['brake_pads'] = true;
+    inv.stock['brake_pads__M__standard'] = 1;
+    inv.minStock['brake_pads__M__standard'] = 3;
+    inv.autoReorder['brake_pads__M__standard'] = true;
     game.tick(61);
     // Verbrauch simulieren: Lieferung ankommen lassen, dann Bestand leeren
     game.tick(500);
-    expect(inv.stock['brake_pads']).toBeGreaterThanOrEqual(3);
-    inv.stock['brake_pads'] = 0;
+    expect(inv.stock['brake_pads__M__standard']).toBeGreaterThanOrEqual(3);
+    inv.stock['brake_pads__M__standard'] = 0;
     game.tick(61);
-    const all = game.state.deliveries.filter((d) => d.partId === 'brake_pads');
+    const all = game.state.deliveries.filter((d) => d.partId === 'brake_pads__M__standard');
     expect(all.length).toBe(2);
   });
 
   it('ist standardmäßig deaktiviert', () => {
     const game = Game.new(104);
     const inv = game.state.inventory;
-    inv.stock['brake_pads'] = 0;
-    inv.minStock['brake_pads'] = 3;
+    inv.stock['brake_pads__M__standard'] = 0;
+    inv.minStock['brake_pads__M__standard'] = 3;
     game.tick(180);
-    expect(game.state.deliveries.filter((d) => d.partId === 'brake_pads')).toHaveLength(0);
+    expect(game.state.deliveries.filter((d) => d.partId === 'brake_pads__M__standard')).toHaveLength(0);
   });
 
   it('bestellt nicht bei fehlendem Geld und stürzt nicht ab', () => {
     const game = Game.new(105);
     const inv = game.state.inventory;
-    inv.stock['alternator'] = 0;
-    inv.minStock['alternator'] = 2;
-    inv.autoReorder['alternator'] = true;
+    inv.stock['alternator__M__standard'] = 0;
+    inv.minStock['alternator__M__standard'] = 2;
+    inv.autoReorder['alternator__M__standard'] = true;
     game.state.economy.balanceCents = 500;
     expect(() => game.tick(180)).not.toThrow();
-    expect(game.state.deliveries.filter((d) => d.partId === 'alternator')).toHaveLength(0);
+    expect(game.state.deliveries.filter((d) => d.partId === 'alternator__M__standard')).toHaveLength(0);
   });
 
   it('reservierte Teile zählen nicht als verfügbarer Bestand für die Mindestmenge', () => {
     const game = Game.new(106);
     const inv = game.state.inventory;
-    inv.stock['battery'] = 4;
-    inv.minStock['battery'] = 3;
-    inv.autoReorder['battery'] = true;
-    InventorySystem.reserve(inv, [{ partId: 'battery', quantity: 3 }]);
+    inv.stock['battery__60__standard'] = 4;
+    inv.minStock['battery__60__standard'] = 3;
+    inv.autoReorder['battery__60__standard'] = true;
+    InventorySystem.reserve(inv, [{ partId: 'battery__60__standard', quantity: 3 }]);
     // verfügbar = 1 <= 3 → Nachbestellung
     game.tick(61);
-    expect(game.state.deliveries.filter((d) => d.partId === 'battery')).toHaveLength(1);
+    expect(game.state.deliveries.filter((d) => d.partId === 'battery__60__standard')).toHaveLength(1);
   });
 });
 
@@ -209,7 +209,7 @@ describe('Save-Migration v2 → v3', () => {
       delete w.pendingTraining;
     }
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(10);
+    expect(migrated.version).toBe(11);
     expect(migrated.inventory.autoReorder).toEqual({});
     expect(migrated.inventory.autoSupplierId).toBe('teileprofi');
     expect(Array.isArray(migrated.candidates)).toBe(true);
