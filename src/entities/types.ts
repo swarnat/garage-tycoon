@@ -143,6 +143,7 @@ export interface Candidate {
   skills: Record<SkillId, number>;
   salaryCentsPerDay: number;
   hiringFeeCents: number;
+  speedTilesPerMinute: number;
 }
 
 export interface RepairJob {
@@ -184,6 +185,10 @@ export interface RepairOrder {
   diagnosisExtended: boolean;
   qcRemainingMinutes: number;
   billed: boolean;
+  /** Kunde droht abzulehnen – Spieler muss mit Rabatt/Preis reagieren. */
+  offerAtRisk: boolean;
+  approvalDeadline: number | null;
+  discountPct: number;
   laborMinutesActual: number;
   expiresAtMinute: number | null;
   crewIds: string[];
@@ -375,7 +380,7 @@ export interface GameDefs {
   tools: ToolDef[];
 }
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 export const MINUTES_PER_DAY = 1440;
 export const GAME_MINUTES_PER_REAL_SECOND = 6;
 export const SIM_STEP_MINUTES = 0.25;

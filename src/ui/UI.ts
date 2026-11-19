@@ -37,6 +37,8 @@ export interface UIActions {
   setMinStock(partId: string, v: number): void;
   setWorkerSpeed(id: string, delta: number): void;
   resetCamera(): void;
+  offerDiscount(id: string, pct: number): void;
+  insistPrice(id: string): void;
   buyTool(id: string): void;
   takeLoan(cents: number): void;
   repayLoan(id: string, cents: number): void;
@@ -75,6 +77,10 @@ const WORKER_STATE_LABELS: Record<string, string> = {
   training: 'Weiterbildung',
   off_duty: 'Feierabend',
 };
+
+function tempoLabel(sp: number): string {
+  return sp < 0.3 ? 'gemächlich' : sp < 0.45 ? 'normal' : 'flink';
+}
 
 const PROFILE_LABELS: Record<string, string> = {
   price_sensitive: 'preisbewusst',
@@ -304,6 +310,8 @@ export class UI {
       case 'buy-lift': this.actions.buyLift(); break;
       case 'buy-diag': this.actions.buyDiagnosisBay(); break;
       case 'buy-tool': this.actions.buyTool(id); break;
+      case 'offer-discount': this.actions.offerDiscount(id, Number(btn.dataset.pct ?? '0')); break;
+      case 'insist-price': this.actions.insistPrice(id); break;
       case 'take-loan': this.actions.takeLoan(Number(btn.dataset.amount ?? '0')); break;
       case 'repay-loan': this.actions.repayLoan(id, Number(btn.dataset.amount ?? '0')); break;
       case 'expand-storage': this.actions.expandStorage(); break;
@@ -458,7 +466,7 @@ export class UI {
       html += `
         <div class="card order-row" data-action="select-vehicle" data-id="${v.id}">
           <div class="card-title">${esc(v.make)} ${esc(v.model)} <span class="muted">${o.id}</span> ${o.priority > 1 ? '<span class="chip prio">Prio</span>' : ''}</div>
-          <div>${statusChip(o.status)}</div>
+          <div>${statusChip(o.status)} ${o.offerAtRisk ? '<span class="chip prio">⚠️ Kunde droht abzulehnen</span>' : ''}</div>
           ${o.revealed ? `<div class="meta">${o.jobs.map((j) => game.defs.repairs.find((r) => r.id === j.repairId)?.name ?? j.repairId).join(', ')}</div>` : `<div class="meta muted">Defekte noch unbekannt – Diagnose nötig</div>`}
           ${o.jobs.length > 0 ? `<div class="meta">Fortschritt: ${jobsDone}/${o.jobs.length} Reparaturen · ${dueLabel(o, s.totalMinutes)}</div>` : `<div class="meta">${dueLabel(o, s.totalMinutes)}</div>`}
           ${worker ? `<div class="meta">Mitarbeiter: ${esc(worker.name)}</div>` : ''}
@@ -492,6 +500,7 @@ export class UI {
         <div class="card-title">${esc(c.name)}</div>
         <div class="meta">Stärken: ${top.map(([sk, v]) => `${SKILL_LABELS[sk] ?? sk} ${v}`).join(' · ')}</div>
         <div class="meta">Gehalt: ${eur(c.salaryCentsPerDay)}/Tag · Einstellungsgebühr: ${eur(c.hiringFeeCents)}</div>
+        <div class="meta">Lauftempo: ${c.speedTilesPerMinute.toFixed(2)} (${tempoLabel(c.speedTilesPerMinute)})</div>
         <div class="btn-row"><button class="btn primary" data-action="hire" data-id="${c.id}" ${s.workers.length >= 6 ? 'disabled' : ''}>Einstellen</button></div>
       </div>`;
     }
@@ -515,7 +524,7 @@ export class UI {
           <button class="btn small" data-action="train" data-id="${w.id}" data-skill="${skill}" ${busy || val >= 100 ? 'disabled' : ''} title="Weiterbildung: +5 für 150 €, dauert 2 h">+5</button></div>`;
       }
       html += `</div><div class="meta muted">Weiterbildung: +5 Punkte für 150 €, Mitarbeiter ist 2 h nicht einsetzbar.</div>`;
-      html += `<div class="meta speed-row">Lauftempo: <strong>${w.speedTilesPerMinute.toFixed(2)}</strong>
+      html += `<div class="meta speed-row">Lauftempo: <strong>${w.speedTilesPerMinute.toFixed(2)}</strong> <span class="muted">(${tempoLabel(w.speedTilesPerMinute)})</span>
         <button class="btn small" data-action="worker-speed" data-id="${w.id}" data-delta="-0.05" title="langsamer">−</button>
         <button class="btn small" data-action="worker-speed" data-id="${w.id}" data-delta="0.05" title="schneller">+</button>
         <span class="muted">(0.20–0.60)</span></div>`;
@@ -762,7 +771,7 @@ export class UI {
       <div class="card">
         <div class="card-title">Spielstand</div>
         <div class="meta">Automatische Speicherung alle 30 Sekunden und nach wichtigen Ereignissen. Primär IndexedDB (großer Browserspeicher), Fallback localStorage. Kein Server.</div>
-        <div class="meta muted">Bei 8× wird die Nacht (18:00–08:00) automatisch übersprungen. Untätige Mitarbeiter warten im Pausenraum, nach Feierabend werden sie ausgeblendet.</div>
+        <div class="meta muted">Außerhalb der Arbeitszeit (18:00–08:00) läuft das Spiel automatisch mit 8×. Geht ein Auftrag ein oder beginnt die Schicht um 08:00, wird auf 1× geschaltet. Untätige Mitarbeiter warten im Pausenraum, nach Feierabend werden sie ausgeblendet.</div>
         <div class="btn-row">
           <button class="btn primary" data-action="save">Jetzt speichern</button>
           <button class="btn" data-action="export">Export (JSON)</button>
@@ -805,7 +814,41 @@ export class UI {
       ${(() => { const wr = OrderSystem.waitReason(game.ctx, o); return wr ? `<div class="card compact warn-card wait-card">⏳ ${esc(wr)}</div>` : ''; })()}
       <div class="meta">${dueLabel(o, s.totalMinutes)}${worker ? ` · Mitarbeiter: ${esc(worker.name)}` : ''}</div>
     </div>`;
+    if (o.offerAtRisk && o.status === 'waiting_for_approval') {
+      const history = s.orders.filter((x) => x.customerId === o.customerId && x.status === 'delivered');
+      const histRevenue = history.reduce((a, x) => a + (x.invoiceCents ?? 0), 0);
+      const avgSat = history.length > 0 ? Math.round(history.reduce((a, x) => a + (x.satisfaction ?? 0), 0) / history.length) : 0;
+      const minsLeft = Math.max(0, Math.ceil(((o.approvalDeadline ?? 0) - s.totalMinutes)));
+      html += `<div class="card warn-card wait-card">
+        <div class="card-title">⚠️ Kunde droht, das Angebot abzulehnen</div>
+        <div class="meta">Angebot: <strong>${eur(o.estimateCents ?? 0)}</strong> · Budget des Kunden: ${eur(o.budgetCents)}${o.discountPct > 0 ? ` · bisheriger Rabatt: ${o.discountPct} %` : ''}</div>
+        <div class="meta">Kundenhistorie: ${history.length === 0 ? 'Neukunde (keine vergangenen Aufträge)' : `${history.length} Aufträge · Umsatz ${eur(histRevenue)} · Ø Zufriedenheit ${avgSat}%`}${(c?.visits ?? 0) >= 2 ? ' · Stammkunde – Rabatt empfohlen' : ''}</div>
+        <div class="meta">Ohne Reaktion entscheidet sich der Kunde in ${minsLeft} Spielminuten gegen die Werkstatt.</div>
+        <div class="btn-row">
+          <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="5">5 % Rabatt</button>
+          <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="10">10 % Rabatt</button>
+          <button class="btn small" data-action="offer-discount" data-id="${o.id}" data-pct="15">15 % Rabatt</button>
+          <button class="btn small danger" data-action="insist-price" data-id="${o.id}">Preis bestehen</button>
+        </div>
+      </div>`;
+    }
     if (o.revealed) {
+      const b = OrderSystem.profitBreakdown(game.ctx, o);
+      html += `<div class="card compact"><div class="card-title">Kalkulation ${o.billed ? '(Rechnung)' : '(Kostenvoranschlag)'}</div>
+        <table class="parts-table"><thead><tr><th>Position</th><th>Kosten</th><th>Erlös</th></tr></thead><tbody>`;
+      for (const n of o.partsNeeded) {
+        const pd = game.defs.parts.find((x) => x.id === n.partId);
+        if (!pd) continue;
+        const buy = EconomySystem.marketBuyCents(s, pd);
+        html += `<tr><td>${esc(pd.name)} ×${n.quantity}</td><td class="num">${eur(buy * n.quantity)}</td><td class="num">${eur(EconomySystem.sellPrice(buy, s.economy.partsMarkupPct) * n.quantity)}</td></tr>`;
+      }
+      html += `<tr><td>Arbeit ${Math.round(b.laborMinutes)} min × ${eur(s.economy.hourlyRateCents)}/h</td><td class="num">${eur(b.laborCost)}</td><td class="num">${eur(b.laborRevenue)}</td></tr>`;
+      html += `<tr><td>Diagnosepauschale</td><td class="num">–</td><td class="num">${eur(b.fee)}</td></tr>`;
+      if (b.discount > 0) html += `<tr><td>Rabatt${o.discountPct > 0 ? ` (${o.discountPct} %)` : ''}</td><td class="num">–</td><td class="num neg">−${eur(b.discount)}</td></tr>`;
+      html += `<tr><td><strong>Summe</strong></td><td class="num"><strong>${eur(b.cost)}</strong></td><td class="num"><strong>${eur(b.revenue)}</strong></td></tr>`;
+      html += `</tbody></table>
+        <div class="meta">Gewinn: <strong class="${b.profit >= 0 ? 'pos' : 'neg'}">${eur(b.profit)}</strong> (${b.revenue > 0 ? Math.round((b.profit / b.revenue) * 100) : 0} % Marge) · Lohnkosten anteilig aus Tagesgehältern</div>
+      </div>`;
       html += `<h3 class="section">Erkannte Defekte & Reparaturen</h3>`;
       for (const j of o.jobs) {
         const def = game.defs.repairs.find((r) => r.id === j.repairId)!;

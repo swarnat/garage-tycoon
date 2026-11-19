@@ -47,6 +47,18 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     version = 5;
     raw.version = version;
   }
+  if (version === 5) {
+    for (const o of (raw.orders as Array<Record<string, unknown>>) ?? []) {
+      o.offerAtRisk ??= false;
+      o.approvalDeadline ??= null;
+      o.discountPct ??= 0;
+    }
+    for (const c of (raw.candidates as Array<Record<string, unknown>>) ?? []) {
+      c.speedTilesPerMinute ??= 0.35;
+    }
+    version = 6;
+    raw.version = version;
+  }
   // Idempotente Normalisierung neuer Felder (auch für aktuelle Version)
   const inv = raw.inventory as Record<string, unknown> | undefined;
   if (inv && typeof inv === 'object') {

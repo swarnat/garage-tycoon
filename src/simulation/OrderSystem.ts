@@ -71,7 +71,14 @@ export class OrderSystem {
           break;
         }
         case 'waiting_for_approval':
-          OrderSystem.decideApproval(ctx, order);
+          if (order.offerAtRisk) {
+            if (order.approvalDeadline !== null && state.totalMinutes > order.approvalDeadline) {
+              notify(ctx, 'warning', `${order.id}: Kunde hat sich mangels Reaktion entschieden abzulehnen.`);
+              OrderSystem.cancelOrder(ctx, order, 'Keine Reaktion auf Angebotsnachfrage');
+            }
+          } else {
+            OrderSystem.decideApproval(ctx, order);
+          }
           break;
         case 'diagnosing':
           // Selbstheilung: verwaiste Diagnose (z. B. nach Entlassung) neu vergeben
@@ -123,37 +130,104 @@ export class OrderSystem {
     OrderSystem.dispatchVehicle(ctx, v, diag);
   }
 
+  /** Freigabe: passt der (rabattierte) Preis ins Budget? Sonst Nachfrage. */
   static decideApproval(ctx: SimContext, order: RepairOrder): void {
     const { state } = ctx;
-    const estimate = order.estimateCents ?? 0;
-    if (estimate <= order.budgetCents) {
-      ctx.bus.emit('estimate:approved', order.id);
-      if (InventorySystem.reserve(state.inventory, order.partsNeeded)) {
-        order.partsReserved = true;
-        OrderSystem.setStatus(state, order, 'ready_for_repair');
-      } else {
-        OrderSystem.setStatus(state, order, 'waiting_for_parts');
-        const missing = order.partsNeeded
-          .filter(
-            (n) =>
-              InventorySystem.available(state.inventory, n.partId) < n.quantity,
-          )
-          .map((n) => {
-            const p = ctx.defs.parts.find((x) => x.id === n.partId);
-            return `${n.quantity}× ${p?.name ?? n.partId}`;
-          })
-          .join(', ');
-        notify(ctx, 'warning', `Auftrag ${order.id}: Ersatzteile fehlen (${missing}). Bitte im Lager bestellen.`);
-      }
-    } else {
-      ctx.bus.emit('estimate:rejected', order.id);
+    const customer = state.customers.find((c) => c.id === order.customerId);
+    const effective = Math.round((order.estimateCents ?? 0) * (1 - order.discountPct / 100));
+    if (effective <= order.budgetCents) {
+      OrderSystem.approve(ctx, order);
+      return;
+    }
+    if (!order.offerAtRisk) {
+      order.offerAtRisk = true;
+      order.approvalDeadline = state.totalMinutes + 240;
+      ctx.bus.emit('approval:at-risk', order.id);
       notify(
         ctx,
         'warning',
-        `Kunde lehnt Kostenvoranschlag für ${order.id} ab (${(estimate / 100).toFixed(2)} € über Budget).`,
+        `${customer?.name ?? 'Kunde'} droht abzulehnen: Angebot ${((order.estimateCents ?? 0) / 100).toFixed(2)} € über Budget ${(order.budgetCents / 100).toFixed(2)} €. Bitte im Auftrag reagieren (Rabatt oder Preis bestehen).`,
       );
-      OrderSystem.cancelOrder(ctx, order, 'Kostenvoranschlag abgelehnt');
     }
+  }
+
+  /** Kunde hat freigegeben: Teile reservieren, Reparatur vorbereiten. */
+  static approve(ctx: SimContext, order: RepairOrder): void {
+    const { state } = ctx;
+    ctx.bus.emit('estimate:approved', order.id);
+    if (InventorySystem.reserve(state.inventory, order.partsNeeded)) {
+      order.partsReserved = true;
+      OrderSystem.setStatus(state, order, 'ready_for_repair');
+    } else {
+      OrderSystem.setStatus(state, order, 'waiting_for_parts');
+      const missing = order.partsNeeded
+        .filter((n) => InventorySystem.available(state.inventory, n.partId) < n.quantity)
+        .map((n) => {
+          const p = ctx.defs.parts.find((x) => x.id === n.partId);
+          return `${n.quantity}× ${p?.name ?? n.partId}`;
+        })
+        .join(', ');
+      notify(ctx, 'warning', `Auftrag ${order.id}: Ersatzteile fehlen (${missing}). Bitte im Lager bestellen.`);
+    }
+  }
+
+  /** Kalkulations-Aufschlüsselung: Material, Arbeit, Gebühren, Gewinn. */
+  static profitBreakdown(
+    ctx: SimContext,
+    order: RepairOrder,
+  ): {
+    materialCost: number;
+    materialRevenue: number;
+    laborMinutes: number;
+    laborRevenue: number;
+    laborCost: number;
+    fee: number;
+    discount: number;
+    revenue: number;
+    cost: number;
+    profit: number;
+  } {
+    const { state } = ctx;
+    let materialCost = 0;
+    let materialRevenue = 0;
+    for (const n of order.partsNeeded) {
+      const p = ctx.defs.parts.find((x) => x.id === n.partId);
+      if (!p) continue;
+      const buy = EconomySystem.marketBuyCents(state, p);
+      materialCost += buy * n.quantity;
+      materialRevenue += EconomySystem.sellPrice(buy, state.economy.partsMarkupPct) * n.quantity;
+    }
+    const laborMinutes = order.billed
+      ? order.laborMinutesActual
+      : order.jobs.reduce((acc, j) => {
+          const def = repairDef(ctx, j.repairId);
+          return acc + def.baseDurationMinutes * (def.requiredWorkers ?? 1);
+        }, 0);
+    const laborRevenue = Math.round((laborMinutes / 60) * state.economy.hourlyRateCents);
+    const avgSalary =
+      state.workers.length > 0
+        ? state.workers.reduce((a, w) => a + w.salaryCentsPerDay, 0) / state.workers.length
+        : 0;
+    const laborCost = Math.round(laborMinutes * (avgSalary / 600));
+    const fee = DIAGNOSIS_FEE_CENTS;
+    const gross = laborRevenue + materialRevenue + fee;
+    const discount = order.billed
+      ? Math.max(0, gross - (order.invoiceCents ?? gross))
+      : Math.round((gross * order.discountPct) / 100);
+    const revenue = order.billed ? order.invoiceCents ?? 0 : gross - discount;
+    const cost = materialCost + laborCost;
+    return {
+      materialCost,
+      materialRevenue,
+      laborMinutes,
+      laborRevenue,
+      laborCost,
+      fee,
+      discount,
+      revenue,
+      cost,
+      profit: revenue - cost,
+    };
   }
 
   static placeAtRepairStation(ctx: SimContext, order: RepairOrder): void {
@@ -343,7 +417,9 @@ export class OrderSystem {
         if (!worker) return 'Wartet auf Mitarbeiter für die Diagnose.';
         return null;
       case 'waiting_for_approval':
-        return 'Kunde prüft den Kostenvoranschlag.';
+        return order.offerAtRisk
+          ? 'Kunde droht abzulehnen – im Fahrzeug-Detail Rabatt anbieten oder Preis bestehen.'
+          : 'Kunde prüft den Kostenvoranschlag.';
       case 'waiting_for_parts': {
         const missing = order.partsNeeded.filter(
           (n) => InventorySystem.available(state.inventory, n.partId) < n.quantity,
@@ -437,6 +513,10 @@ export class OrderSystem {
     if (!booked) return;
     order.invoiceCents = invoice;
     order.billed = true;
+    for (const j of order.jobs) {
+      state.statistics.repairsByType[j.repairId] =
+        (state.statistics.repairsByType[j.repairId] ?? 0) + 1;
+    }
     order.qualityScore = Math.max(
       0.2,
       Math.min(1, 0.6 + qcSkill / 250 - order.qualityIssues * 0.15),

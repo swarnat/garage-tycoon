@@ -348,7 +348,10 @@ describe('Vertikaler Gameplay-Durchlauf (Definition of Done)', () => {
     const offer = game.generateOffer()!;
     offer.budgetCents = 1; // unerfüllbar
     game.acceptOrder(offer.id);
-    for (let i = 0; i < 100 && offer.status !== 'cancelled'; i++) game.tick(15);
+    for (let i = 0; i < 100 && !offer.offerAtRisk; i++) game.tick(15);
+    expect(offer.offerAtRisk).toBe(true);
+    expect(offer.status).toBe('waiting_for_approval');
+    game.insistPrice(offer.id);
     expect(offer.status).toBe('cancelled');
     expect(offer.billed).toBe(false);
   });

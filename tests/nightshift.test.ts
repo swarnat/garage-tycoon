@@ -2,37 +2,37 @@ import { describe, expect, it } from 'vitest';
 import { Game } from '../src/core/Game';
 
 describe('Nacht-Skip bei 8×', () => {
-  it('überspringt die Nacht bis 08:00 und verarbeitet Ereignisse', () => {
+  it('nachts wird auf 8x geschaltet und Ereignisse werden verarbeitet', () => {
     const game = Game.new(401);
     game.state.totalMinutes = 18 * 60; // 18:00, Feierabend
-    game.setSpeed(8);
-    // Lieferung trifft nachts ein
+    game.setSpeed(2);
     game.orderParts('battery', 1, 'teileprofi'); // +480 min → 02:00 nachts
     const stockBefore = game.state.inventory.stock['battery'] ?? 0;
     game.tick(1);
-    const m = game.state.totalMinutes % 1440;
-    expect(m).toBeGreaterThanOrEqual(480);
-    expect(m).toBeLessThan(482);
-    expect(Math.floor(game.state.totalMinutes / 1440)).toBe(1); // Tag 2
+    expect(game.state.speed).toBe(8);
+    game.tick(840); // bis 08:00 nächsten Tages
+    expect(Math.floor(game.state.totalMinutes / 1440)).toBe(1);
     expect(game.state.inventory.stock['battery']).toBe(stockBefore + 1);
-    // Tagesabschluss wurde verbucht (Gehälter + Fixkosten)
     expect(game.state.economy.transactions.some((t) => t.id === 'fixed-d1')).toBe(true);
+    expect(game.state.speed).toBe(1); // Arbeitsbeginn
   });
 
-  it('überspringt auch die Abendstunden ab 18:00', () => {
+  it('schaltet auch abends um 22:00 auf 8x', () => {
     const game = Game.new(402);
     game.state.totalMinutes = 22 * 60;
-    game.setSpeed(8);
+    game.setSpeed(2);
     game.tick(1);
-    expect(game.state.totalMinutes % 1440).toBeGreaterThanOrEqual(480);
+    expect(game.state.speed).toBe(8);
   });
 
-  it('bei 4× wird die Nacht nicht übersprungen', () => {
+  it('tagsüber bleibt die gewählte Geschwindigkeit erhalten', () => {
     const game = Game.new(403);
-    game.state.totalMinutes = 18 * 60;
+    game.state.totalMinutes = 10 * 60;
+    game.state.nextOrderAttemptAtMinute = 99999; // keine Angebote
     game.setSpeed(4);
     game.tick(60);
-    expect(game.state.totalMinutes % 1440).toBe(19 * 60);
+    expect(game.state.totalMinutes % 1440).toBe(11 * 60);
+    expect(game.state.speed).toBe(4);
   });
 
   it('bei Pause wird nicht übersprungen', () => {
@@ -111,7 +111,7 @@ describe('Individuelle Geschwindigkeit', () => {
     game.state.economy.balanceCents = 100_000_000;
     game.hireCandidate(game.state.candidates[0]!.id);
     const hired = game.state.workers[2]!;
-    expect(hired.speedTilesPerMinute).toBeGreaterThanOrEqual(0.25);
-    expect(hired.speedTilesPerMinute).toBeLessThanOrEqual(0.5);
+    expect(hired.speedTilesPerMinute).toBeGreaterThanOrEqual(0.2);
+    expect(hired.speedTilesPerMinute).toBeLessThanOrEqual(0.6);
   });
 });

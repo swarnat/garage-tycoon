@@ -37,6 +37,11 @@ Du führst eine Kfz-Werkstatt: Aufträge annehmen, Mitarbeiter diagnostizieren u
 - **Komplexe Defekte**: Folgeschäden (z. B. Wasserpumpe → Thermostat)
 - **Statistik-Panel**: Reparaturen nach Typ, Mitarbeiter-Ranking, Qualität, Kostenstruktur
 - **Stammkunden**: zufriedene Kunden (≥ 80) kommen mit 25 % Wahrscheinlichkeit wieder
+- **Angebotsnachfrage**: droht ein Kunde abzulehnen, fragt das Spiel nach (Kundenhistorie, Rabatt 5/10/15 % oder Preis bestehen, 4-h-Frist)
+- **Kalkulations-Ansicht**: Materialpositionen mit EK/VK, Arbeitszeit mit Lohnkosten, Diagnosepauschale, Rabatt und Gewinn je Auftrag
+- **Tempo-Automatik**: nachts 8×, bei Auftragseingang und um 08:00 automatisch 1×
+- **Laufgeschwindigkeit** als deutliches Mitarbeiter-Attribut (0.20–0.60, Kandidaten bringen eigenes Tempo mit)
+- **Diagnose-Vorbereitung**: der beste Diagnostiker wartet an der Diagnose, wenn ein Fahrzeug auf Anfahrt ist
 - Finanzsystem in Cent-Beträgen mit Doppelbuchungsschutz, Gehältern, Fixkosten, Dashboard mit Tagesübersicht
 - Reputation, Kundenzufriedenheit, Terminplanung
 - Ausbau: dritte Hebebühne, zweiter Diagnoseplatz, Lagererweiterung

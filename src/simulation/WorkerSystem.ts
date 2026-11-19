@@ -85,10 +85,38 @@ export class WorkerSystem {
       if (w.task) {
         WorkerSystem.progressTask(ctx, w, dt, onDuty);
       } else if (onDuty) {
-        WorkerSystem.goToBreak(ctx, w, dt);
+        if (!WorkerSystem.waitForArrivingDiagnosis(ctx, w, dt)) {
+          WorkerSystem.goToBreak(ctx, w, dt);
+        }
       }
     }
     WorkerSystem.schedule(ctx);
+  }
+
+  /** Fährt ein Fahrzeug zur Diagnose an, wartet der beste Diagnose-Mitarbeiter
+   *  bereits an der Diagnose, statt in die Pause zu gehen. */
+  private static waitForArrivingDiagnosis(ctx: SimContext, w: Worker, dt: number): boolean {
+    const { state } = ctx;
+    const arriving = state.orders.find((o) => {
+      if (o.status !== 'accepted' || !o.stationId) return false;
+      const v = vehicleById(state, o.vehicleId);
+      if (v.state !== 'driving_in') return false;
+      return stationById(state, o.stationId).kind === 'diagnosis';
+    });
+    if (!arriving) return false;
+    const free = state.workers.filter(
+      (x) => !x.task && x.trainingMinutes <= 0 && x.state !== 'off_duty',
+    );
+    const best = [...free].sort((a, b) => b.skills.diagnosis - a.skills.diagnosis)[0];
+    if (!best || best.id !== w.id) return false;
+    const station = stationById(state, arriving.stationId!);
+    const d = Math.hypot(w.pos.x - station.interact.x, w.pos.y - station.interact.y);
+    if (d > 0.4) {
+      if (w.path.length === 0) w.path = findPath(ctx.map, w.pos, station.interact) ?? [];
+      moveAlongPath(w.pos, w.path, w.speedTilesPerMinute * dt);
+    }
+    w.state = 'waiting';
+    return true;
   }
 
   /** Untätige Mitarbeiter sammeln sich im Pausenraum (mit persönlichem Platz). */
@@ -215,10 +243,6 @@ export class WorkerSystem {
       if (job.stepRemainingMinutes <= 0) {
         const allDone = RepairSystem.advanceStep(ctx, order, w);
         if (allDone) {
-          for (const j of order.jobs) {
-            state.statistics.repairsByType[j.repairId] =
-              (state.statistics.repairsByType[j.repairId] ?? 0) + 1;
-          }
           OrderSystem.setStatus(state, order, 'quality_check');
           order.qcRemainingMinutes = QC_BASE_MINUTES;
           ctx.bus.emit('repair:completed', order.id);

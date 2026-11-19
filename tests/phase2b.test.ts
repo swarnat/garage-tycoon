@@ -31,7 +31,7 @@ describe('Erweiterte Diagnosen', () => {
     const { offer, worker } = bringToDiagnosing(game);
     worker.skills.diagnosis = 0;
     game.rng.chance = () => true; // Nachuntersuchung erzwingen
-    game.tick(90); // normale Diagnosezeit (45 * 1.5 = 67.5 min) wäre vorbei
+    game.tick(80); // erste Diagnose (~40 min) durch, Nachuntersuchung (~51 min) läuft noch
     expect(offer.diagnosisExtended).toBe(true);
     expect(offer.status).toBe('diagnosing');
     expect(offer.revealed).toBe(false);
@@ -163,6 +163,7 @@ describe('Stammkunden', () => {
     }
     expect(offer.status).toBe('delivered');
     expect(offer.satisfaction).toBeLessThan(80);
+    for (const o of game.state.orders.filter((x) => x.status === 'incoming')) game.declineOrder(o.id);
     game.rng.chance = () => true;
     const next = game.generateOffer()!;
     expect(next.customerId).not.toBe(offer.customerId);
@@ -178,7 +179,7 @@ describe('Save-Migration v3 → v4', () => {
     for (const c of raw.customers) delete c.lastSatisfaction;
     raw.stations = raw.stations.filter((s: { id: string }) => s.id !== 'diag2');
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(5);
+    expect(migrated.version).toBe(6);
     expect(migrated.orders[0]!.diagnosisExtended).toBe(false);
     expect(migrated.customers[0]!.lastSatisfaction).toBeNull();
     const diag2 = migrated.stations.find((s) => s.id === 'diag2');

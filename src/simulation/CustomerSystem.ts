@@ -197,6 +197,9 @@ export class CustomerSystem {
       diagnosisExtended: false,
       qcRemainingMinutes: 0,
       billed: false,
+      offerAtRisk: false,
+      approvalDeadline: null,
+      discountPct: 0,
       laborMinutesActual: 0,
       expiresAtMinute: state.totalMinutes + 360,
       crewIds: [],
@@ -213,6 +216,11 @@ export class CustomerSystem {
       'info',
       `Neuer Auftrag: ${customer.name} mit ${vehicle.make} ${vehicle.model} – „${complaint}“`,
     );
+    // Auftragseingang: sofort auf 1x schalten, damit der Spieler reagieren kann
+    if (state.speed !== 0 && state.speed !== 1) {
+      state.speed = 1;
+      notify(ctx, 'info', 'Neuer Auftrag eingegangen – Tempo auf 1× gestellt.');
+    }
     return order;
   }
 }

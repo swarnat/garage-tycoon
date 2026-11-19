@@ -48,6 +48,7 @@ export class PersonnelSystem {
         skills,
         salaryCentsPerDay: salary,
         hiringFeeCents: salary * 2,
+        speedTilesPerMinute: Math.round(ctx.rng.range(0.2, 0.6) * 100) / 100,
       });
     }
     return out;
@@ -95,7 +96,7 @@ export class PersonnelSystem {
       task: null,
       shiftStartMinute: 480,
       shiftEndMinute: 1080,
-      speedTilesPerMinute: Math.round(ctx.rng.range(0.28, 0.45) * 100) / 100,
+      speedTilesPerMinute: cand.speedTilesPerMinute,
       workedMinutes: 0,
       onDutyMinutes: 0,
       trainingMinutes: 0,

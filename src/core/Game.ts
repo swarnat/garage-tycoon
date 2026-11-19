@@ -101,14 +101,14 @@ export function createNewGame(seed: number): GameState {
         'Alex Krause',
         { engine: 65, electrical: 45, suspension: 55, brakes: 70, transmission: 40, diagnosis: 60 },
         { x: 4, y: 6 },
-        0.35,
+        0.5,
       ),
       startingWorker(
         'w2',
         'Jonas Weber',
         { engine: 45, electrical: 70, suspension: 60, brakes: 50, transmission: 55, diagnosis: 50 },
         { x: 6, y: 7 },
-        0.32,
+        0.26,
       ),
     ],
     vehicles: [],
@@ -189,34 +189,25 @@ export class Game {
   }
 
   /** Rückt die Simulation in festen Schritten vor (FPS-unabhängig).
-   *  Bei 8× wird die Nacht (18:00–08:00) automatisch übersprungen. */
+   *  Nachts läuft sie automatisch mit 8×, zu Arbeitsbeginn mit 1×. */
   tick(minutes: number): void {
     if (this.state.speed === 0) return;
-    this.acc += minutes;
-    if (this.state.speed === 8) {
-      const m = this.state.totalMinutes % MINUTES_PER_DAY;
-      if (m >= 1080 || m < 480) {
-        const target = m >= 1080 ? MINUTES_PER_DAY + 480 : 480;
-        const jump = target - m;
-        if (jump > 0) {
-          this.acc += jump;
-          notify(this.ctx, 'info', 'Nacht übersprungen (8×): weiter um 08:00 Uhr.');
-        }
-      }
+    // Außerhalb der Arbeitszeit läuft die Simulation automatisch mit 8x
+    const m0 = this.state.totalMinutes % MINUTES_PER_DAY;
+    if ((m0 >= 1080 || m0 < 480) && this.state.speed !== 8) {
+      this.state.speed = 8;
     }
+    this.acc += minutes;
     let guard = 0;
     while (guard++ < 40000) {
-      const m = this.state.totalMinutes % MINUTES_PER_DAY;
-      const night = this.state.speed === 8 && (m >= 1080 || m < 480);
-      // Nachts grobe Schritte: Ereignisse (Lieferungen, Tagesabschluss) bleiben erhalten
-      const step = night ? 60 : SIM_STEP_MINUTES;
-      if (this.acc < step - 1e-9) break;
-      this.step(step);
-      this.acc -= step;
+      if (this.acc < SIM_STEP_MINUTES - 1e-9) break;
+      this.step(SIM_STEP_MINUTES);
+      this.acc -= SIM_STEP_MINUTES;
     }
   }
 
   private step(dt: number): void {
+    const beforeMinute = this.state.totalMinutes % MINUTES_PER_DAY;
     // Uhr mit dem (ggf. extern veränderten) Zustand synchronisieren
     this.clock.totalMinutes = this.state.totalMinutes;
     const newDays = this.clock.advance(dt);
@@ -227,6 +218,15 @@ export class Game {
       PersonnelSystem.dailyReview(this.ctx);
       this.bus.emit('day:started', d);
       notify(this.ctx, 'info', `Tag ${d} beginnt. Gehälter und Fixkosten wurden verbucht.`);
+    }
+    // Tempo-Automatik: außerhalb der Arbeitszeit 8x, zu Beginn (08:00) 1x
+    const afterMinute = this.state.totalMinutes % MINUTES_PER_DAY;
+    if (this.state.speed !== 0) {
+      if (afterMinute >= 1080 || afterMinute < 480) {
+        if (this.state.speed !== 8) this.state.speed = 8;
+      } else if (beforeMinute < 480 && afterMinute >= 480) {
+        this.state.speed = 1;
+      }
     }
     const ctx = this.ctx;
     SupplierSystem.update(ctx);
@@ -346,6 +346,28 @@ export class Game {
     this.bus.emit('upgrade:purchased', toolId);
     notify(this.ctx, 'success', `${tool.name} angeschafft – entsprechende Reparaturen sind jetzt möglich.`);
     return true;
+  }
+
+  offerDiscount(orderId: string, pct: number): boolean {
+    const order = this.state.orders.find((o) => o.id === orderId);
+    if (!order || order.status !== 'waiting_for_approval' || !order.offerAtRisk) return false;
+    if (![5, 10, 15].includes(pct)) return false;
+    order.discountPct = pct;
+    const customer = this.state.customers.find((c) => c.id === order.customerId);
+    const effective = Math.round((order.estimateCents ?? 0) * (1 - pct / 100));
+    if (effective <= order.budgetCents) {
+      OrderSystem.approve(this.ctx, order);
+      notify(this.ctx, 'success', `${customer?.name ?? 'Kunde'} nimmt das Angebot mit ${pct} % Rabatt an.`);
+    } else {
+      notify(this.ctx, 'warning', `${customer?.name ?? 'Kunde'} lehnt auch mit ${pct} % Rabatt ab (Budget ${(order.budgetCents / 100).toFixed(2)} €).`);
+    }
+    return true;
+  }
+
+  insistPrice(orderId: string): void {
+    const order = this.state.orders.find((o) => o.id === orderId);
+    if (!order || order.status !== 'waiting_for_approval') return;
+    OrderSystem.cancelOrder(this.ctx, order, 'Preis bestanden – Kunde lehnt ab');
   }
 
   takeLoan(amountCents: number): boolean {
