@@ -238,7 +238,7 @@ export class Game {
     const incoming = this.state.orders.filter(
       (o) => o.status === 'incoming',
     ).length;
-    if (incoming >= 4) return null;
+    if (incoming >= 3) return null;
     return CustomerSystem.generateOffer(this.ctx);
   }
 

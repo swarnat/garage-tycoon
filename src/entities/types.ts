@@ -323,7 +323,7 @@ export interface GameDefs {
 
 export const SAVE_VERSION = 1;
 export const MINUTES_PER_DAY = 1440;
-export const GAME_MINUTES_PER_REAL_SECOND = 10;
+export const GAME_MINUTES_PER_REAL_SECOND = 6;
 export const SIM_STEP_MINUTES = 0.25;
 export const DIAGNOSIS_BASE_MINUTES = 45;
 export const DIAGNOSIS_FEE_CENTS = 4900;

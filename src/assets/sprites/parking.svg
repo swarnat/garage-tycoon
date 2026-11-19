@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40" viewBox="0 0 80 40">
+  <defs>
+    <linearGradient id="pbevel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5A616B"/>
+      <stop offset="1" stop-color="#3E444D"/>
+    </linearGradient>
+    <pattern id="pdiamond" width="10" height="10" patternUnits="userSpaceOnUse">
+      <path d="M 2 4 L 5 2 M 7 9 L 10 7" stroke="#5C636E" stroke-width="1.6" stroke-linecap="round" opacity="0.6"/>
+      <path d="M 2 9 L 5 10 M 7 4 L 10 2" stroke="#4A505A" stroke-width="1.2" stroke-linecap="round" opacity="0.6"/>
+    </pattern>
+  </defs>
+  <rect x="1" y="1" width="78" height="38" rx="6" fill="#15181C"/>
+  <rect x="3.5" y="3.5" width="73" height="33" rx="4.5" fill="url(#pbevel)"/>
+  <rect x="7" y="7" width="66" height="26" rx="3" fill="#3A4049"/>
+  <rect x="7" y="7" width="66" height="26" rx="3" fill="url(#pdiamond)"/>
+  <rect x="11" y="10" width="58" height="20" rx="3" fill="none" stroke="#F4F6FA" stroke-width="2.5"/>
+  <!-- P als Pfad (fontunabhängig) -->
+  <path d="M 36 14 L 36 27 M 36 14 L 42.5 14 Q 46.5 14 46.5 17.5 Q 46.5 21 42.5 21 L 36 21" fill="none" stroke="#F4F6FA" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -2,12 +2,45 @@ import {
   Application,
   Container,
   Graphics,
+  Sprite,
   Text,
+  Texture,
   type FederatedPointerEvent,
 } from 'pixi.js';
 import type { Game } from '../core/Game';
 import type { Station, Vehicle, Worker } from '../entities/types';
 import { DIAGNOSIS_BASE_MINUTES, QC_BASE_MINUTES } from '../entities/types';
+import carSvg from '../assets/sprites/car.svg?raw';
+import mechanicSvg from '../assets/sprites/mechanic.svg?raw';
+import mechanicGreenSvg from '../assets/sprites/mechanic_green.svg?raw';
+import liftSvg from '../assets/sprites/lift.svg?raw';
+import diagnosisSvg from '../assets/sprites/diagnosis.svg?raw';
+import storageSvg from '../assets/sprites/storage.svg?raw';
+import receptionSvg from '../assets/sprites/reception.svg?raw';
+import parkingSvg from '../assets/sprites/parking.svg?raw';
+import vendingSvg from '../assets/sprites/vending.svg?raw';
+
+/** Rasterisiert ein SVG bei hoher Auflösung in eine Pixi-Textur. */
+async function svgTexture(svg: string, scale = 3): Promise<Texture> {
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  try {
+    const img = new Image();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('SVG konnte nicht geladen werden'));
+      img.src = url;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(img.width * scale);
+    canvas.height = Math.ceil(img.height * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('2D-Kontext nicht verfügbar');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return Texture.from(canvas);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 export const TILE = 36;
 
@@ -41,6 +74,7 @@ export class Renderer {
   private getGame: () => Game;
   private onSelect: (sel: Selection | null) => void;
   private selection: Selection | null = null;
+  private textures = new Map<string, Texture>();
   private baseScale = 1;
   private dragging = false;
   private dragMoved = 0;
@@ -63,6 +97,20 @@ export class Renderer {
     host.appendChild(this.app.canvas);
     this.app.stage.addChild(this.world);
     this.world.addChild(this.staticLayer, this.vehicleLayer, this.workerLayer, this.fxLayer);
+    const entries: [string, string][] = [
+      ['car', carSvg],
+      ['mechanic', mechanicSvg],
+      ['mechanic_green', mechanicGreenSvg],
+      ['lift', liftSvg],
+      ['diagnosis', diagnosisSvg],
+      ['storage', storageSvg],
+      ['reception', receptionSvg],
+      ['parking', parkingSvg],
+      ['vending', vendingSvg],
+    ];
+    for (const [name, svg] of entries) {
+      this.textures.set(name, await svgTexture(svg));
+    }
     this.rebuildStatic();
     this.fitCamera();
     this.bindInput();
@@ -110,6 +158,7 @@ export class Renderer {
   private label(text: string, x: number, y: number, size = 10, color = 0x9aa3b2): Text {
     const t = new Text({
       text,
+      resolution: 3,
       style: { fontFamily: 'system-ui, sans-serif', fontSize: size, fill: color, fontWeight: '600' },
     });
     t.anchor.set(0.5, 0);
@@ -120,81 +169,54 @@ export class Renderer {
 
   private drawStation(s: Station): Container {
     const c = new Container();
-    const g = new Graphics();
     const { x, y, w, h } = s.rect;
     const px = x * TILE;
     const py = y * TILE;
     const pw = w * TILE;
     const ph = h * TILE;
+    if (s.kind === 'lift' && !s.unlocked) {
+      const g = new Graphics();
+      g.rect(px + 3, py + 3, pw - 6, ph - 6).fill({ color: 0x1b1e24, alpha: 0.5 });
+      g.rect(px + 3, py + 3, pw - 6, ph - 6).stroke({ width: 2, color: 0x3a3f4a, alpha: 0.8 });
+      c.addChild(g);
+      c.addChild(this.label('BÜHNE 3', px + pw / 2, py + ph / 2 - 14, 10, 0x5a6170));
+      c.addChild(this.label('(Ausbau)', px + pw / 2, py + ph / 2 + 2, 9, 0x5a6170));
+      return c;
+    }
+    const spriteKeys: Partial<Record<Station['kind'], string>> = {
+      lift: 'lift',
+      diagnosis: 'diagnosis',
+      storage: 'storage',
+      office: 'reception',
+      break_room: 'vending',
+      parking: 'parking',
+    };
+    const key = spriteKeys[s.kind];
+    const tex = key ? this.textures.get(key) : undefined;
+    if (tex) {
+      const sp = new Sprite(tex);
+      sp.x = px;
+      sp.y = py;
+      sp.width = pw;
+      sp.height = ph;
+      c.addChild(sp);
+    }
     switch (s.kind) {
-      case 'lift': {
-        if (!s.unlocked) {
-          g.rect(px + 3, py + 3, pw - 6, ph - 6).fill({ color: 0x1b1e24, alpha: 0.5 });
-          g.rect(px + 3, py + 3, pw - 6, ph - 6).stroke({ width: 2, color: 0x3a3f4a, alpha: 0.8 });
-          c.addChild(g);
-          c.addChild(this.label('BÜHNE 3', px + pw / 2, py + ph / 2 - 14, 10, 0x5a6170));
-          c.addChild(this.label('(Ausbau)', px + pw / 2, py + ph / 2 + 2, 9, 0x5a6170));
-          break;
-        }
-        g.rect(px + 2, py + 2, pw - 4, ph - 4).fill(0x2e3340);
-        g.rect(px + 2, py + 2, pw - 4, ph - 4).stroke({ width: 2, color: 0xf5a623 });
-        // Hebebühnen-Schienen
-        g.rect(px + 8, py + ph / 2 - 3, pw - 16, 6).fill(0xf5a623);
-        g.rect(px + 6, py + 6, 8, ph - 12).fill(0x4a5160);
-        g.rect(px + pw - 14, py + 6, 8, ph - 12).fill(0x4a5160);
-        c.addChild(g);
+      case 'lift':
         c.addChild(this.label(s.id === 'lift1' ? 'BÜHNE 1' : s.id === 'lift2' ? 'BÜHNE 2' : 'BÜHNE 3', px + pw / 2, py + ph + 2, 9, 0xd9a441));
         break;
-      }
-      case 'diagnosis': {
-        g.rect(px + 2, py + 2, pw - 4, ph - 4).fill(0x25303f);
-        g.rect(px + 2, py + 2, pw - 4, ph - 4).stroke({ width: 2, color: 0x4fc3f7 });
-        // Diagnose-Monitor
-        g.rect(px + pw - 22, py + 6, 16, 12).fill(0x0e1420);
-        g.rect(px + pw - 22, py + 6, 16, 12).stroke({ width: 1, color: 0x4fc3f7 });
-        g.rect(px + pw - 19, py + 9, 10, 2).fill(0x6fdc8c);
-        g.rect(px + pw - 19, py + 13, 6, 2).fill(0x4fc3f7);
-        c.addChild(g);
+      case 'diagnosis':
         c.addChild(this.label('DIAGNOSE', px + pw / 2, py + ph + 2, 9, 0x4fc3f7));
         break;
-      }
-      case 'storage': {
-        g.rect(px + 2, py + 2, pw - 4, ph - 4).fill(0x33291d);
-        for (let i = 0; i < 3; i++) {
-          const sy = py + 6 + i * (ph - 12) / 3;
-          g.rect(px + 6, sy, pw - 12, (ph - 12) / 3 - 4).fill(0x4d3b26);
-          g.rect(px + 6, sy, pw - 12, (ph - 12) / 3 - 4).stroke({ width: 1, color: 0x6b5436 });
-          for (let b = 0; b < 4; b++) {
-            g.rect(px + 10 + b * (pw - 24) / 4, sy + 3, (pw - 24) / 4 - 6, (ph - 12) / 3 - 10).fill(0x8a6d45);
-          }
-        }
-        c.addChild(g);
+      case 'storage':
         c.addChild(this.label('ERSATZTEILLAGER', px + pw / 2, py + ph + 2, 9, 0xc98a4b));
         break;
-      }
-      case 'office': {
-        g.rect(px + 2, py + 2, pw - 4, ph - 4).fill(0x2a2f3a);
-        g.rect(px + 10, py + 10, pw - 60, ph - 24).fill(0x556074);
-        g.rect(px + 14, py + 14, 20, 12).fill(0x0e1420);
-        g.circle(px + pw - 24, py + ph / 2, 8).fill(0x556074);
-        c.addChild(g);
+      case 'office':
         c.addChild(this.label('BÜRO & ANNAHME', px + pw / 2, py + ph + 2, 9));
         break;
-      }
-      case 'break_room': {
-        g.rect(px + 2, py + 2, pw - 4, ph - 4).fill(0x26302a);
-        g.roundRect(px + 8, py + 8, pw - 40, ph - 16, 5).fill(0x3f5a48);
-        g.circle(px + pw - 18, py + ph / 2, 9).fill(0x556074);
-        c.addChild(g);
+      case 'break_room':
         c.addChild(this.label('PAUSENRAUM', px + pw / 2, py + ph + 2, 9));
         break;
-      }
-      case 'parking': {
-        g.rect(px + 2, py + 2, pw - 4, ph - 4).stroke({ width: 2, color: 0x4a5160, alpha: 0.9 });
-        c.addChild(g);
-        c.addChild(this.label('P', px + pw / 2, py + 8, 12, 0x5a6170));
-        break;
-      }
       default:
         break;
     }
@@ -284,44 +306,41 @@ export class Renderer {
 
   private drawVehicle(v: Vehicle): Container {
     const c = new Container();
-    const g = new Graphics();
-    const w = 2 * TILE - 8;
-    const h = TILE - 12;
-    g.ellipse(w / 2 + 2, h / 2 + 6, w / 2, h / 2).fill({ color: 0x000000, alpha: 0.3 });
-    g.roundRect(2, 4, w, h, 7).fill(v.color);
-    g.roundRect(2, 4, w, h, 7).stroke({ width: 1.5, color: 0x0e1116, alpha: 0.6 });
-    // Fenster
-    g.roundRect(w * 0.32, 7, w * 0.36, h - 6, 3).fill(0x1c2530);
-    // Räder
-    g.rect(8, 1, 10, 4).fill(0x14161a);
-    g.rect(w - 18, 1, 10, 4).fill(0x14161a);
-    g.rect(8, h + 3, 10, 4).fill(0x14161a);
-    g.rect(w - 18, h + 3, 10, 4).fill(0x14161a);
-    // Scheinwerfer
-    g.rect(w - 1, 8, 3, 4).fill(0xffe9a8);
-    g.rect(w - 1, h - 4, 3, 4).fill(0xffe9a8);
-    c.addChild(g);
+    const shadow = new Graphics();
+    shadow.ellipse(0, 5, 30, 12).fill({ color: 0x000000, alpha: 0.28 });
+    c.addChild(shadow);
+    const tex = this.textures.get('car');
+    if (tex) {
+      const sp = new Sprite(tex);
+      sp.anchor.set(0.5);
+      sp.rotation = Math.PI / 2; // Front zeigt nach rechts (Fahrtrichtung)
+      sp.scale.set((2 * TILE - 10) / 240);
+      sp.tint = v.color;
+      c.addChild(sp);
+    }
     return c;
   }
 
   private drawWorker(w: Worker): Container {
     const c = new Container();
-    const g = new Graphics();
-    g.ellipse(0, 10, 9, 4).fill({ color: 0x000000, alpha: 0.3 });
-    g.circle(0, 0, 9).fill(0x2f3b52);
-    g.circle(0, -1, 6).fill(0xe8b98a);
-    g.circle(0, -4, 5).fill(0x3d2f23);
-    c.addChild(g);
+    const tex = this.textures.get(w.id === 'w2' ? 'mechanic_green' : 'mechanic');
+    if (tex) {
+      const sp = new Sprite(tex);
+      sp.anchor.set(0.5, 1);
+      sp.scale.set(30 / 140);
+      sp.y = 11;
+      c.addChild(sp);
+    }
     const ring = new Graphics();
-    ring.circle(0, 0, 11).stroke({ width: 2, color: 0xffffff });
     ring.name = 'ring';
     c.addChild(ring);
     const name = new Text({
       text: w.name.split(' ')[0] ?? w.name,
+      resolution: 3,
       style: { fontFamily: 'system-ui, sans-serif', fontSize: 10, fill: 0xdfe5ee, fontWeight: '600' },
     });
     name.anchor.set(0.5, 0);
-    name.y = 13;
+    name.y = 14;
     c.addChild(name);
     return c;
   }
@@ -342,8 +361,8 @@ export class Renderer {
         this.vehicleSprites.set(v.id, sprite);
         this.vehicleLayer.addChild(sprite);
       }
-      sprite.x = v.pos.x * TILE + 4;
-      sprite.y = v.pos.y * TILE + 6;
+      sprite.x = (v.pos.x + 1) * TILE;
+      sprite.y = (v.pos.y + 0.5) * TILE;
       const sel = this.selection?.kind === 'vehicle' && this.selection.id === v.id;
       sprite.alpha = 1;
       sprite.scale.set(sel ? 1.04 : 1);
@@ -373,9 +392,9 @@ export class Renderer {
       if (ring) {
         ring.clear();
         const color = STATE_COLORS[w.state] ?? 0x7d8aa0;
-        ring.circle(0, 0, 11).stroke({ width: 2, color, alpha: 0.95 });
+        ring.circle(0, -3, 13).stroke({ width: 2, color, alpha: 0.95 });
         const sel = this.selection?.kind === 'worker' && this.selection.id === w.id;
-        if (sel) ring.circle(0, 0, 15).stroke({ width: 2, color: 0xf5a623 });
+        if (sel) ring.circle(0, -3, 17).stroke({ width: 2, color: 0xf5a623 });
       }
     }
     for (const [id, sprite] of this.workerSprites) {

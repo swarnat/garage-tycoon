@@ -39,6 +39,7 @@ Strikte Trennung von Simulation und Rendering:
 - `src/simulation/` – Aufträge, Mitarbeiter, Reparaturen, Diagnose, Lager, Lieferanten, Kunden, Wirtschaft
 - `src/world/` – Tile-Grid, A*-Wegfindung, Arbeitsplätze
 - `src/rendering/` – PixiJS-Renderer (zeigt nur den Zustand, keine Spiellogik)
+- `src/assets/sprites/` – handgezeichnete SVG-Sprites (Mechaniker, Fahrzeug, Hebebühne, Diagnosepad, Lager, Tresen, Parkplatz, Automat) im Cartoon-Stil der Vorlagen
 - `src/ui/` – DOM-Panels (Aufträge, Mitarbeiter, Lager, Finanzen, Ausbau, Einstellungen)
 - `src/persistence/` – localStorage-Adapter, Savegame-Validierung und -Migration
 - `src/data/` – JSON-Definitionen (Fahrzeuge, Teile, Reparaturen, Lieferanten)

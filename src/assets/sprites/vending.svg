@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80">
+  <ellipse cx="36" cy="76" rx="30" ry="4" fill="#000000" opacity="0.25"/>
+  <ellipse cx="94" cy="70" rx="18" ry="4" fill="#000000" opacity="0.25"/>
+  <g stroke="#1A1D24" stroke-width="4" stroke-linejoin="round">
+    <!-- Automat -->
+    <rect x="8" y="3" width="56" height="72" rx="7" fill="#69A825"/>
+    <!-- Kopfmodul -->
+    <rect x="12" y="7" width="48" height="12" rx="3" fill="#4B505C"/>
+    <g fill="#23262E" stroke="none"><rect x="22" y="10" width="28" height="2" rx="1"/><rect x="22" y="13.5" width="28" height="2" rx="1"/></g>
+    <g fill="#6B7080" stroke="#1A1D24" stroke-width="1.2"><circle cx="16" cy="13" r="1.8"/><circle cx="56" cy="13" r="1.8"/></g>
+    <!-- Banner -->
+    <rect x="12" y="21" width="48" height="10" rx="3" fill="#5A9E1F"/>
+    <path d="M 14 23 L 58 23 M 14 29 L 58 29" stroke="#A4D44E" stroke-width="1.2"/>
+    <!-- Tasse -->
+    <g stroke="#1A1D24" stroke-width="1.5">
+      <path d="M 32 24 L 40 24 L 39 29 L 33 29 Z" fill="#FDF6E3"/>
+      <path d="M 40 25 Q 43 25 42 27 Q 41.5 28 40 28" fill="none" stroke="#FDF6E3" stroke-width="1.5"/>
+    </g>
+    <path d="M 34.5 22 Q 35 21 34.5 20 M 37.5 22 Q 38 21 37.5 20" stroke="#FDF6E3" stroke-width="1.2" fill="none"/>
+    <!-- Glasfenster -->
+    <rect x="12" y="34" width="34" height="30" rx="3" fill="#5D7D9C" stroke="#8FA6BD" stroke-width="2.5"/>
+    <path d="M 13 44 L 45 44 M 13 54 L 45 54" stroke="#8FA6BD" stroke-width="2"/>
+    <!-- Produkte -->
+    <g stroke="#1A1D24" stroke-width="1.2">
+      <path d="M 16 37 L 21 37 L 20 43 L 17 43 Z" fill="#E84545"/>
+      <path d="M 24 37 L 29 37 L 28 43 L 25 43 Z" fill="#F5A623"/>
+      <path d="M 32 37 L 37 37 L 36 43 L 33 43 Z" fill="#2F9FE0"/>
+      <rect x="16" y="47" width="9" height="5" rx="2" fill="#8A5A3A"/>
+      <rect x="28" y="47" width="9" height="5" rx="2" fill="#F5A623"/>
+      <circle cx="41" cy="49.5" r="3" fill="#C98A4B"/>
+      <rect x="15" y="57" width="6" height="6" rx="1.5" fill="#E84545"/>
+      <rect x="23" y="57" width="6" height="6" rx="1.5" fill="#2F9FE0"/>
+      <rect x="31" y="57" width="6" height="6" rx="1.5" fill="#2FAF6A"/>
+      <rect x="39" y="57" width="6" height="6" rx="1.5" fill="#8ED44A"/>
+    </g>
+    <path d="M 14 36 L 22 36 L 16 62 L 13 62 Z" fill="#FFFFFF" opacity="0.22" stroke="none"/>
+    <!-- Bediensäule -->
+    <rect x="48" y="34" width="12" height="30" rx="2" fill="#363B46"/>
+    <rect x="50" y="36" width="8" height="5" rx="1" fill="#90EE60" stroke="#1A1D24" stroke-width="1.2"/>
+    <g fill="#9AA0AC" stroke="none"><rect x="50" y="44" width="3" height="3"/><rect x="55" y="44" width="3" height="3"/><rect x="50" y="49" width="3" height="3"/><rect x="55" y="49" width="3" height="3"/><rect x="50" y="54" width="3" height="3"/><rect x="55" y="54" width="3" height="3"/></g>
+    <rect x="50" y="59" width="8" height="3" rx="1" fill="#23262E" stroke="none"/>
+    <!-- Ausgabeklappe -->
+    <rect x="14" y="66" width="30" height="7" rx="2" fill="#23262E" stroke="#4B505C" stroke-width="2"/>
+    <!-- Füße -->
+    <rect x="12" y="74" width="8" height="4" rx="1.5" fill="#363B46"/>
+    <rect x="52" y="74" width="8" height="4" rx="1.5" fill="#363B46"/>
+    <!-- Hocker -->
+    <g>
+      <rect x="86" y="56" width="4" height="14" rx="2" fill="#B8BCC4" transform="rotate(-14 88 63)"/>
+      <rect x="98" y="56" width="4" height="14" rx="2" fill="#B8BCC4" transform="rotate(14 100 63)"/>
+      <circle cx="94" cy="52" r="14" fill="#7CC22A"/>
+      <circle cx="94" cy="52" r="9" fill="none" stroke="#5A9E1F" stroke-width="3"/>
+      <path d="M 85 46 Q 94 40 103 46" stroke="#A4D44E" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>

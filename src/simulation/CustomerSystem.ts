@@ -52,8 +52,8 @@ export class CustomerSystem {
         o.status !== 'delivered' &&
         o.status !== 'cancelled',
     ).length;
-    if (incoming >= 4 || active >= 8) return;
-    const chance = 0.35 + state.reputation / 200;
+    if (incoming >= 3 || active >= 8) return;
+    const chance = 0.16 + state.reputation / 400;
     if (ctx.rng.chance(chance)) {
       CustomerSystem.generateOffer(ctx);
     }
@@ -175,7 +175,7 @@ export class CustomerSystem {
       qcRemainingMinutes: 0,
       billed: false,
       laborMinutesActual: 0,
-      expiresAtMinute: state.totalMinutes + 180,
+      expiresAtMinute: state.totalMinutes + 360,
       statusLog: [{ atMinute: state.totalMinutes, status: 'incoming' }],
     };
     vehicle.orderId = order.id;

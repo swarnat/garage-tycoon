@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80">
+  <defs>
+    <pattern id="dpad" width="14" height="14" patternUnits="userSpaceOnUse">
+      <path d="M 3 5 L 7 3 M 10 12 L 14 10" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <path d="M 3 12 L 7 14 M 10 5 L 14 3" stroke="#3B4759" stroke-width="1.5" stroke-linecap="round"/>
+    </pattern>
+  </defs>
+  <rect x="3" y="3" width="114" height="74" rx="12" fill="#334155" stroke="#22D3EE" stroke-width="5"/>
+  <rect x="8" y="8" width="104" height="64" rx="8" fill="url(#dpad)" stroke="#1E293B" stroke-width="2.5"/>
+  <!-- Markierungslinien -->
+  <path d="M 14 20 L 14 14 L 22 14 M 14 60 L 14 66 L 22 66" stroke="#22D3EE" stroke-width="2.5" fill="none" opacity="0.7" stroke-linecap="round"/>
+  <!-- Terminal -->
+  <g>
+    <rect x="70" y="12" width="40" height="36" rx="5" fill="#94A3B8" stroke="#1A1D24" stroke-width="3"/>
+    <path d="M 72 14 L 108 14" stroke="#CBD5E1" stroke-width="1.5"/>
+    <g fill="#475569" stroke="#1A1D24" stroke-width="1">
+      <circle cx="74.5" cy="16.5" r="2"/><circle cx="105.5" cy="16.5" r="2"/>
+      <circle cx="74.5" cy="43.5" r="2"/><circle cx="105.5" cy="43.5" r="2"/>
+    </g>
+    <rect x="76" y="19" width="28" height="23" rx="2" fill="#0F172A" stroke="#1E293B" stroke-width="1.5"/>
+    <!-- EKG -->
+    <path d="M 78 26 L 83 26 L 85 22 L 88 31 L 90 24 L 92 26 L 102 26" stroke="#22D3EE" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+    <rect x="78" y="33" width="16" height="2.5" rx="1" fill="#22D3EE"/>
+    <rect x="78" y="37" width="11" height="2.5" rx="1" fill="#4ADE80"/>
+  </g>
+  <!-- Statusleuchte -->
+  <circle cx="24" cy="56" r="4" fill="#4ADE80" stroke="#1A1D24" stroke-width="2"/>
+</svg>
