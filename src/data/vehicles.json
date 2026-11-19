@@ -1,0 +1,12 @@
+[
+  { "id": "opel_corsa", "make": "Opel", "model": "Corsa", "vehicleClass": "kleinwagen", "years": [2008, 2022], "colors": [13938487, 15658734, 2263842] },
+  { "id": "toyota_yaris", "make": "Toyota", "model": "Yaris", "vehicleClass": "kleinwagen", "years": [2006, 2021], "colors": [15132390, 11579568, 4473924] },
+  { "id": "renault_clio", "make": "Renault", "model": "Clio", "vehicleClass": "kleinwagen", "years": [2007, 2022], "colors": [15921906, 5197647, 14474460] },
+  { "id": "vw_golf", "make": "VW", "model": "Golf", "vehicleClass": "kompakt", "years": [2005, 2023], "colors": [2894892, 13421772, 16777215, 11158588] },
+  { "id": "ford_focus", "make": "Ford", "model": "Focus", "vehicleClass": "kompakt", "years": [2006, 2022], "colors": [3359057, 14540253, 2171169] },
+  { "id": "skoda_octavia", "make": "Skoda", "model": "Octavia", "vehicleClass": "kompakt", "years": [2008, 2023], "colors": [7895160, 15790320, 2003199] },
+  { "id": "audi_a4", "make": "Audi", "model": "A4", "vehicleClass": "mittelklasse", "years": [2005, 2022], "colors": [1907997, 12632256, 16777215] },
+  { "id": "bmw_3er", "make": "BMW", "model": "3er", "vehicleClass": "premium", "years": [2004, 2022], "colors": [2039583, 14277081, 1710618] },
+  { "id": "vw_tiguan", "make": "VW", "model": "Tiguan", "vehicleClass": "suv", "years": [2009, 2023], "colors": [4013373, 15132390, 2500134] },
+  { "id": "ford_transit", "make": "Ford", "model": "Transit", "vehicleClass": "transporter", "years": [2007, 2023], "colors": [16777215, 13816530, 3754843] }
+]

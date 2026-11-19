@@ -1,0 +1,7 @@
+node_modules/
+dist/
+dist-single/
+garage-tycoon.html
+garage-tycoon-src.zip
+*.log
+.DS_Store

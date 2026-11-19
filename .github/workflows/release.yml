@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - '[0-9]*.[0-9]*.[0-9]*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build single-file HTML
+        run: npm run build:single
+
+      - name: Prepare artifact
+        run: cp dist-single/index.html garage-tycoon.html
+
+      - name: Create release with HTML artifact
+        uses: softprops/action-gh-release@v2
+        with:
+          files: garage-tycoon.html
+          generate_release_notes: true
+          fail_on_unmatched_files: true
