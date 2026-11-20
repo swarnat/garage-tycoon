@@ -22,6 +22,14 @@ const MAX_DAILY = 90;
  * Beträge sind ganzzahlige Cent; doppelte IDs werden abgewiesen.
  */
 export class EconomySystem {
+  static surchargeCents(baseCents: number, surchargePct: number): number {
+    return Math.round(baseCents * surchargePct / 100);
+  }
+
+  static discountedCents(grossCents: number, discountPct: number): number {
+    return Math.round(grossCents * (100 - discountPct) / 100);
+  }
+
   static book(eco: EconomyState, tx: Transaction): boolean {
     if (!Number.isInteger(tx.amountCents)) {
       throw new Error(`Buchung ${tx.id}: Betrag muss ganzzahlige Cent sein`);

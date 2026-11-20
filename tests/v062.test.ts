@@ -1,3 +1,4 @@
+import { SAVE_VERSION } from '../src/entities/types';
 import { describe, expect, it } from 'vitest';
 import { Game } from '../src/core/Game';
 import { TileMap, ROOM_DEFS, MAP_WIDTH } from '../src/world/TileMap';
@@ -146,7 +147,7 @@ describe('Save-Migration v8 → v9', () => {
     const l3 = stations.find((s) => s.id === 'lift3')!;
     l3.rect = { x: 18, y: 9, w: 3, h: 2 };
     const migrated = migrate(raw);
-    expect(migrated.version).toBe(14);
+    expect(migrated.version).toBe(SAVE_VERSION);
     const m3 = (migrated.stations as Array<Record<string, unknown>>).find((s) => s.id === 'lift3')!;
     expect(m3.unlocked).toBe(true);
     expect(m3.rect).toEqual({ x: 18, y: 3, w: 3, h: 2 });

@@ -40,6 +40,18 @@ const WEAR_REPAIRS = new Set([
   'replace_battery',
 ]);
 
+const RELATED_REPAIRS = [
+  ['replace_brake_pads', 'replace_brake_discs', 'replace_brake_caliper', 'replace_brake_fluid'],
+  ['replace_ignition_coil', 'replace_spark_plugs'],
+  ['oil_change', 'replace_air_filter', 'replace_spark_plugs'],
+  ['replace_accessory_belt', 'replace_water_pump', 'replace_thermostat'],
+  ['replace_accessory_belt', 'replace_alternator', 'ac_service'],
+  ['replace_battery', 'replace_alternator', 'replace_starter'],
+  ['replace_shock_absorbers', 'replace_springs', 'replace_control_arm'],
+  ['tire_change', 'rim_replace', 'replace_wheel_bearing'],
+  ['replace_wheel_bearing', 'replace_control_arm'],
+];
+
 /** Kundengenerierung, Auftragsangebote und Budgetentscheidungen. */
 export class CustomerSystem {
   static update(ctx: SimContext): void {
@@ -110,6 +122,22 @@ export class CustomerSystem {
       }
     }
 
+    const wantsRelatedRepair =
+      (type === 'standard' && defectIds.length === 1 && rng.chance(0.25)) ||
+      (type === 'major' && defectIds.length === 2 && rng.chance(0.16));
+    if (wantsRelatedRepair) {
+      // Die definierten Folgeschäden behalten ihre Chancen. Zusätzliche
+      // Folgearbeiten setzen nur Spezialwerkzeug voraus, das schon vorhanden ist.
+      const relatedIds = new Set(RELATED_REPAIRS
+        .filter((group) => group.some((id) => defectIds.includes(id)))
+        .flat());
+      const related = ctx.defs.repairs.filter((def) =>
+        relatedIds.has(def.id) && !defectIds.includes(def.id) &&
+        (def.requiredTools ?? []).every((tool) => state.ownedTools.includes(tool)),
+      );
+      if (related.length > 0) defectIds.push(rng.pick(related).id);
+    }
+
     const firstDef = ctx.defs.repairs.find((r) => r.id === defectIds[0])!;
     const complaint = rng.pick(firstDef.complaints);
     const ml = state.marketingLevel;
@@ -175,19 +203,17 @@ export class CustomerSystem {
         fair += EconomySystem.sellPrice(EconomySystem.marketBuyCents(state, part), state.economy.partsMarkupPct) * p.quantity;
       }
     }
+    const urgencySurchargePct = type === 'emergency' ? 15 : 0;
     const budgetCents = Math.round(
-      fair * PROFILE_FACTORS[profile] * rng.range(0.95, 1.3),
+      (fair + EconomySystem.surchargeCents(fair, urgencySurchargePct)) * PROFILE_FACTORS[profile] * rng.range(0.95, 1.3),
     );
-    // Termine: große Arbeiten (>= 240 min) 1-2 Tage; Kleines vor 11 Uhr noch
-    // am selben Tag (18:00), danach immer am Folgetag (12:00)
+    // Große Arbeiten bekommen mehr Zeit. Alle Termine liegen bei Feierabend.
     const laborMinutes = defectIds.reduce((acc, id) => {
       const d = ctx.defs.repairs.find((r) => r.id === id);
       return acc + (d ? d.baseDurationMinutes * (d.requiredWorkers ?? 1) : 0);
     }, 0);
     const day = Math.floor(state.totalMinutes / 1440);
     const minuteOfDay = state.totalMinutes % 1440;
-    // Alle Terminen liegen auf 18:00 (Feierabend) – Überfälligkeit gibt es
-    // erst zum Ende des Arbeitstags, nicht schon mittags.
     let dueAtMinute: number;
     if (laborMinutes >= 240) {
       dueAtMinute = (day + rng.intRange(1, 2)) * 1440 + 1080;
@@ -201,9 +227,13 @@ export class CustomerSystem {
       if (roll < 0.15) dueAtMinute += 2 * 1440;
       else if (roll < 0.5) dueAtMinute += 1440;
     }
-    if (profile === 'time_critical') {
+    if (profile === 'time_critical' && defectIds.length === 1) {
       // Zeitkritisch: knapp, aber ebenfalls zum Feierabend
       dueAtMinute = (minuteOfDay < 1080 ? day : day + 1) * 1440 + 1080;
+    }
+
+    if (defectIds.length > 1) {
+      dueAtMinute = Math.max(dueAtMinute, (day + defectIds.length - 1) * 1440 + 1080);
     }
 
     const order: RepairOrder = {
@@ -218,6 +248,8 @@ export class CustomerSystem {
       createdAtMinute: state.totalMinutes,
       dueAtMinute,
       priority: type === 'emergency' ? 2 : 1,
+      urgencySurchargePct,
+      repairParking: null,
       jobs: [],
       partsNeeded: [],
       partsReserved: false,

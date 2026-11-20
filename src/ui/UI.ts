@@ -24,6 +24,7 @@ export interface UIActions {
   declineOrder(id: string): void;
   cancelOrder(id: string): void;
   togglePriority(id: string): void;
+  parkRepair(id: string): string | null;
   orderParts(partId: string, qty: number, supplierId: string): void;
   setSpeed(n: number): void;
   togglePause(): void;
@@ -200,6 +201,7 @@ export class UI {
   private toolOrderId: string | null = null;
   private approvalOrderId: string | null = null;
   private partsOrderId: string | null = null;
+  private parkingError: { orderId: string; message: string } | null = null;
   private partsSupplierId = 'teileprofi';
   private preModalSpeed = 0;
   private modalMinimized = false;
@@ -462,6 +464,7 @@ export class UI {
   }
 
   setSelection(sel: Selection | null): void {
+    this.parkingError = null;
     this.selection = sel;
     if (sel) this.refresh(true);
   }
@@ -498,6 +501,11 @@ export class UI {
       case 'decline': this.actions.declineOrder(id); break;
       case 'cancel-order': this.actions.cancelOrder(id); break;
       case 'priority': this.actions.togglePriority(id); break;
+      case 'park-repair': {
+        const message = this.actions.parkRepair(id);
+        this.parkingError = message ? { orderId: id, message } : null;
+        break;
+      }
       case 'select-vehicle': this.actions.select({ kind: 'vehicle', id }); break;
       case 'select-worker': this.actions.select({ kind: 'worker', id }); break;
       case 'order-part': {
@@ -570,7 +578,7 @@ export class UI {
         }
         break;
       }
-      case 'close-detail': this.selection = null; this.refresh(true); break;
+      case 'close-detail': this.setSelection(null); this.refresh(true); break;
       case 'save': this.actions.saveNow(); break;
       case 'export': this.actions.exportSave(); break;
       case 'import': this.fileInput.click(); break;
@@ -735,6 +743,7 @@ export class UI {
     for (const o of s.orders) {
       parts.push(
         o.id, o.status, o.priority, o.offerAtRisk ? 1 : 0, o.discountPct,
+        o.repairParking?.phase ?? '', o.repairParking?.phase === 'parked' ? o.repairParking.resumeAtMinute : 0,
         o.crewIds.length, o.jobs.filter((j) => j.done).length,
         Math.floor(o.laborMinutesActual / 5), Math.floor(o.diagnosisRemainingMinutes / 5),
         o.estimateCents ?? 0, o.invoiceCents ?? 0, o.satisfaction ?? -1,
@@ -796,6 +805,7 @@ export class UI {
         }
         t += `<tr><td>Arbeit ${Math.round(b.laborMinutes)} min</td><td class="num">${eur(b.laborCost)}</td><td class="num">${eur(b.laborRevenue)}</td></tr>`;
         t += `<tr><td>Diagnosepauschale</td><td class="num">–</td><td class="num">${eur(b.fee)}</td></tr>`;
+        if (b.surcharge > 0) t += `<tr><td>Dringlichkeitszuschlag (${o.urgencySurchargePct} %)</td><td class="num">–</td><td class="num">${eur(b.surcharge)}</td></tr>`;
         if (b.discount > 0) t += `<tr><td>Rabatt</td><td class="num">–</td><td class="num neg">−${eur(b.discount)}</td></tr>`;
         t += `<tr><td><strong>Summe</strong></td><td class="num"><strong>${eur(b.cost)}</strong></td><td class="num"><strong>${eur(b.revenue)}</strong></td></tr></tbody></table>`;
         t += `<div class="meta">Gewinn: <strong class="${b.profit >= 0 ? 'pos' : 'neg'}">${eur(b.profit)}</strong> (${b.revenue > 0 ? Math.round((b.profit / b.revenue) * 100) : 0} % Marge)</div>`;
@@ -915,7 +925,7 @@ export class UI {
           <div class="card-title">${esc(c.name)} <span class="muted">· ${PROFILE_LABELS[c.profile] ?? ''}</span></div>
           <div class="card-sub">${esc(v.make)} ${esc(v.model)} (${v.year}, ${v.mileageKm.toLocaleString('de-DE')} km)</div>
           <div class="complaint">„${esc(o.complaint)}“</div>
-          <div class="meta">${TYPE_LABELS[o.type] ?? o.type} · ${dueLabel(o, s.totalMinutes)} · Angebot läuft ab in ${expiresIn} h</div>
+          <div class="meta">${TYPE_LABELS[o.type] ?? o.type}${o.urgencySurchargePct > 0 ? ` · ${o.urgencySurchargePct} % Dringlichkeitszuschlag` : ''} · ${dueLabel(o, s.totalMinutes)} · Angebot läuft ab in ${expiresIn} h</div>
           <div class="btn-row">
             <button class="btn primary" data-action="accept" data-id="${o.id}">Annehmen</button>
             <button class="btn" data-action="decline" data-id="${o.id}">Ablehnen</button>
@@ -1512,6 +1522,7 @@ export class UI {
       }
       html += `<tr><td>Arbeit ${Math.round(b.laborMinutes)} min × ${eur(s.economy.hourlyRateCents)}/h</td><td class="num">${eur(b.laborCost)}</td><td class="num">${eur(b.laborRevenue)}</td></tr>`;
       html += `<tr><td>Diagnosepauschale</td><td class="num">–</td><td class="num">${eur(b.fee)}</td></tr>`;
+      if (b.surcharge > 0) html += `<tr><td>Dringlichkeitszuschlag (${o.urgencySurchargePct} %)</td><td class="num">–</td><td class="num">${eur(b.surcharge)}</td></tr>`;
       if (b.discount > 0) html += `<tr><td>Rabatt${o.discountPct > 0 ? ` (${o.discountPct} %)` : ''}</td><td class="num">–</td><td class="num neg">−${eur(b.discount)}</td></tr>`;
       html += `<tr><td><strong>Summe</strong></td><td class="num"><strong>${eur(b.cost)}</strong></td><td class="num"><strong>${eur(b.revenue)}</strong></td></tr>`;
       html += `</tbody></table>
@@ -1551,9 +1562,14 @@ export class UI {
     } else {
       html += `<p class="empty">Defekte unbekannt – Diagnose nach Annahme.</p>`;
     }
+    const canPark = OrderSystem.canParkRepair(o, v);
+    if (canPark && this.parkingError?.orderId === o.id) {
+      html += `<div class="card compact warn-card" role="alert">${esc(this.parkingError.message)}</div>`;
+    }
     const cancellable = o.status !== 'delivered' && o.status !== 'cancelled' && o.status !== 'completed' && o.status !== 'incoming';
     html += `<div class="btn-row">
       <button class="btn" data-action="priority" data-id="${o.id}">Priorität ${o.priority > 1 ? 'normal' : 'hoch'} setzen</button>
+      ${canPark ? `<button class="btn" data-action="park-repair" data-id="${o.id}">Für 2 Stunden parken</button>` : ''}
       ${cancellable ? `<button class="btn danger" data-action="cancel-order" data-id="${o.id}">Auftrag stornieren</button>` : ''}
     </div>`;
     return html;

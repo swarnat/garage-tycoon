@@ -1,3 +1,4 @@
+import { SAVE_VERSION } from '../src/entities/types';
 import { describe, expect, it } from 'vitest';
 import { Game } from '../src/core/Game';
 import { SaveManager, SaveError } from '../src/core/SaveManager';
@@ -109,7 +110,7 @@ describe('Savegame-Migration', () => {
     delete raw.notifications;
     delete raw.nextNotificationId;
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(14);
+    expect(migrated.version).toBe(SAVE_VERSION);
     expect(Array.isArray(migrated.notifications)).toBe(true);
     expect(typeof migrated.nextNotificationId).toBe('number');
   });
@@ -125,7 +126,7 @@ describe('Savegame-Migration', () => {
       }
     }
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(14);
+    expect(migrated.version).toBe(SAVE_VERSION);
     const parks = migrated.stations.filter((s) => s.kind === 'parking');
     expect(parks).toHaveLength(8);
     const park = parks.find((s) => s.id === 'park1')!;

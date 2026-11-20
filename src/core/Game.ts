@@ -356,6 +356,11 @@ export class Game {
     return true;
   }
 
+  parkRepair(orderId: string): string | null {
+    const order = this.state.orders.find((o) => o.id === orderId);
+    return order ? OrderSystem.parkRepair(this.ctx, order) : 'Auftrag nicht gefunden.';
+  }
+
   declineOrder(orderId: string): void {
     const order = this.state.orders.find((o) => o.id === orderId);
     if (!order || order.status !== 'incoming') return;
@@ -429,7 +434,7 @@ export class Game {
     if (![5, 10, 15, 20, 25].includes(pct)) return false;
     order.discountPct = pct;
     const customer = this.state.customers.find((c) => c.id === order.customerId);
-    const effective = Math.round((order.estimateCents ?? 0) * (1 - pct / 100));
+    const effective = EconomySystem.discountedCents(order.estimateCents ?? 0, pct);
     // Kleine Chance, dass der Kunde auch Mehrkosten akzeptiert (Stammkunden eher)
     const extraChance = Math.min(
       0.4,

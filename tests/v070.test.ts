@@ -1,3 +1,4 @@
+import { SAVE_VERSION } from '../src/entities/types';
 import { describe, expect, it } from 'vitest';
 import { Game, createNewGame } from '../src/core/Game';
 import { DEFS } from '../src/data';
@@ -207,7 +208,7 @@ describe('Neues Spiel & Migration mit Varianten', () => {
     delete inv.pinned;
     raw.deliveries = [{ id: 'd1', partId: 'brake_pads__M__standard', quantity: 1, supplierId: 'teileprofi', orderedAtMinute: 0, arriveAtMinute: 480, costCents: 100, done: false }];
     const migrated = migrate(raw);
-    expect(migrated.version).toBe(14);
+    expect(migrated.version).toBe(SAVE_VERSION);
     const mi = migrated.inventory as Record<string, Record<string, unknown>>;
     expect(mi.stock!['brake_pads__M__standard']).toBe(5);
     expect(mi.stock!['motor_oil__5W30__standard']).toBe(2);

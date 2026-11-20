@@ -1,3 +1,4 @@
+import { SAVE_VERSION } from '../src/entities/types';
 import { describe, expect, it } from 'vitest';
 import { Game } from '../src/core/Game';
 import { TileMap } from '../src/world/TileMap';
@@ -256,7 +257,7 @@ describe('Save-Migration v7 → v8', () => {
     );
     delete raw.orderRateFactor;
     const migrated = migrate(raw);
-    expect(migrated.version).toBe(14);
+    expect(migrated.version).toBe(SAVE_VERSION);
     const parks = (migrated.stations as Array<Record<string, unknown>>).filter((s) => s.kind === 'parking');
     expect(parks).toHaveLength(8);
     expect(migrated.orderRateFactor).toBe(1);

@@ -1,3 +1,4 @@
+import { SAVE_VERSION } from '../src/entities/types';
 import { describe, expect, it } from 'vitest';
 import { Game, createNewGame } from '../src/core/Game';
 import { InventorySystem } from '../src/simulation/InventorySystem';
@@ -82,7 +83,7 @@ describe('Save-Migration v9 → v10', () => {
     raw.version = 9;
     delete (raw.inventory as Record<string, unknown>).usageLog;
     const migrated = migrate(raw);
-    expect(migrated.version).toBe(14);
+    expect(migrated.version).toBe(SAVE_VERSION);
     expect((migrated.inventory as Record<string, unknown>).usageLog).toEqual([]);
   });
 });

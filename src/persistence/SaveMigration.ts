@@ -266,6 +266,15 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     version = 14;
     raw.version = version;
   }
+  if (version === 14) {
+    // Bestehende Aufträge behalten die Preisregeln ihres Eingangs.
+    for (const order of (raw.orders ?? []) as Record<string, unknown>[]) {
+      order.urgencySurchargePct = 0;
+      order.repairParking = null;
+    }
+    version = 15;
+    raw.version = version;
+  }
   if (version !== SAVE_VERSION) {
     throw new SaveError(`Keine Migration für Version ${version} verfügbar`);
   }

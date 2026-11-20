@@ -71,6 +71,9 @@ export class OrderSystem {
           if (v.state === 'waiting') OrderSystem.tryDiagnosisPlacement(ctx, order);
           break;
         }
+        case 'repairing':
+          OrderSystem.tryResumeParkedRepair(ctx, order);
+          break;
         case 'completed': {
           const v = vehicleById(state, order.vehicleId);
           if (v.state === 'at_lift' || v.state === 'at_diagnosis') {
@@ -182,7 +185,7 @@ export class OrderSystem {
   static decideApproval(ctx: SimContext, order: RepairOrder): void {
     const { state } = ctx;
     const customer = state.customers.find((c) => c.id === order.customerId);
-    const effective = Math.round((order.estimateCents ?? 0) * (1 - order.discountPct / 100));
+    const effective = EconomySystem.discountedCents(order.estimateCents ?? 0, order.discountPct);
     if (effective <= order.budgetCents) {
       OrderSystem.approve(ctx, order);
       return;
@@ -244,6 +247,7 @@ export class OrderSystem {
     laborRevenue: number;
     laborCost: number;
     fee: number;
+    surcharge: number;
     discount: number;
     revenue: number;
     cost: number;
@@ -272,11 +276,14 @@ export class OrderSystem {
         : 0;
     const laborCost = Math.round(laborMinutes * (avgSalary / 600));
     const fee = DIAGNOSIS_FEE_CENTS;
-    const gross = laborRevenue + materialRevenue + fee;
-    const discount = order.billed
-      ? Math.max(0, gross - (order.invoiceCents ?? gross))
-      : Math.round((gross * order.discountPct) / 100);
-    const revenue = order.billed ? order.invoiceCents ?? 0 : gross - discount;
+    const base = laborRevenue + materialRevenue + fee;
+    const surcharge = EconomySystem.surchargeCents(base, order.urgencySurchargePct);
+    const gross = base + surcharge;
+    const revenue = order.billed
+      ? order.invoiceCents ?? 0
+      : order.acceptedBudgetCents ?? EconomySystem.discountedCents(order.estimateCents ?? gross, order.discountPct);
+    const discountBase = order.billed || order.acceptedBudgetCents !== null ? gross : order.estimateCents ?? gross;
+    const discount = Math.max(0, discountBase - revenue);
     const cost = materialCost + laborCost;
     return {
       materialCost,
@@ -285,6 +292,7 @@ export class OrderSystem {
       laborRevenue,
       laborCost,
       fee,
+      surcharge,
       discount,
       revenue,
       cost,
@@ -335,6 +343,71 @@ export class OrderSystem {
     if (!missing) return;
     order.partsPromptShown = true;
     ctx.bus.emit('parts:missing', order.id);
+  }
+
+  static canParkRepair(order: RepairOrder, vehicle: Vehicle): boolean {
+    return order.status === 'repairing' && !order.repairParking && order.stationId !== null &&
+      (vehicle.state === 'at_lift' || vehicle.state === 'at_diagnosis');
+  }
+
+  static parkRepair(ctx: SimContext, order: RepairOrder): string | null {
+    const vehicle = vehicleById(ctx.state, order.vehicleId);
+    if (!OrderSystem.canParkRepair(order, vehicle)) {
+      return 'Das Fahrzeug kann nur während einer laufenden Reparatur am Arbeitsplatz geparkt werden.';
+    }
+    const park = OrderSystem.dispatchToFreeStation(ctx, vehicle, 'parking');
+    if (!park) return 'Kein freier, erreichbarer Parkplatz verfügbar.';
+
+    park.orderId = order.id;
+    order.repairParking = { phase: 'outbound' };
+    vehicle.state = 'driving_in';
+    WorkerSystem.releaseOrderTasks(ctx, order);
+    return null;
+  }
+
+  /** Der Arbeitsplatz bleibt belegt, bis das Fahrzeug ihn verlassen hat. */
+  static releaseParkingDeparture(ctx: SimContext, order: RepairOrder, vehicle: Vehicle): void {
+    if (!order.stationId) return;
+    const station = stationById(ctx.state, order.stationId);
+    const { x, y, w, h } = station.rect;
+    if (vehicle.pos.x >= x && vehicle.pos.x < x + w && vehicle.pos.y >= y && vehicle.pos.y < y + h) return;
+    OrderSystem.releaseOrderStation(ctx, order);
+  }
+
+  private static tryResumeParkedRepair(ctx: SimContext, order: RepairOrder): void {
+    const pause = order.repairParking;
+    if (pause?.phase !== 'parked' || ctx.state.totalMinutes < pause.resumeAtMinute) return;
+
+    const vehicle = vehicleById(ctx.state, order.vehicleId);
+    const parkId = vehicle.targetStationId;
+    const kind = RepairSystem.orderNeedsLift(ctx, order) ? 'lift' : 'diagnosis';
+    const bay = OrderSystem.dispatchToFreeStation(ctx, vehicle, kind);
+    if (!bay) return;
+
+    bay.orderId = order.id;
+    order.stationId = bay.id;
+    order.repairParking = { phase: 'returning' };
+    vehicle.state = kind === 'lift' ? 'driving_to_lift' : 'driving_in';
+    if (parkId) {
+      const park = stationById(ctx.state, parkId);
+      if (park.orderId === order.id) park.orderId = null;
+    }
+  }
+
+  private static dispatchToFreeStation(ctx: SimContext, vehicle: Vehicle, kind: Station['kind']): Station | null {
+    for (const station of ctx.state.stations) {
+      if (station.kind !== kind || !station.unlocked || station.orderId !== null ||
+          (station.brokenUntilMinute ?? 0) > ctx.state.totalMinutes) continue;
+      if (OrderSystem.dispatchVehicle(ctx, vehicle, station)) return station;
+    }
+    return null;
+  }
+
+  private static releaseOrderStation(ctx: SimContext, order: RepairOrder): void {
+    if (!order.stationId) return;
+    const station = stationById(ctx.state, order.stationId);
+    if (station.orderId === order.id) station.orderId = null;
+    order.stationId = null;
   }
 
   /** Bereinigt Parkplatz-Belegungen, deren Auftrag/Fahrzeug nicht mehr dort ist. */
@@ -427,6 +500,17 @@ export class OrderSystem {
       vehicle.state = 'gone';
       return;
     }
+    if (order.repairParking?.phase === 'outbound') {
+      OrderSystem.releaseOrderStation(ctx, order);
+      vehicle.state = 'waiting';
+      order.repairParking = { phase: 'parked', resumeAtMinute: state.totalMinutes + 120 };
+      return;
+    }
+    if (order.repairParking?.phase === 'returning') {
+      vehicle.state = vehicle.state === 'driving_to_lift' ? 'at_lift' : 'at_diagnosis';
+      order.repairParking = null;
+      return;
+    }
     if (vehicle.state === 'driving_in') {
       const station = vehicle.targetStationId
         ? stationById(state, vehicle.targetStationId)
@@ -497,7 +581,7 @@ export class OrderSystem {
     reason: string,
   ): void {
     const { state } = ctx;
-    if (order.status === 'cancelled' || order.status === 'delivered') return;
+    if (!OrderSystem.canTransition(order.status, 'cancelled')) return;
     // Reservierung nur freigeben, wenn noch NICHT verbraucht (Abholung).
     // Verbrauchte Teile sind aus dem Bestand – erneutes Freigeben würde
     // die Reservierung anderer Aufträge ins Negative ziehen.
@@ -505,19 +589,14 @@ export class OrderSystem {
       InventorySystem.release(state.inventory, order.partsNeeded);
     }
     order.partsReserved = false;
-    if (order.assignedWorkerId) {
-      WorkerSystem.releaseWorker(ctx, order);
-    }
-    order.crewIds = [];
-    if (order.stationId) {
-      stationById(state, order.stationId).orderId = null;
-      order.stationId = null;
-    }
+    WorkerSystem.releaseOrderTasks(ctx, order);
+    OrderSystem.releaseOrderStation(ctx, order);
+    order.repairParking = null;
     const v = state.vehicles.find((x) => x.id === order.vehicleId);
     if (v) {
       if (v.targetStationId) {
         const ps = stationById(state, v.targetStationId);
-        if (ps.kind === 'parking') ps.orderId = null;
+        if (ps.kind === 'parking' && ps.orderId === order.id) ps.orderId = null;
       }
       if (v.state === 'incoming') {
         v.state = 'gone';
@@ -599,6 +678,15 @@ export class OrderSystem {
         }
         return null;
       case 'repairing': {
+        const pause = order.repairParking;
+        if (pause?.phase === 'outbound') return 'Fahrzeug fährt zum Parkplatz.';
+        if (pause?.phase === 'returning') return 'Fahrzeug fährt zurück zum Arbeitsplatz.';
+        if (pause?.phase === 'parked') {
+          const minutes = Math.ceil(pause.resumeAtMinute - state.totalMinutes);
+          return minutes > 0
+            ? `Reparatur pausiert. Das Fahrzeug bleibt noch ${minutes} min auf dem Parkplatz.`
+            : 'Parkpause beendet. Das Fahrzeug wartet auf einen freien, erreichbaren Arbeitsplatz.';
+        }
         const job = RepairSystem.currentJob(order);
         if (job) {
           const def = repairDef(ctx, job.repairId);
@@ -665,11 +753,11 @@ export class OrderSystem {
       (order.laborMinutesActual / 60) * state.economy.hourlyRateCents,
     );
     const partsCents = RepairSystem.partsSellTotal(ctx, order);
-    const invoice = order.acceptedBudgetCents !== null
-      ? order.acceptedBudgetCents
-      : Math.round(
-          (laborCents + partsCents + DIAGNOSIS_FEE_CENTS) * (1 - order.discountPct / 100),
-        );
+    const baseCents = laborCents + partsCents + DIAGNOSIS_FEE_CENTS;
+    const invoice = order.acceptedBudgetCents ?? EconomySystem.discountedCents(
+      baseCents + EconomySystem.surchargeCents(baseCents, order.urgencySurchargePct),
+      order.discountPct,
+    );
     const booked = EconomySystem.book(state.economy, {
       id: `invoice-${order.id}`,
       day: Math.floor(state.totalMinutes / 1440) + 1,

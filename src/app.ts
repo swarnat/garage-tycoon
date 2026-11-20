@@ -90,6 +90,11 @@ const actions: UIActions = {
       notify(game.ctx, 'warning', `Auftrag ${id} storniert.`, 'orders');
     }
   },
+  parkRepair: (id) => {
+    const error = game.parkRepair(id);
+    if (error === null) saveDirty = true;
+    return error;
+  },
   togglePriority: (id) => {
     const o = game.state.orders.find((x) => x.id === id);
     if (o) o.priority = o.priority > 1 ? 1 : 2;

@@ -1,3 +1,4 @@
+import { SAVE_VERSION } from '../src/entities/types';
 import { describe, expect, it } from 'vitest';
 import { Game } from '../src/core/Game';
 import { SaveManager } from '../src/core/SaveManager';
@@ -180,7 +181,7 @@ describe('Save-Migration v3 → v4', () => {
     for (const c of raw.customers) delete c.lastSatisfaction;
     raw.stations = raw.stations.filter((s: { id: string }) => s.id !== 'diag2');
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(14);
+    expect(migrated.version).toBe(SAVE_VERSION);
     expect(migrated.orders[0]!.diagnosisExtended).toBe(false);
     expect(migrated.customers[0]!.lastSatisfaction).toBeNull();
     const diag2 = migrated.stations.find((s) => s.id === 'diag2');

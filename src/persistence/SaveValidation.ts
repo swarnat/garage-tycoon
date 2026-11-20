@@ -104,6 +104,39 @@ export function validateState(raw: unknown): asserts raw is GameState {
     for (const n of o.partsNeeded as Record<string, unknown>[]) {
       if (!partIds.has(n.partId as string)) fail(`Auftrag ${o.id}: unbekanntes Teil ${String(n.partId)}`);
     }
+    if (o.urgencySurchargePct !== 0 && (o.urgencySurchargePct !== 15 || o.type !== 'emergency')) {
+      fail(`Auftrag ${o.id}: Dringlichkeitszuschlag ungültig`);
+    }
+    if (o.repairParking !== null) {
+      const pause = o.repairParking;
+      const vehicle = vehicles.find((v) => v.id === o.vehicleId);
+      const target = stations.find((st) => st.id === vehicle?.targetStationId);
+      if (!isObj(pause) || o.status !== 'repairing' || !vehicle || !target || target.orderId !== o.id) {
+        fail(`Auftrag ${o.id}: Parkpause ungültig`);
+      }
+      switch (pause.phase) {
+        case 'outbound':
+          if (vehicle.state !== 'driving_in' || target.kind !== 'parking' ||
+              (o.stationId !== null && !stations.some((st) =>
+                st.id === o.stationId && st.orderId === o.id && (st.kind === 'lift' || st.kind === 'diagnosis'),
+              ))) fail(`Auftrag ${o.id}: Fahrt zum Parkplatz ungültig`);
+          break;
+        case 'parked':
+          if (vehicle.state !== 'waiting' || target.kind !== 'parking' || o.stationId !== null ||
+              typeof pause.resumeAtMinute !== 'number' || !Number.isFinite(pause.resumeAtMinute) ||
+              pause.resumeAtMinute < 0) fail(`Auftrag ${o.id}: Parkdauer oder Parkplatz ungültig`);
+          break;
+        case 'returning':
+          if (o.stationId !== target.id ||
+              !((target.kind === 'lift' && vehicle.state === 'driving_to_lift') ||
+                (target.kind === 'diagnosis' && vehicle.state === 'driving_in'))) {
+            fail(`Auftrag ${o.id}: Rückfahrt ungültig`);
+          }
+          break;
+        default:
+          fail(`Auftrag ${o.id}: Parkphase ungültig`);
+      }
+    }
     if (typeof o.budgetCents !== 'number' || !Number.isInteger(o.budgetCents)) {
       fail(`Auftrag ${o.id}: Budget ungültig`);
     }

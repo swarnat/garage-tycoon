@@ -1,3 +1,4 @@
+import { SAVE_VERSION } from '../src/entities/types';
 import { describe, expect, it } from 'vitest';
 import { Game } from '../src/core/Game';
 import { SaveManager } from '../src/core/SaveManager';
@@ -209,7 +210,7 @@ describe('Save-Migration v2 → v3', () => {
       delete w.pendingTraining;
     }
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(14);
+    expect(migrated.version).toBe(SAVE_VERSION);
     expect(migrated.inventory.autoReorder).toEqual({});
     expect(migrated.inventory.autoSupplierId).toBe('teileprofi');
     expect(Array.isArray(migrated.candidates)).toBe(true);

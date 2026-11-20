@@ -3,6 +3,7 @@ import { DIAGNOSIS_BASE_MINUTES, DIAGNOSIS_FEE_CENTS } from '../entities/types';
 import { resolveVariant } from './PartsResolver';
 import { vehicleById } from './context';
 import { RepairSystem } from './RepairSystem';
+import { EconomySystem } from './EconomySystem';
 import { OrderSystem } from './OrderSystem';
 import type { SimContext } from './context';
 import { notify, repairDef } from './context';
@@ -60,10 +61,11 @@ export class DiagnosisSystem {
       partId,
       quantity,
     }));
-    order.estimateCents =
+    const baseCents =
       RepairSystem.laborEstimateCents(ctx, order) +
       RepairSystem.partsSellTotal(ctx, order) +
       DIAGNOSIS_FEE_CENTS;
+    order.estimateCents = baseCents + EconomySystem.surchargeCents(baseCents, order.urgencySurchargePct);
     OrderSystem.setStatus(ctx.state, order, 'waiting_for_approval');
     ctx.bus.emit('diagnosis:completed', order.id);
     const names = order.jobs

@@ -1,3 +1,4 @@
+import { SAVE_VERSION } from '../src/entities/types';
 import { describe, expect, it } from 'vitest';
 import { Game } from '../src/core/Game';
 import { SaveManager } from '../src/core/SaveManager';
@@ -188,7 +189,7 @@ describe('Save-Migration v4 → v5', () => {
     delete raw.statistics.complaints;
     delete raw.statistics.repairsByType;
     const migrated = SaveManager.parse(JSON.stringify(raw));
-    expect(migrated.version).toBe(14);
+    expect(migrated.version).toBe(SAVE_VERSION);
     expect(Array.isArray(migrated.ownedTools)).toBe(true);
     expect(Array.isArray(migrated.loans)).toBe(true);
     expect(migrated.workers[0]!.motivation).toBe(80);

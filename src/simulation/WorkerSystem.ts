@@ -263,6 +263,7 @@ export class WorkerSystem {
         w.state = 'waiting';
         return;
       }
+      w.state = 'repairing';
       const rate =
         (crew.reduce(
           (a, c) => a + RepairSystem.workRate(c.skills[def.requiredSkill], c.motivation),
@@ -462,7 +463,8 @@ export class WorkerSystem {
     const storage = state.stations.find((s) => s.kind === 'storage');
     if (!storage) return;
     for (const order of state.orders) {
-      if ((order.status !== 'repairing' && order.status !== 'ready_for_repair') || order.partsNeeded.length === 0 || order.partsAtBay) continue;
+      if (order.repairParking || (order.status !== 'repairing' && order.status !== 'ready_for_repair') ||
+          order.partsNeeded.length === 0 || order.partsAtBay) continue;
       if (!order.stationId) continue;
       const hasCarrier = state.workers.some(
         (w) => w.task?.kind === 'deliver' && w.task.orderId === order.id,
@@ -619,13 +621,13 @@ export class WorkerSystem {
     ctx.bus.emit('worker:available', w.id);
   }
 
-  static releaseWorker(ctx: SimContext, order: RepairOrder): void {
-    const w = ctx.state.workers.find((x) => x.id === order.assignedWorkerId);
-    if (w) {
-      WorkerSystem.releaseSpecific(ctx, order, w);
-    } else {
-      order.assignedWorkerId = null;
+  /** Löst auch den Teiletransport, der nicht zur Reparaturcrew gehört. */
+  static releaseOrderTasks(ctx: SimContext, order: RepairOrder): void {
+    for (const w of ctx.state.workers) {
+      if (w.task?.orderId === order.id) WorkerSystem.releaseSpecific(ctx, order, w);
     }
+    order.crewIds = [];
+    order.assignedWorkerId = null;
   }
 
   /** Komplette Crew freigeben (nach Reparaturabschluss). */

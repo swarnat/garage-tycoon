@@ -166,6 +166,11 @@ export interface PartNeed {
   quantity: number;
 }
 
+export type RepairParking =
+  | { phase: 'outbound' }
+  | { phase: 'parked'; resumeAtMinute: number }
+  | { phase: 'returning' };
+
 export interface RepairOrder {
   id: string;
   customerId: string;
@@ -179,6 +184,9 @@ export interface RepairOrder {
   createdAtMinute: number;
   dueAtMinute: number;
   priority: number;
+  /** Beim Auftragseingang festgelegter Zuschlag. */
+  urgencySurchargePct: 0 | 15;
+  repairParking: RepairParking | null;
   jobs: RepairJob[];
   partsNeeded: PartNeed[];
   partsReserved: boolean;
@@ -500,7 +508,7 @@ export interface GameDefs {
   tools: ToolDef[];
 }
 
-export const SAVE_VERSION = 14;
+export const SAVE_VERSION = 15;
 export const MINUTES_PER_DAY = 1440;
 export const GAME_MINUTES_PER_REAL_SECOND = 6;
 export const SIM_STEP_MINUTES = 0.25;

@@ -8,7 +8,7 @@ import {
   type FederatedPointerEvent,
 } from 'pixi.js';
 import type { Game } from '../core/Game';
-import type { Station, Vehicle, Worker } from '../entities/types';
+import type { RepairOrder, Station, Vehicle, Worker } from '../entities/types';
 import { DIAGNOSIS_BASE_MINUTES, QC_BASE_MINUTES } from '../entities/types';
 import carSvg from '../assets/sprites/car.svg?raw';
 import mechanicSvg from '../assets/sprites/mechanic.svg?raw';
@@ -68,6 +68,32 @@ const STATE_COLORS: Record<string, number> = {
   training: 0xb39ddb,
   off_duty: 0x4a5160,
 };
+
+type VehicleMarker = 'completed' | 'waiting';
+
+function vehicleMarker(vehicle: Vehicle, order: RepairOrder | undefined, workers: Worker[]): VehicleMarker | null {
+  if (!order) return null;
+  if (order.status === 'completed') return 'completed';
+  if (vehicle.state === 'driving_in' || vehicle.state === 'driving_to_lift' || vehicle.state === 'driving_out') return null;
+
+  switch (order.status) {
+    case 'accepted':
+      return vehicle.state === 'waiting' ? 'waiting' : null;
+    case 'waiting_for_diagnosis':
+    case 'waiting_for_approval':
+    case 'waiting_for_parts':
+    case 'ready_for_repair':
+      return 'waiting';
+    case 'repairing':
+      if (order.repairParking?.phase === 'parked' || (order.partsNeeded.length > 0 && !order.partsAtBay)) return 'waiting';
+      return workers.some((w) => w.task?.orderId === order.id && w.task.phase === 'working' && w.state === 'repairing') ? null : 'waiting';
+    case 'diagnosing':
+    case 'quality_check':
+      return workers.some((w) => w.task?.orderId === order.id && w.task.phase === 'working' && w.state === order.status) ? null : 'waiting';
+    default:
+      return null;
+  }
+}
 
 /** PixiJS-Rendering: zeigt nur den Simulationszustand, keine Spiellogik. */
 export class Renderer {
@@ -456,6 +482,28 @@ export class Renderer {
     return c;
   }
 
+  private updateVehicleMarker(sprite: Container, kind: VehicleMarker | null): void {
+    const current = sprite.getChildByLabel('completed') ?? sprite.getChildByLabel('waiting');
+    if (current?.label === kind) return;
+    current?.destroy();
+    if (!kind) return;
+
+    const marker = new Graphics({ label: kind });
+    marker.position.set(28, -21);
+    marker.circle(0, 0, 11).fill(0x151a22);
+    if (kind === 'completed') {
+      marker.moveTo(-5, 0).lineTo(-1, 4).lineTo(6, -5)
+        .stroke({ color: 0x6fdc8c, width: 2.8, cap: 'round', join: 'round' });
+    } else {
+      const yellow = 0xffd54f;
+      marker.moveTo(-5, -6).lineTo(5, -6).moveTo(-5, 6).lineTo(5, 6)
+        .moveTo(-4, -6).lineTo(4, 6).moveTo(4, -6).lineTo(-4, 6)
+        .stroke({ color: yellow, width: 1.8, cap: 'round' });
+      marker.poly([-3, 5, 0, 2, 3, 5]).fill(yellow);
+    }
+    sprite.addChild(marker);
+  }
+
   private drawWorker(w: Worker): Container {
     const c = new Container();
     const tex = this.textures.get(w.id === 'w2' ? 'mechanic_green' : 'mechanic');
@@ -468,8 +516,7 @@ export class Renderer {
       sp.y = 12;
       c.addChild(sp);
     }
-    const ring = new Graphics();
-    ring.name = 'ring';
+    const ring = new Graphics({ label: 'ring' });
     c.addChild(ring);
     const name = new Text({
       text: w.name.split(' ')[0] ?? w.name,
@@ -530,15 +577,17 @@ export class Renderer {
       sprite.x = cx * TILE;
       sprite.y = cy * TILE;
       // Parkende Fahrzeuge passen in die Buchtenhöhe (1 Tile an der Straße)
-      const body = sprite.children[1] as Sprite | undefined;
+      const body = sprite.children[1];
       const base = this.vehicleBaseScale.get(v.id);
-      if (body && base !== undefined) {
+      if (body instanceof Sprite && base !== undefined) {
         if (v.state === 'waiting' || v.state === 'waiting_pickup') {
           body.scale.set(Math.min(base, (0.92 * TILE) / body.texture.width));
         } else {
           body.scale.set(base);
         }
       }
+      const order = state.orders.find((o) => o.id === v.orderId);
+      this.updateVehicleMarker(sprite, vehicleMarker(v, order, state.workers));
       const sel = this.selection?.kind === 'vehicle' && this.selection.id === v.id;
       sprite.alpha = 1;
       sprite.scale.set(sel ? 1.04 : 1);
@@ -547,6 +596,7 @@ export class Renderer {
       if (!seenV.has(id)) {
         sprite.destroy({ children: true });
         this.vehicleSprites.delete(id);
+        this.vehicleBaseScale.delete(id);
       }
     }
 
@@ -565,7 +615,7 @@ export class Renderer {
       const bob = working ? Math.sin(timeSec * 9) * 1.6 : 0;
       sprite.x = (w.pos.x + 0.5) * TILE;
       sprite.y = (w.pos.y + 0.5) * TILE + bob;
-      const ring = sprite.getChildByName('ring') as Graphics | null;
+      const ring = sprite.getChildByLabel('ring') as Graphics | null;
       if (ring) {
         ring.clear();
         const color = STATE_COLORS[w.state] ?? 0x7d8aa0;
@@ -587,7 +637,7 @@ export class Renderer {
     for (const s of state.stations) {
       if (!s.orderId) continue;
       const order = state.orders.find((o) => o.id === s.orderId);
-      if (!order) continue;
+      if (!order || order.repairParking) continue;
       const px = s.rect.x * TILE;
       const py = s.rect.y * TILE - 12;
       const pw = s.rect.w * TILE;
