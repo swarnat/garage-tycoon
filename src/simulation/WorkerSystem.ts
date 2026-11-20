@@ -460,7 +460,7 @@ export class WorkerSystem {
     const storage = state.stations.find((s) => s.kind === 'storage');
     if (!storage) return;
     for (const order of state.orders) {
-      if (order.status !== 'repairing' || order.partsNeeded.length === 0 || order.partsAtBay) continue;
+      if ((order.status !== 'repairing' && order.status !== 'ready_for_repair') || order.partsNeeded.length === 0 || order.partsAtBay) continue;
       if (!order.stationId) continue;
       const hasCarrier = state.workers.some(
         (w) => w.task?.kind === 'deliver' && w.task.orderId === order.id,
@@ -524,8 +524,12 @@ export class WorkerSystem {
     order.assignedWorkerId = order.crewIds[0] ?? null;
     // Nur das erste Crew-Mitglied holt die Teile; die anderen warten an der Bühne.
     // Ist ein Lagerhelfer frei, übernimmt er den Gang zum Lager und zur Bühne.
+    // Liefern Teile bereits (proaktiver Lagerhelfer), wartet der Mechaniker an der Bühne.
+    const carrierActive = ctx.state.workers.some(
+      (x) => x.task?.kind === 'deliver' && x.task.orderId === order.id,
+    );
     const needsFetch =
-      !order.partsAtBay && order.partsNeeded.length > 0 && order.crewIds.length === 1;
+      !order.partsAtBay && order.partsNeeded.length > 0 && order.crewIds.length === 1 && !carrierActive;
     const helper = needsFetch
       ? ctx.state.workers.find(
           (x) =>

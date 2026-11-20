@@ -188,7 +188,7 @@ export class UI {
   private lastDrawerSig = '';
   private lastModalSig = '';
   private interacting = false;
-  private modalKind: 'inventory' | 'tool' | 'approval' | 'parts' | 'event' | 'summary' = 'inventory';
+  private modalKind: 'inventory' | 'tool' | 'approval' | 'parts' | 'event' | 'summary' | 'finance' = 'inventory';
   private toolOrderId: string | null = null;
   private approvalOrderId: string | null = null;
   private partsOrderId: string | null = null;
@@ -341,9 +341,9 @@ export class UI {
   }
 
   openPanel(p: PanelId): void {
-    if (p === 'inventory') {
-      // Lager ist ein Modal – die Sidebar bleibt, wie sie ist
-      this.modalKind = 'inventory';
+    if (p === 'inventory' || p === 'finance') {
+      // Lager und Finanzen sind Modals – die Sidebar bleibt, wie sie ist
+      this.modalKind = p;
       this.modalOpen = true;
       this.refresh(true);
       return;
@@ -622,8 +622,8 @@ export class UI {
     }
     for (const b of this.root.querySelectorAll('#nav button')) {
       const el = b as HTMLElement;
-      el.classList.toggle('active', el.dataset.panel === 'inventory'
-        ? this.modalOpen && this.modalKind === 'inventory'
+      el.classList.toggle('active', (el.dataset.panel === 'inventory' || el.dataset.panel === 'finance')
+        ? this.modalOpen && this.modalKind === el.dataset.panel
         : el.dataset.panel === this.panel && !this.selection && !this.modalOpen);
     }
     // Modal aktualisieren – nur bei Inhaltsänderung, nie während Eingabe/Zeigeraktion
@@ -644,6 +644,7 @@ export class UI {
       : this.modalKind === 'parts' ? 'Ersatzteile fehlen – Entscheidung nötig'
       : this.modalKind === 'event' ? (s.activeEvent?.title ?? 'Ereignis')
       : this.modalKind === 'summary' ? `Tagesabschluss – Tag ${s.dailySummaryPending?.day ?? ''}`
+      : this.modalKind === 'finance' ? 'Finanzen & Bilanz'
       : 'Ersatzteillager';
     miniTitle.textContent = modalTitle.textContent + ' (Spiel läuft)';
     // Nachfrage-Modal schließt sich, sobald die Entscheidung gefallen ist
@@ -682,6 +683,7 @@ export class UI {
         : this.modalKind === 'parts' ? this.renderPartsPrompt()
         : this.modalKind === 'event' ? this.renderEventPrompt()
         : this.modalKind === 'summary' ? this.renderDailySummary()
+        : this.modalKind === 'finance' ? this.renderFinance()
         : this.renderInventory();
     }
     // Drawer nur bei Inhaltsänderung neu aufbauen (verhindert Klick-Flackern)
@@ -709,7 +711,7 @@ export class UI {
       Math.floor(s.reputation), s.economy.hourlyRateCents, s.economy.partsMarkupPct,
       s.notifications.length, s.marketingLevel, s.soundEnabled ? 1 : 0,
       s.activeEvent ? s.activeEvent.id : '', s.dailySummaryPending ? s.dailySummaryPending.day : -1,
-      s.eventsToday,
+      s.eventsToday, Math.floor(EconomySystem.inventoryValueCents(s, this.getGame().defs.parts) / 1000),
     ];
     for (const st of s.stations) parts.push(st.id, st.brokenUntilMinute ?? 0);
     for (const o of s.orders) {
@@ -1187,9 +1189,17 @@ export class UI {
     const onDuty = s.workers.reduce((a, w) => a + w.onDutyMinutes, 0);
     const worked = s.workers.reduce((a, w) => a + w.workedMinutes, 0);
     const util = onDuty > 0 ? Math.round((worked / onDuty) * 100) : 0;
-    let html = `<div class="drawer-head"><h2>Finanzen</h2></div>`;
-    html += `<div class="balance-big ${s.economy.balanceCents < 150000 ? 'danger' : ''}">${eur(s.economy.balanceCents)}</div>
+    const bs = EconomySystem.balanceSheet(s, game.defs.parts);
+    let html = `<div class="balance-big ${s.economy.balanceCents < 150000 ? 'danger' : ''}">${eur(s.economy.balanceCents)}</div>
       <div class="meta muted">Kontostand</div>`;
+    html += `<h3 class="section">Bilanz <button type="button" class="help" data-help="Vermögen = Kontostand + Lagerwert (Bestand zum Einkaufspreis). Eigenkapital = Vermögen − Kredite. Teilekauf verschiebt Geld nur von Kasse ins Lager – das Vermögen sinkt dabei nicht.">?</button></h3>
+      <div class="finance-grid bilanz">
+        <div><label>Kontostand</label><strong>${eur(bs.cash)}</strong></div>
+        <div><label>Wert Lager</label><strong class="pos">${eur(bs.inventoryValue)}</strong></div>
+        <div><label>Vermögen (Aktiva)</label><strong>${eur(bs.assets)}</strong></div>
+        <div><label>Kredite (Passiva)</label><strong class="${bs.debt > 0 ? 'neg' : ''}">${eur(bs.debt)}</strong></div>
+        <div class="wide"><label>Eigenkapital</label><strong class="${bs.equity >= 0 ? 'pos' : 'neg'}">${eur(bs.equity)}</strong></div>
+      </div>`;
     html += `<h3 class="section">Heute (Tag ${day})</h3>
       <div class="finance-grid">
         <div><label>Umsatz</label><strong class="pos">${eur(rev)}</strong></div>
@@ -1217,6 +1227,20 @@ export class UI {
       const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * 260},${60 - ((v - min) / range) * 56}`).join(' ');
       html += `<h3 class="section">Kontostand-Verlauf</h3>
         <svg class="sparkline" viewBox="0 0 260 64" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="#f5a623" stroke-width="2"/></svg>`;
+    }
+    // Umsatzverlauf (Balken, letzte 14 Tage)
+    const revDays = s.economy.daily.slice(-14);
+    if (revDays.length >= 2) {
+      const maxRev = Math.max(1, ...revDays.map((d) => d.revenueCents));
+      const bw = 280 / revDays.length;
+      let bars = '';
+      revDays.forEach((d, i) => {
+        const h = (d.revenueCents / maxRev) * 64;
+        bars += `<rect x="${(i * bw + 1).toFixed(1)}" y="${(70 - h).toFixed(1)}" width="${(bw - 2).toFixed(1)}" height="${h.toFixed(1)}" fill="#7bd88f"><title>Tag ${d.day}: ${eur(d.revenueCents)}</title></rect>`;
+      });
+      html += `<h3 class="section">Umsatzverlauf</h3>
+        <svg class="sparkline" viewBox="0 0 280 72" preserveAspectRatio="none">${bars}<line x1="0" y1="70" x2="280" y2="70" stroke="#3a4150" stroke-width="1"/></svg>
+        <div class="meta muted">Letzte ${revDays.length} Tage · Spitze ${eur(maxRev)}</div>`;
     }
     const lastDays = s.economy.daily.slice(-7).reverse();
     if (lastDays.length > 0) {

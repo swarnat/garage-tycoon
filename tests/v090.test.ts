@@ -81,8 +81,8 @@ describe('Lagerhelfer: Teile-Logistik', () => {
     const mech = game.state.workers.find((w) => w.id === offer.crewIds[0])!;
     expect(mech.role).toBe('mechanic');
     expect(mech.task!.phase).not.toBe('to_storage');
-    expect(helper.task).not.toBeNull();
-    expect(helper.task!.kind).toBe('deliver');
+    // Teile sind schon an der Bühne (proaktiv) oder werden gerade geliefert
+    expect(offer.partsAtBay || helper.task?.kind === 'deliver').toBe(true);
     runUntil(game, () => offer.partsAtBay, 2 * 1440);
     expect(offer.partsAtBay).toBe(true);
     expect(helper.task).toBeNull();

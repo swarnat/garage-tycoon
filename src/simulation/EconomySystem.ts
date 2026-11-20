@@ -168,6 +168,27 @@ export class EconomySystem {
     };
   }
 
+  /** Lagerwert zum Markteinkaufspreis (Bestand × EK). */
+  static inventoryValueCents(state: GameState, parts: { id: string; buyCents: number }[]): number {
+    let sum = 0;
+    for (const p of parts) {
+      const qty = state.inventory.stock[p.id] ?? 0;
+      if (qty > 0) sum += EconomySystem.marketBuyCents(state, p) * qty;
+    }
+    return sum;
+  }
+
+  /** Einfache Bilanz: Umlaufvermögen (Kasse + Lager) vs. Schulden → Eigenkapital. */
+  static balanceSheet(state: GameState, parts: { id: string; buyCents: number }[]): {
+    cash: number; inventoryValue: number; assets: number; debt: number; equity: number;
+  } {
+    const cash = state.economy.balanceCents;
+    const inventoryValue = EconomySystem.inventoryValueCents(state, parts);
+    const debt = state.loans.reduce((a, l) => a + l.remainingCents, 0);
+    const assets = cash + inventoryValue;
+    return { cash, inventoryValue, assets, debt, equity: assets - debt };
+  }
+
   static operatingResultToday(state: GameState): number {
     const d = state.economy.daily.find(
       (x) => x.day === Math.floor(state.totalMinutes / 1440) + 1,

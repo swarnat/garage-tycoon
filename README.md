@@ -40,6 +40,8 @@ Du führst eine Kfz-Werkstatt: Aufträge annehmen, Mitarbeiter diagnostizieren u
 - **Marketing**: 4 Level (0–300 €/Tag) bringen mehr und zahlungskräftigere Kunden
 - **Tagesabschluss-Modal**: Umsatz, Gewinn, Aufträge, Ø Zufriedenheit, bester Mitarbeiter, Feedback
 - **Juice**: steigende Geld-Beträge bei Rechnung, Tag/Nacht-Lichtstimmung, Defekt-Marker auf kaputten Bühnen, optionale WebAudio-Sounds (Rechnung/Auftrag/Ereignis, Toggle)
+- **Finanzen & Bilanz als Modal**: Kontostand, **Wert Lager** (Bestand × Einkaufspreis), Vermögen (Aktiva), Kredite (Passiva), **Eigenkapital** + **Umsatzverlauf-Balkendiagramm** (letzte 14 Tage). Teilekauf wird als Vermögensverschiebung (Kasse → Lager) sichtbar, nicht als reines Minus
+- **Proaktive Lagerhelfer**: liefern benötigte Teile schon an die Hebebühne, bevor der Mechaniker arbeitet – der Mechaniker wartet an der Bühne statt selbst zum Lager zu laufen (kein Doppel-Transport)
 - **Mitarbeiter-Rollen**: Mechaniker (Reparatur/Diagnose/QC), **Lagerhelfer** (bringen Ersatzteile vom Lager zur Bühne – schnell zu Fuß, ab ca. 55 €/Tag; Mechaniker bleiben an der Bühne, ohne Lagerhelfer holen sie selbst) und **Assistent** (max. 1, sitzt im Büro, meldet stündlich Marktpreise ≥ 10 % unter Normal für relevante Varianten, je Variante max. 1 Meldung/Tag, ca. 60 €/Tag)
 - **Termine**: alle Deadlines um 18:00 (Überfälligkeit erst zum Feierabend); Kleinaufträge nach 11 Uhr probabilistisch +1/+2 Tage, große Arbeiten 1–3 Tage
 - **Personalverwaltung**: Kandidaten einstellen/entlassen (max. 6), **Weiterbildung** (+5 Skill für 150 €, 2 h)
