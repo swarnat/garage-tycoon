@@ -18,12 +18,14 @@ export function notify(
   ctx: SimContext,
   kind: GameNotification['kind'],
   text: string,
+  category: NonNullable<GameNotification['category']>,
   partId?: string,
 ): void {
   ctx.state.notifications.push({
     id: ctx.state.nextNotificationId++,
     atMinute: ctx.state.totalMinutes,
     kind,
+    category,
     text,
     ...(partId ? { partId } : {}),
   });

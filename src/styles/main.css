@@ -282,6 +282,7 @@ body {
 .toast span { flex: 1; }
 .toast-close { background: none; border: none; color: inherit; cursor: pointer; font-size: 12px; opacity: 0.6; padding: 0 2px; }
 .toast-close:hover { opacity: 1; }
+.toast-setting { display: flex; align-items: center; gap: 6px; min-height: 26px; cursor: pointer; }
 
 .usage-hot { color: var(--accent); font-weight: 700; }
 .legend { margin: 6px 0; }

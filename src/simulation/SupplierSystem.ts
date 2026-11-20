@@ -21,7 +21,7 @@ export class SupplierSystem {
       Math.round(EconomySystem.marketBuyCents(ctx.state, part) * supplier.priceFactor) * quantity +
       supplier.shippingCents;
     if (ctx.state.economy.balanceCents < cost) {
-      if (!auto) notify(ctx, 'danger', `Bestellung ${part.name}: Kontostand reicht nicht.`);
+      if (!auto) notify(ctx, 'danger', `Bestellung ${part.name}: Kontostand reicht nicht.`, 'deliveries');
       return false;
     }
     if (
@@ -30,7 +30,7 @@ export class SupplierSystem {
         quantity >
       ctx.state.inventory.capacity
     ) {
-      if (!auto) notify(ctx, 'warning', `Lager voll: ${part.name} passt nicht mehr ins Lager.`);
+      if (!auto) notify(ctx, 'warning', `Lager voll: ${part.name} passt nicht mehr ins Lager.`, 'deliveries');
       return false;
     }
     const id = `po-${ctx.state.nextId++}`;
@@ -59,6 +59,7 @@ export class SupplierSystem {
       ctx,
       'info',
       `${auto ? 'Auto-Bestellung' : 'Bestellt'}: ${quantity}× ${part.name} bei ${supplier.name} (Lieferung in ${Math.round(supplier.leadMinutes / 60)} h, ${(cost / 100).toFixed(2)} €)`,
+      'deliveries',
     );
     return true;
   }
@@ -74,6 +75,7 @@ export class SupplierSystem {
         ctx,
         'success',
         `Lieferung eingetroffen: ${d.quantity}× ${partDef(ctx, d.partId).name}`,
+        'deliveries',
       );
     }
     if (ctx.state.deliveries.length > 60) {

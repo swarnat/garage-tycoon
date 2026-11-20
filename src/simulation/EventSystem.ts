@@ -167,7 +167,7 @@ export class EventSystem {
     state.activeEvent = ev;
     state.eventsToday += 1;
     ctx.bus.emit('event:created', ev.id);
-    notify(ctx, 'warning', `⚡ Ereignis: ${ev.title} – Entscheidung nötig.`);
+    notify(ctx, 'warning', `⚡ Ereignis: ${ev.title} – Entscheidung nötig.`, 'events');
     if (state.speed !== 0 && state.speed !== 1) state.speed = 1;
     return ev;
   }
@@ -190,7 +190,7 @@ export class EventSystem {
     if (state.eventLog.length > 60) state.eventLog.splice(0, state.eventLog.length - 60);
     state.activeEvent = null;
     ctx.bus.emit('event:resolved', ev.id);
-    notify(ctx, 'info', `${auto ? 'Ereignis abgelaufen – automatisch: ' : 'Ereignis entschieden: '}${ev.title} → ${choice.label}`);
+    notify(ctx, 'info', `${auto ? 'Ereignis abgelaufen – automatisch: ' : 'Ereignis entschieden: '}${ev.title} → ${choice.label}`, 'events');
   }
 
   private static apply(ctx: SimContext, ev: GameEvent, eff: import('../entities/types').EventEffect, day: number): void {
@@ -248,14 +248,14 @@ export class EventSystem {
       case 'bribe':
         if (ctx.rng.chance(0.6)) {
           state.reputation += 2; clampRep();
-          notify(ctx, 'info', 'Die Bestechung bleibt unbemerkt – Reputation +2.');
+          notify(ctx, 'info', 'Die Bestechung bleibt unbemerkt – Reputation +2.', 'events');
         } else {
           state.reputation -= 12; clampRep();
           EconomySystem.book(state.economy, {
             id: `event-bribe-fine-${ev.id}`, day, atMinute: state.totalMinutes,
             amountCents: -20000, category: 'other', label: 'Bußgeld (Bestechung aufgeflogen)',
           });
-          notify(ctx, 'danger', 'Bestechung aufgeflogen! Reputation −12 und 200 € Bußgeld.');
+          notify(ctx, 'danger', 'Bestechung aufgeflogen! Reputation −12 und 200 € Bußgeld.', 'events');
         }
         break;
       case 'fine':

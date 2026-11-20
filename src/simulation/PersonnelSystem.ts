@@ -90,18 +90,18 @@ export class PersonnelSystem {
   static hire(ctx: SimContext, candidateId: string): boolean {
     const { state } = ctx;
     if (state.workers.length >= MAX_WORKERS) {
-      notify(ctx, 'warning', `Maximal ${MAX_WORKERS} Mitarbeiter – die Werkstatt ist voll.`);
+      notify(ctx, 'warning', `Maximal ${MAX_WORKERS} Mitarbeiter – die Werkstatt ist voll.`, 'personnel');
       return false;
     }
     const idx = state.candidates.findIndex((c) => c.id === candidateId);
     if (idx < 0) return false;
     const cand = state.candidates[idx] as Candidate;
     if (cand.role === 'assistant' && state.workers.some((w) => w.role === 'assistant')) {
-      notify(ctx, 'warning', 'Es kann nur einen Assistenten geben – der bestehende beobachtet bereits die Marktpreise.');
+      notify(ctx, 'warning', 'Es kann nur einen Assistenten geben – der bestehende beobachtet bereits die Marktpreise.', 'personnel');
       return false;
     }
     if (state.economy.balanceCents < cand.hiringFeeCents) {
-      notify(ctx, 'danger', `Einstellung ${cand.name}: Gebühr ${(cand.hiringFeeCents / 100).toFixed(2)} € nicht verfügbar.`);
+      notify(ctx, 'danger', `Einstellung ${cand.name}: Gebühr ${(cand.hiringFeeCents / 100).toFixed(2)} € nicht verfügbar.`, 'personnel');
       return false;
     }
     EconomySystem.book(state.economy, {
@@ -136,14 +136,14 @@ export class PersonnelSystem {
     });
     state.candidates.splice(idx, 1);
     const roleLabel = cand.role === 'warehouse' ? 'Lagerhelfer' : cand.role === 'assistant' ? 'Assistent' : 'Mechaniker';
-    notify(ctx, 'success', `${cand.name} eingestellt (${roleLabel}, ${(cand.salaryCentsPerDay / 100).toFixed(2)} €/Tag).`);
+    notify(ctx, 'success', `${cand.name} eingestellt (${roleLabel}, ${(cand.salaryCentsPerDay / 100).toFixed(2)} €/Tag).`, 'personnel');
     return true;
   }
 
   static fire(ctx: SimContext, workerId: string): boolean {
     const { state } = ctx;
     if (state.workers.length <= 1) {
-      notify(ctx, 'warning', 'Mindestens ein Mitarbeiter muss bleiben.');
+      notify(ctx, 'warning', 'Mindestens ein Mitarbeiter muss bleiben.', 'personnel');
       return false;
     }
     const idx = state.workers.findIndex((w) => w.id === workerId);
@@ -164,7 +164,7 @@ export class PersonnelSystem {
       label: `Abfindung ${w.name}`,
     });
     state.workers.splice(idx, 1);
-    notify(ctx, 'warning', `${w.name} entlassen (Abfindung: ${(w.salaryCentsPerDay / 100).toFixed(2)} €).`);
+    notify(ctx, 'warning', `${w.name} entlassen (Abfindung: ${(w.salaryCentsPerDay / 100).toFixed(2)} €).`, 'personnel');
     return true;
   }
 
@@ -185,16 +185,16 @@ export class PersonnelSystem {
     const { state } = ctx;
     const w = state.workers.find((x) => x.id === workerId);
     if (!w || w.task || w.trainingMinutes > 0) {
-      notify(ctx, 'warning', 'Weiterbildung nur möglich, wenn der Mitarbeiter gerade frei ist.');
+      notify(ctx, 'warning', 'Weiterbildung nur möglich, wenn der Mitarbeiter gerade frei ist.', 'personnel');
       return false;
     }
     if (w.role !== 'mechanic') {
-      notify(ctx, 'warning', 'Weiterbildung ist nur für Mechaniker möglich.');
+      notify(ctx, 'warning', 'Weiterbildung ist nur für Mechaniker möglich.', 'personnel');
       return false;
     }
     if (w.skills[skill] >= 100) return false;
     if (state.economy.balanceCents < TRAINING_COST_CENTS) {
-      notify(ctx, 'danger', 'Weiterbildung: Kontostand reicht nicht (150 €).');
+      notify(ctx, 'danger', 'Weiterbildung: Kontostand reicht nicht (150 €).', 'personnel');
       return false;
     }
     EconomySystem.book(state.economy, {
@@ -207,7 +207,7 @@ export class PersonnelSystem {
     });
     w.trainingMinutes = TRAINING_MINUTES;
     w.pendingTraining = { skill, amount: TRAINING_AMOUNT };
-    notify(ctx, 'info', `${w.name} bildet sich weiter: ${SKILL_LABELS[skill]} +${TRAINING_AMOUNT} (2 h).`);
+    notify(ctx, 'info', `${w.name} bildet sich weiter: ${SKILL_LABELS[skill]} +${TRAINING_AMOUNT} (2 h).`, 'personnel');
     return true;
   }
 }

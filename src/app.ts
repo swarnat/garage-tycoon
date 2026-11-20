@@ -75,7 +75,7 @@ function replaceGame(next: Game, message: string): void {
   sound.enabled = game.state.soundEnabled;
   ui.resetToastBaseline();
   ui.openPanel('orders');
-  notify(game.ctx, 'info', message);
+  notify(game.ctx, 'info', message, 'system');
   saveNow();
   ui.refresh(true);
 }
@@ -87,7 +87,7 @@ const actions: UIActions = {
     const o = game.state.orders.find((x) => x.id === id);
     if (o) {
       OrderSystem.cancelOrder(game.ctx, o, 'Vom Spieler storniert');
-      notify(game.ctx, 'warning', `Auftrag ${id} storniert.`);
+      notify(game.ctx, 'warning', `Auftrag ${id} storniert.`, 'orders');
     }
   },
   togglePriority: (id) => {
@@ -125,7 +125,7 @@ const actions: UIActions = {
         const state = SaveManager.parse(text);
         replaceGame(new Game(state), 'Spielstand importiert.');
       } catch (err) {
-        notify(game.ctx, 'danger', `Import fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`);
+        notify(game.ctx, 'danger', `Import fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`, 'system');
         ui.refresh(true);
       }
     });
@@ -221,6 +221,7 @@ async function boot(): Promise<void> {
     loaded
       ? 'Spielstand geladen. Willkommen zurück!'
       : 'Neues Spiel gestartet. Nimm den ersten Auftrag an!',
+    'system',
   );
   ui.refresh(true);
 

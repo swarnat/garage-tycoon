@@ -256,11 +256,12 @@ export class CustomerSystem {
       ctx,
       'info',
       `Neuer Auftrag: ${customer.name} mit ${vehicle.make} ${vehicle.model} – „${complaint}“`,
+      'orders',
     );
     // Auftragseingang: sofort auf 1x schalten, damit der Spieler reagieren kann
     if (state.speed !== 0 && state.speed !== 1) {
       state.speed = 1;
-      notify(ctx, 'info', 'Neuer Auftrag eingegangen – Tempo auf 1× gestellt.');
+      notify(ctx, 'info', 'Neuer Auftrag eingegangen – Tempo auf 1× gestellt.', 'orders');
     }
     return order;
   }

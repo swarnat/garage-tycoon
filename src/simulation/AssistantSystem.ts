@@ -44,6 +44,7 @@ export class AssistantSystem {
         ctx,
         'info',
         `📉 Assistent ${assistant.name}: ${p.name} gerade ${pct} % unter Normalpreis (${(buy / 100).toFixed(2)} € statt ${(p.buyCents / 100).toFixed(2)} €) – jetzt bestellen lohnt sich.`,
+        'market',
       );
     }
   }

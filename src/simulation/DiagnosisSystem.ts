@@ -33,6 +33,7 @@ export class DiagnosisSystem {
           ctx,
           'warning',
           `Nachuntersuchung nötig (${order.id}): ${worker.name} ist in Diagnose unerfahren und braucht mehr Zeit.`,
+          'workshop',
         );
         return false;
       }
@@ -72,6 +73,7 @@ export class DiagnosisSystem {
       ctx,
       'info',
       `Diagnose abgeschlossen (${order.id}: ${names}). Kostenvoranschlag ${(order.estimateCents / 100).toFixed(2)} €`,
+      'workshop',
     );
     return true;
   }

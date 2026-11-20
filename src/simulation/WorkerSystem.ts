@@ -77,7 +77,7 @@ export class WorkerSystem {
               w.skills[t.skill] = Math.min(100, w.skills[t.skill] + t.amount);
               w.experience += 1;
               w.motivation = Math.min(100, w.motivation + 5);
-              notify(ctx, 'success', `${w.name}: Weiterbildung ${SKILL_LABELS[t.skill]} abgeschlossen (+${t.amount}).`);
+              notify(ctx, 'success', `${w.name}: Weiterbildung ${SKILL_LABELS[t.skill]} abgeschlossen (+${t.amount}).`, 'personnel');
               w.pendingTraining = null;
             }
             w.state = 'idle';
@@ -201,7 +201,7 @@ export class WorkerSystem {
         const min = state.inventory.minStock[n.partId] ?? 0;
         if (stock <= min) {
           const p = ctx.defs.parts.find((x) => x.id === n.partId);
-          notify(ctx, 'warning', `Lagerbestand niedrig: ${p?.name ?? n.partId} (${stock} Stück)`, n.partId);
+          notify(ctx, 'warning', `Lagerbestand niedrig: ${p?.name ?? n.partId} (${stock} Stück)`, 'stock', n.partId);
           ctx.bus.emit('parts:low', n.partId);
         }
       }
@@ -221,7 +221,7 @@ export class WorkerSystem {
         order.partsAtBay = true;
         const station = stationById(state, task.stationId);
         const stationLabel = station.kind === 'lift' ? 'die Hebebühne' : 'den Diagnoseplatz';
-        notify(ctx, 'info', `Lagerhelfer ${w.name}: Ersatzteile an ${stationLabel} geliefert (${order.id}).`);
+        notify(ctx, 'info', `Lagerhelfer ${w.name}: Ersatzteile an ${stationLabel} geliefert (${order.id}).`, 'workshop');
         ctx.bus.emit('parts:delivered', order.id);
         w.task = null;
         w.path = [];
@@ -284,7 +284,7 @@ export class WorkerSystem {
           OrderSystem.setStatus(state, order, 'quality_check');
           order.qcRemainingMinutes = QC_BASE_MINUTES;
           ctx.bus.emit('repair:completed', order.id);
-          notify(ctx, 'info', `Reparatur abgeschlossen (${order.id}). Qualitätskontrolle steht an.`);
+          notify(ctx, 'info', `Reparatur abgeschlossen (${order.id}). Qualitätskontrolle steht an.`, 'workshop');
           WorkerSystem.releaseCrew(ctx, order);
         } else {
           const nextJob = RepairSystem.currentJob(order);
@@ -335,7 +335,7 @@ export class WorkerSystem {
       }
       OrderSystem.setStatus(state, order, 'repairing');
       order.crewIds = [];
-      notify(ctx, 'warning', `Qualitätskontrolle fehlgeschlagen (${order.id}) – Nacharbeit nötig.`);
+      notify(ctx, 'warning', `Qualitätskontrolle fehlgeschlagen (${order.id}) – Nacharbeit nötig.`, 'workshop');
       WorkerSystem.releaseSpecific(ctx, order, w);
       return;
     }

@@ -286,7 +286,7 @@ export class Game {
       MarketSystem.update(this.ctx);
       PersonnelSystem.dailyReview(this.ctx);
       this.bus.emit('day:started', d);
-      notify(this.ctx, 'info', `Tag ${d} beginnt. Gehälter und Fixkosten wurden verbucht.`);
+      notify(this.ctx, 'info', `Tag ${d} beginnt. Gehälter und Fixkosten wurden verbucht.`, 'finance');
     }
     // Tempo-Automatik: nachts 16x (nur ohne laufende Arbeit), zu Beginn 1x
     const afterMinute = this.state.totalMinutes % MINUTES_PER_DAY;
@@ -317,7 +317,7 @@ export class Game {
       this.state.totalMinutes % 1440 === 480 &&
       this.state.economy.balanceCents < 150000
     ) {
-      notify(this.ctx, 'danger', 'Liquiditätswarnung: Kontostand unter 1.500 €.');
+      notify(this.ctx, 'danger', 'Liquiditätswarnung: Kontostand unter 1.500 €.', 'finance');
       this.bus.emit('liquidity:warning', this.state.economy.balanceCents);
     }
   }
@@ -335,7 +335,7 @@ export class Game {
         (s) => s.kind === 'parking' && s.unlocked && s.orderId === null,
       );
     if (!station) {
-      notify(this.ctx, 'warning', 'Kein Stellplatz frei – Auftrag kann nicht angenommen werden.');
+      notify(this.ctx, 'warning', 'Kein Stellplatz frei – Auftrag kann nicht angenommen werden.', 'orders');
       return false;
     }
     const vehicle = vehicleById(this.state, order.vehicleId);
@@ -352,7 +352,7 @@ export class Game {
       return false;
     }
     this.bus.emit('order:accepted', order.id);
-    notify(this.ctx, 'success', `Auftrag ${order.id} angenommen: ${vehicle.make} ${vehicle.model}.`);
+    notify(this.ctx, 'success', `Auftrag ${order.id} angenommen: ${vehicle.make} ${vehicle.model}.`, 'orders');
     return true;
   }
 
@@ -406,7 +406,7 @@ export class Game {
     const tool = this.defs.tools.find((t) => t.id === toolId);
     if (!tool || this.state.ownedTools.includes(toolId)) return false;
     if (this.state.economy.balanceCents < tool.costCents) {
-      notify(this.ctx, 'danger', `${tool.name}: Kontostand reicht nicht (${(tool.costCents / 100).toFixed(2)} €).`);
+      notify(this.ctx, 'danger', `${tool.name}: Kontostand reicht nicht (${(tool.costCents / 100).toFixed(2)} €).`, 'finance');
       return false;
     }
     EconomySystem.book(this.state.economy, {
@@ -419,7 +419,7 @@ export class Game {
     });
     this.state.ownedTools.push(toolId);
     this.bus.emit('upgrade:purchased', toolId);
-    notify(this.ctx, 'success', `${tool.name} angeschafft – entsprechende Reparaturen sind jetzt möglich.`);
+    notify(this.ctx, 'success', `${tool.name} angeschafft – entsprechende Reparaturen sind jetzt möglich.`, 'finance');
     return true;
   }
 
@@ -439,14 +439,14 @@ export class Game {
     );
     if (effective <= order.budgetCents) {
       OrderSystem.approve(this.ctx, order);
-      notify(this.ctx, 'success', `${customer?.name ?? 'Kunde'} nimmt das Angebot mit ${pct} % Rabatt an.`);
+      notify(this.ctx, 'success', `${customer?.name ?? 'Kunde'} nimmt das Angebot mit ${pct} % Rabatt an.`, 'orders');
     } else if (this.rng.chance(extraChance)) {
       OrderSystem.approve(this.ctx, order);
-      notify(this.ctx, 'success', `${customer?.name ?? 'Kunde'} akzeptiert die Mehrkosten und bleibt – mit ${pct} % Rabatt.`);
+      notify(this.ctx, 'success', `${customer?.name ?? 'Kunde'} akzeptiert die Mehrkosten und bleibt – mit ${pct} % Rabatt.`, 'orders');
     } else {
       // Einmaliger Versuch: lehnt der Kunde ab, geht er endgültig
       OrderSystem.cancelOrder(this.ctx, order, `Rabatt ${pct} % abgelehnt – Kunde geht`);
-      notify(this.ctx, 'warning', `${customer?.name ?? 'Kunde'} lehnt auch mit ${pct} % Rabatt ab und geht (Budget ${(order.budgetCents / 100).toFixed(2)} €).`);
+      notify(this.ctx, 'warning', `${customer?.name ?? 'Kunde'} lehnt auch mit ${pct} % Rabatt ab und geht (Budget ${(order.budgetCents / 100).toFixed(2)} €).`, 'orders');
     }
     return true;
   }
@@ -462,7 +462,7 @@ export class Game {
     if (!park) return false;
     const cost = 120000;
     if (this.state.economy.balanceCents < cost) {
-      notify(this.ctx, 'danger', 'Parkplatz: Kontostand reicht nicht (1.200 €).');
+      notify(this.ctx, 'danger', 'Parkplatz: Kontostand reicht nicht (1.200 €).', 'finance');
       return false;
     }
     EconomySystem.book(this.state.economy, {
@@ -475,7 +475,7 @@ export class Game {
     });
     park.unlocked = true;
     this.bus.emit('upgrade:purchased', park.id);
-    notify(this.ctx, 'success', `Parkplatz ${park.id.replace('park', '')} erschlossen (1.200 €).`);
+    notify(this.ctx, 'success', `Parkplatz ${park.id.replace('park', '')} erschlossen (1.200 €).`, 'finance');
     return true;
   }
 
@@ -507,7 +507,7 @@ export class Game {
     order.acceptedBudgetCents = order.budgetCents;
     OrderSystem.approve(this.ctx, order);
     const customer = this.state.customers.find((c) => c.id === order.customerId);
-    notify(this.ctx, 'success', `${customer?.name ?? 'Kunde'} bleibt: Rechnung zum Budget ${(order.budgetCents / 100).toFixed(2)} € akzeptiert.`);
+    notify(this.ctx, 'success', `${customer?.name ?? 'Kunde'} bleibt: Rechnung zum Budget ${(order.budgetCents / 100).toFixed(2)} € akzeptiert.`, 'orders');
     return true;
   }
 
@@ -537,13 +537,13 @@ export class Game {
     const chance = delayChance(this.state, profile, customer?.lastSatisfaction ?? null);
     if (!this.rng.chance(chance)) {
       OrderSystem.cancelOrder(this.ctx, order, 'Aufschub abgelehnt – Kunde geht');
-      notify(this.ctx, 'warning', `${customer?.name ?? 'Kunde'} lehnt den Aufschub ab und geht.`);
+      notify(this.ctx, 'warning', `${customer?.name ?? 'Kunde'} lehnt den Aufschub ab und geht.`, 'orders');
       return 'rejected';
     }
     const extra = DELAY_BY_PROFILE[profile];
     order.dueAtMinute += extra;
     this.orderMissingParts(orderId, supplierId);
-    notify(this.ctx, 'success', `${customer?.name ?? 'Kunde'} gewährt Aufschub (+${Math.round(extra / 60)} h). Fehlende Teile bestellt.`);
+    notify(this.ctx, 'success', `${customer?.name ?? 'Kunde'} gewährt Aufschub (+${Math.round(extra / 60)} h). Fehlende Teile bestellt.`, 'orders');
     return 'accepted';
   }
 
@@ -573,9 +573,9 @@ export class Game {
       }
     }
     if (count > 0) {
-      notify(this.ctx, 'success', `Verbrauchte Mengen nachbestellt: ${count} Varianten (${(cost / 100).toFixed(2)} €).`);
+      notify(this.ctx, 'success', `Verbrauchte Mengen nachbestellt: ${count} Varianten (${(cost / 100).toFixed(2)} €).`, 'deliveries');
     } else {
-      notify(this.ctx, 'info', 'Keine verbrauchten Mengen nachzubestellen.');
+      notify(this.ctx, 'info', 'Keine verbrauchten Mengen nachzubestellen.', 'deliveries');
     }
     return { count, costCents: cost };
   }
@@ -603,7 +603,7 @@ export class Game {
     need.partId = toPartId;
     order.partsReserved = false;
     order.partsPromptShown = false;
-    notify(this.ctx, 'info', `Alternative verwendet: ${to.name} statt der fehlenden Variante (${order.id}).`);
+    notify(this.ctx, 'info', `Alternative verwendet: ${to.name} statt der fehlenden Variante (${order.id}).`, 'stock');
     return true;
   }
 
@@ -623,7 +623,7 @@ export class Game {
       label: `Lagerverkauf: ${part.name} ×${qty}`,
     });
     inv.stock[variantId] = (inv.stock[variantId] ?? 0) - qty;
-    notify(this.ctx, 'success', `${qty}× ${part.name} verkauft (${(revenue / 100).toFixed(2)} €).`);
+    notify(this.ctx, 'success', `${qty}× ${part.name} verkauft (${(revenue / 100).toFixed(2)} €).`, 'stock');
     return true;
   }
 
@@ -636,7 +636,7 @@ export class Game {
     if (!Number.isInteger(amountCents) || amountCents <= 0) return false;
     const debt = this.state.loans.reduce((a, l) => a + l.remainingCents, 0);
     if (debt + amountCents > 5_000_000) {
-      notify(this.ctx, 'warning', 'Kreditlimit ausgeschöpft (max. 50.000 € Gesamtschulden).');
+      notify(this.ctx, 'warning', 'Kreditlimit ausgeschöpft (max. 50.000 € Gesamtschulden).', 'finance');
       return false;
     }
     const id = `loan-${this.state.nextId++}`;
@@ -655,7 +655,7 @@ export class Game {
       interestBpPerDay: 5,
       takenAtMinute: this.state.totalMinutes,
     });
-    notify(this.ctx, 'info', `Kredit aufgenommen: ${(amountCents / 100).toFixed(2)} € (0,05 % Zinsen pro Tag).`);
+    notify(this.ctx, 'info', `Kredit aufgenommen: ${(amountCents / 100).toFixed(2)} € (0,05 % Zinsen pro Tag).`, 'finance');
     return true;
   }
 
@@ -675,7 +675,7 @@ export class Game {
     loan.remainingCents -= pay;
     if (loan.remainingCents <= 0) {
       this.state.loans = this.state.loans.filter((l) => l.id !== loanId);
-      notify(this.ctx, 'success', 'Kredit vollständig getilgt.');
+      notify(this.ctx, 'success', 'Kredit vollständig getilgt.', 'finance');
     }
     return true;
   }
@@ -701,7 +701,7 @@ export class Game {
     if (!lift) return false;
     const cost = 800000;
     if (this.state.economy.balanceCents < cost) {
-      notify(this.ctx, 'danger', 'Hebebühne: Kontostand reicht nicht (8.000 €).');
+      notify(this.ctx, 'danger', 'Hebebühne: Kontostand reicht nicht (8.000 €).', 'finance');
       return false;
     }
     const n = lift.id.replace('lift', '');
@@ -716,7 +716,7 @@ export class Game {
     lift.unlocked = true;
     this.map = new TileMap(MAP_WIDTH, MAP_HEIGHT, this.state.stations);
     this.bus.emit('upgrade:purchased', lift.id);
-    notify(this.ctx, 'success', `Hebebühne ${n} installiert!`);
+    notify(this.ctx, 'success', `Hebebühne ${n} installiert!`, 'finance');
     return true;
   }
 
@@ -725,7 +725,7 @@ export class Game {
     if (!bay) return false;
     const cost = diagnosisBayCostCents(bay.id);
     if (this.state.economy.balanceCents < cost) {
-      notify(this.ctx, 'danger', `Diagnoseplatz: Kontostand reicht nicht (${(cost / 100).toLocaleString('de-DE')} €).`);
+      notify(this.ctx, 'danger', `Diagnoseplatz: Kontostand reicht nicht (${(cost / 100).toLocaleString('de-DE')} €).`, 'finance');
       return false;
     }
     const n = bay.id.replace('diag', '');
@@ -740,7 +740,7 @@ export class Game {
     bay.unlocked = true;
     this.map = new TileMap(MAP_WIDTH, MAP_HEIGHT, this.state.stations);
     this.bus.emit('upgrade:purchased', bay.id);
-    notify(this.ctx, 'success', `Diagnoseplatz ${n} installiert!`);
+    notify(this.ctx, 'success', `Diagnoseplatz ${n} installiert!`, 'finance');
     return true;
   }
 
@@ -748,13 +748,13 @@ export class Game {
     for (const p of this.defs.parts) {
       this.state.inventory.autoReorder[p.id] = on;
     }
-    notify(this.ctx, 'info', on ? 'Auto-Nachbestellung für alle Artikel aktiviert.' : 'Auto-Nachbestellung für alle Artikel deaktiviert.');
+    notify(this.ctx, 'info', on ? 'Auto-Nachbestellung für alle Artikel aktiviert.' : 'Auto-Nachbestellung für alle Artikel deaktiviert.', 'deliveries');
   }
 
   expandStorage(): boolean {
     const cost = 250000;
     if (this.state.economy.balanceCents < cost) {
-      notify(this.ctx, 'danger', 'Lagerausbau: Kontostand reicht nicht (2.500 €).');
+      notify(this.ctx, 'danger', 'Lagerausbau: Kontostand reicht nicht (2.500 €).', 'finance');
       return false;
     }
     const id = `upgrade-storage-${this.state.inventory.capacity}`;
@@ -768,7 +768,7 @@ export class Game {
     });
     this.state.inventory.capacity += 60;
     this.bus.emit('upgrade:purchased', 'storage');
-    notify(this.ctx, 'success', `Lager erweitert: Kapazität jetzt ${this.state.inventory.capacity} Teile.`);
+    notify(this.ctx, 'success', `Lager erweitert: Kapazität jetzt ${this.state.inventory.capacity} Teile.`, 'finance');
     return true;
   }
 

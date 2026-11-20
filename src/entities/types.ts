@@ -296,10 +296,14 @@ export interface InventoryState {
   pinned: Record<string, boolean>;
 }
 
+export type NotificationCategory = 'orders' | 'workshop' | 'stock' | 'deliveries' | 'market' | 'personnel' | 'finance' | 'events' | 'system';
+
 export interface GameNotification {
   id: number;
   atMinute: number;
   kind: 'info' | 'success' | 'warning' | 'danger';
+  /** Ältere Meldungen haben keine Kategorie. */
+  category?: NotificationCategory;
   text: string;
   /** Optional: Bezug zu einer Teile-Variante (Lagereintrag-Link). */
   partId?: string;

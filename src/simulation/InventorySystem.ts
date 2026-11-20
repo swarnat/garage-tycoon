@@ -121,6 +121,7 @@ export class InventorySystem {
         ctx,
         'warning',
         'Auto-Bestellung fehlgeschlagen: Kontostand oder Lagerkapazität reicht nicht.',
+        'deliveries',
       );
     }
   }

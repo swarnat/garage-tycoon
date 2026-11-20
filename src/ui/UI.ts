@@ -6,6 +6,7 @@ import { InventorySystem } from '../simulation/InventorySystem';
 import { EconomySystem } from '../simulation/EconomySystem';
 import { OrderSystem } from '../simulation/OrderSystem';
 import { DELAY_BY_PROFILE, delayChance } from '../simulation/PartsResolver';
+import { isToastCategory, TOAST_CATEGORIES, ToastPreferences } from './ToastPreferences';
 
 export type PanelId =
   | 'workshop'
@@ -207,6 +208,7 @@ export class UI {
   private invShowAll = false;
   private invShowUsage = false;
   private lastToastId = 0;
+  private readonly toastPreferences = new ToastPreferences();
   private toastHost!: HTMLElement;
   private drawer!: HTMLElement;
   private fileInput!: HTMLInputElement;
@@ -591,7 +593,13 @@ export class UI {
 
   private onChange(e: Event): void {
     const target = e.target as HTMLInputElement;
-    if (target.dataset.field === 'rate') {
+    const category = target.dataset.toastCategory;
+    if (isToastCategory(category)) {
+      this.toastPreferences.set(category, target.checked);
+      if (!target.checked) {
+        this.toastHost.querySelectorAll(`[data-category="${category}"]`).forEach((toast) => toast.remove());
+      }
+    } else if (target.dataset.field === 'rate') {
       this.actions.setHourlyRate(Math.round(Number(target.value) * 100));
     } else if (target.dataset.field === 'markup') {
       this.actions.setPartsMarkup(Number(target.value));
@@ -843,10 +851,11 @@ export class UI {
   private updateToasts(): void {
     const s = this.getGame().state;
     const fresh = s.notifications.filter((n) => n.id > this.lastToastId);
-    for (const n of fresh.slice(-4)) {
-      this.lastToastId = Math.max(this.lastToastId, n.id);
+    if (fresh.length > 0) this.lastToastId = fresh[fresh.length - 1]!.id;
+    for (const n of this.toastPreferences.visible(fresh).slice(-4)) {
       const div = document.createElement('div');
       div.className = `toast toast-${n.kind}`;
+      div.dataset.category = n.category ?? 'system';
       const link = n.partId ? `<button class="toast-link" data-action="open-inv-part" data-part="${n.partId}">Lagereintrag öffnen</button>` : '';
       div.innerHTML = `<span>${esc(n.text)}</span>${link}<button class="toast-close" data-action="close-toast" title="Schließen">✕</button>`;
       this.toastHost.appendChild(div);
@@ -856,7 +865,7 @@ export class UI {
         setTimeout(() => div.remove(), 400);
       }, 6000);
     }
-    if (fresh.length > 0) this.lastToastId = s.notifications[s.notifications.length - 1]!.id;
+
     while (this.toastHost.children.length > 5) {
       this.toastHost.firstChild?.remove();
     }
@@ -1417,6 +1426,12 @@ export class UI {
         <div class="card-title">Sound</div>
         <div class="btn-row"><button class="btn small ${s.soundEnabled ? 'primary' : ''}" data-action="toggle-sound">${s.soundEnabled ? '🔊 An' : '🔇 Aus'}</button></div>
         <div class="meta muted">Dezente Signale für Rechnung, Auftrag und Ereignis.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Einblendungen</div>
+        <p class="meta muted">Ausgeblendete Hinweise bleiben unter „Meldungen“ sichtbar. Entscheidungsfenster bleiben aktiv.</p>
+        ${Object.entries(TOAST_CATEGORIES).map(([category, label]) => isToastCategory(category)
+          ? `<label class="toast-setting"><input type="checkbox" data-toast-category="${category}" ${this.toastPreferences.enabled(category) ? 'checked' : ''}> ${label}</label>` : '').join('')}
       </div>
       <div class="card">
         <div class="card-title">Spielstand</div>

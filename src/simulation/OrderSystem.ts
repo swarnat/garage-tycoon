@@ -92,7 +92,7 @@ export class OrderSystem {
         case 'waiting_for_approval':
           if (order.offerAtRisk) {
             if (order.approvalDeadline !== null && state.totalMinutes > order.approvalDeadline) {
-              notify(ctx, 'warning', `${order.id}: Kunde hat sich mangels Reaktion entschieden abzulehnen.`);
+              notify(ctx, 'warning', `${order.id}: Kunde hat sich mangels Reaktion entschieden abzulehnen.`, 'orders');
               OrderSystem.cancelOrder(ctx, order, 'Keine Reaktion auf Angebotsnachfrage');
             }
           } else {
@@ -195,6 +195,7 @@ export class OrderSystem {
         ctx,
         'warning',
         `${customer?.name ?? 'Kunde'} droht abzulehnen: Angebot ${((order.estimateCents ?? 0) / 100).toFixed(2)} € über Budget ${(order.budgetCents / 100).toFixed(2)} €. Bitte im Auftrag reagieren (Rabatt oder Preis bestehen).`,
+        'orders',
       );
     }
   }
@@ -218,7 +219,7 @@ export class OrderSystem {
           return `${n.quantity}× ${p?.name ?? n.partId}`;
         })
         .join(', ');
-      notify(ctx, 'warning', `Auftrag ${order.id}: Ersatzteile fehlen (${missing}). Bitte im Lager bestellen.`);
+      notify(ctx, 'warning', `Auftrag ${order.id}: Ersatzteile fehlen (${missing}). Bitte im Lager bestellen.`, 'stock');
     }
   }
 
@@ -444,7 +445,7 @@ export class OrderSystem {
       vehicle.state = 'at_lift';
       if (order.status === 'ready_for_repair') {
         OrderSystem.setStatus(state, order, 'repairing');
-        notify(ctx, 'info', `${vehicle.make} ${vehicle.model} steht auf der Hebebühne (${order.id}).`);
+        notify(ctx, 'info', `${vehicle.make} ${vehicle.model} steht auf der Hebebühne (${order.id}).`, 'workshop');
       }
     } else if (vehicle.state === 'driving_out') {
       vehicle.state = 'gone';
@@ -478,12 +479,13 @@ export class OrderSystem {
           const cc = state.customers.find((c) => c.id === order.customerId);
           if (cc) cc.lastSatisfaction = order.satisfaction;
           state.statistics.satisfactionSum += order.satisfaction - prevSat;
-          notify(ctx, 'danger', `Reklamation zu ${order.id}: ${(refund / 100).toFixed(2)} € erstattet, Reputation −4.`);
+          notify(ctx, 'danger', `Reklamation zu ${order.id}: ${(refund / 100).toFixed(2)} € erstattet, Reputation −4.`, 'workshop');
         }
         notify(
           ctx,
           'success',
           `Auftrag ${order.id} ausgeliefert. Rechnung: ${(order.invoiceCents! / 100).toFixed(2)} €`,
+          'orders',
         );
       }
     }
