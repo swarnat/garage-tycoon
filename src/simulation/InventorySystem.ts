@@ -5,6 +5,11 @@ import { SupplierSystem } from './SupplierSystem';
 
 /** Lagerbestand, Reservierungen, Verbrauch und automatische Nachbestellung. */
 export class InventorySystem {
+  /** Varianten mit Verbrauch im Zeitfenster (zentrale Verbrauch-Sicht). */
+  static consumedVariants(inv: InventoryState, partIds: string[], now: number, withinMinutes = 2880): string[] {
+    return partIds.filter((id) => InventorySystem.usageWithin(inv, id, withinMinutes, now) > 0);
+  }
+
   /** Menge einer Variante (oder aller), die noch unterwegs ist (offene Lieferungen). */
   static openIncoming(deliveries: { partId: string; quantity: number; done: boolean }[], partId?: string): number {
     return deliveries.reduce((a, d) => (!d.done && (partId === undefined || d.partId === partId) ? a + d.quantity : a), 0);

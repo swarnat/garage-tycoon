@@ -30,6 +30,7 @@ Du führst eine Kfz-Werkstatt: Aufträge annehmen, Mitarbeiter diagnostizieren u
 - Kostenvoranschläge mit Kundenfreigabe nach Budget und Kundenprofil
 - Lager mit Reservierungen, drei Lieferanten (Standard / Express / Budget), **Auto-Nachbestellung** unter Mindestmenge (Lager als Modal), „Alle Auto AN/AUS"
 - **Lager-Verbrauchsstatistik**: Spalten 24h/48h zeigen den Teileverbrauch je Artikel; Legende erklärt Markierungen (gelb = Bestand ≤ Mindestbestand)
+- **Lockereres Lager-Management**: Start mit 1 je Standard-Variante (86) + Mindestbestand 1, Kapazität 160; Ein-Klick **„Verbrauchte Mengen nachbestellen"** (48h-Verbrauch aller Varianten gesammelt, abzüglich offener Lieferungen); Filter **„Verbrauch anzeigen"** (verbrauchte Varianten über alle Kategorien zentral); **höherwertige Alternative gleicher Größe** wird im Teile-Modal mit Preis vorgeschlagen (z. B. Premium statt fehlendem Standard). Auto-Nachbestellung bleibt bewusst AUS
 - **Teilevarianten & Kompatibilität**: jedes Modell hat feste Specs (Reifengröße, Bremsscheibengröße, Öl-Spec, Batterie …); Diagnose löst Defekte auf konkrete Varianten auf; Qualitätsklassen Budget/Standard/Premium folgen dem Kundenprofil
 - **Reifen & Felgen**: Reifenwechsel (4 Stück) und Felgenersatz brauchen die Reifenmontagemaschine (Ausbau); Felgen in Stahl/Alu/Premium-Alu je Größe
 - **Teile-fehlt-Modal**: bei fehlendem Bestand nach der Diagnose – „Um Aufschub bitten & bestellen" (profilabhängige Akzeptanz-Chance, +6 h bis +1 Tag), „Ohne Aufschub bestellen" oder „Abweisen"; Express-Aufpreis zahlt die Werkstatt

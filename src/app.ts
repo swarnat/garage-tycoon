@@ -165,6 +165,8 @@ const actions: UIActions = {
   refreshCandidates: () => { game.refreshCandidates(); },
   toggleAuto: (partId) => { game.toggleAutoReorder(partId); },
   setAutoSupplier: (id) => { game.setAutoSupplier(id); },
+  restockConsumed: () => { game.restockConsumed(); },
+  useSubstitute: (orderId, from, to) => { game.useSubstitute(orderId, from, to); },
   chooseEvent: (id) => { game.chooseEvent(id); sound.click(); },
   dismissSummary: () => { game.state.dailySummaryPending = null; ui.closeModal(); },
   setMarketing: (level) => { game.setMarketing(level); sound.click(); },

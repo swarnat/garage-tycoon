@@ -122,6 +122,13 @@ export function createNewGame(seed: number): GameState {
     if (vid) minStock[vid] = min;
   }
   stock['tires__15__standard'] = 4; // ein Satz Kompakt-Reifen zum Start
+  // Grundsortiment: 1 je Standard-Variante + Mindestbestand 1 (Auto bleibt aus)
+  for (const p of DEFS.parts) {
+    if (p.quality === 'standard') {
+      stock[p.id] = Math.max(stock[p.id] ?? 0, 1);
+      minStock[p.id] = Math.max(minStock[p.id] ?? 0, 1);
+    }
+  }
   return {
     version: SAVE_VERSION,
     seed,
@@ -160,7 +167,7 @@ export function createNewGame(seed: number): GameState {
       stock,
       reserved,
       minStock,
-      capacity: 120,
+      capacity: 160,
       autoReorder: {},
       usageLog: [],
       lastOrdered: {},
@@ -546,6 +553,59 @@ export class Game {
   }
 
   /** Ladenhüter verkaufen: unreserved Bestand zu 60 % des Marktpreises. */
+  /** Bestellt die in den letzten 48 h verbrauchten Mengen gesammelt nach (zentral). */
+  restockConsumed(): { count: number; costCents: number } {
+    const inv = this.state.inventory;
+    const supplier = inv.autoSupplierId || 'teileprofi';
+    let count = 0;
+    let cost = 0;
+    for (const p of this.defs.parts) {
+      const used = InventorySystem.usageWithin(inv, p.id, 2880, this.state.totalMinutes);
+      if (used <= 0) continue;
+      const incoming = InventorySystem.openIncoming(this.state.deliveries, p.id);
+      const need = Math.max(0, used - incoming);
+      if (need <= 0) continue;
+      const before = this.state.economy.balanceCents;
+      if (SupplierSystem.orderParts(this.ctx, p.id, need, supplier, true)) {
+        count += 1;
+        cost += before - this.state.economy.balanceCents;
+      }
+    }
+    if (count > 0) {
+      notify(this.ctx, 'success', `Verbrauchte Mengen nachbestellt: ${count} Varianten (${(cost / 100).toFixed(2)} €).`);
+    } else {
+      notify(this.ctx, 'info', 'Keine verbrauchten Mengen nachzubestellen.');
+    }
+    return { count, costCents: cost };
+  }
+
+  /** Höherwertige Variante gleicher Kategorie+Größe, die vorrätig ist (oder null). */
+  findSubstitute(partId: string): string | null {
+    const part = this.defs.parts.find((p) => p.id === partId);
+    if (!part) return null;
+    const rank: Record<string, number> = { budget: 0, standard: 1, premium: 2 };
+    const candidates = this.defs.parts
+      .filter((p) => p.category === part.category && p.spec === part.spec && (rank[p.quality] ?? 0) > (rank[part.quality] ?? 0))
+      .filter((p) => InventorySystem.available(this.state.inventory, p.id) > 0)
+      .sort((a, b) => (rank[a.quality] ?? 0) - (rank[b.quality] ?? 0));
+    return candidates[0]?.id ?? null;
+  }
+
+  /** Ersetzt eine fehlende Variante im Auftrag durch die vorgeschlagene Alternative. */
+  useSubstitute(orderId: string, fromPartId: string, toPartId: string): boolean {
+    const order = this.state.orders.find((o) => o.id === orderId);
+    if (!order || order.status !== 'waiting_for_parts') return false;
+    const need = order.partsNeeded.find((n) => n.partId === fromPartId);
+    const to = this.defs.parts.find((p) => p.id === toPartId);
+    if (!need || !to) return false;
+    if (InventorySystem.available(this.state.inventory, toPartId) < need.quantity) return false;
+    need.partId = toPartId;
+    order.partsReserved = false;
+    order.partsPromptShown = false;
+    notify(this.ctx, 'info', `Alternative verwendet: ${to.name} statt der fehlenden Variante (${order.id}).`);
+    return true;
+  }
+
   sellVariant(variantId: string): boolean {
     const part = this.defs.parts.find((p) => p.id === variantId);
     if (!part) return false;

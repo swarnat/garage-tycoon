@@ -57,6 +57,8 @@ export interface UIActions {
   refreshCandidates(): void;
   toggleAuto(partId: string): void;
   setAutoSupplier(id: string): void;
+  restockConsumed(): void;
+  useSubstitute(orderId: string, fromPartId: string, toPartId: string): void;
   chooseEvent(choiceId: string): void;
   dismissSummary(): void;
   setMarketing(level: number): void;
@@ -196,6 +198,7 @@ export class UI {
   private invCategory = 'brake_pads';
   private invSearch = '';
   private invShowAll = false;
+  private invShowUsage = false;
   private lastToastId = 0;
   private toastHost!: HTMLElement;
   private drawer!: HTMLElement;
@@ -533,6 +536,9 @@ export class UI {
         break;
       case 'inv-category': this.invCategory = id; break;
       case 'inv-showall': this.invShowAll = !this.invShowAll; break;
+      case 'inv-showusage': this.invShowUsage = !this.invShowUsage; break;
+      case 'restock-consumed': this.actions.restockConsumed(); break;
+      case 'use-substitute': this.actions.useSubstitute(btn.dataset.order ?? '', btn.dataset.from ?? '', btn.dataset.to ?? ''); break;
       case 'pin-variant': this.actions.pinVariant(btn.dataset.part ?? ''); break;
       case 'sell-variant': this.actions.sellVariant(btn.dataset.part ?? ''); break;
       case 'tool-wait': this.closeModal(); break;
@@ -696,7 +702,7 @@ export class UI {
   private signature(): string {
     const s = this.getGame().state;
     const parts: (string | number)[] = [
-      this.panel, this.modalKind, this.toolOrderId ?? '', this.partsOrderId ?? '', this.modalOpen ? 1 : 0, this.modalMinimized ? 1 : 0, this.invCategory, this.invSearch, this.invShowAll ? 1 : 0, this.partsSupplierId,
+      this.panel, this.modalKind, this.toolOrderId ?? '', this.partsOrderId ?? '', this.modalOpen ? 1 : 0, this.modalMinimized ? 1 : 0, this.invCategory, this.invSearch, this.invShowAll ? 1 : 0, this.invShowUsage ? 1 : 0, this.partsSupplierId,
       this.selection ? `${this.selection.kind}:${this.selection.id}` : '',
       this.highlightParts.size,
       Math.floor(s.totalMinutes / 5), s.speed, s.economy.balanceCents, s.orderRateFactor,
@@ -1053,7 +1059,10 @@ export class UI {
       const avail = InventorySystem.available(s.inventory, n.partId);
       const missing = Math.max(0, n.quantity - avail);
       if (missing === 0) continue;
-      html += `<tr class="low"><td>${esc(pd.name)}</td><td class="num">${n.quantity}</td><td class="num">${avail}</td><td class="num"><strong>${missing}</strong></td><td class="num">${eur(EconomySystem.marketBuyCents(s, pd))}</td></tr>`;
+      const subId = game.findSubstitute(n.partId);
+      const sub = subId ? game.defs.parts.find((x) => x.id === subId) : null;
+      const subVk = sub ? EconomySystem.sellPrice(EconomySystem.marketBuyCents(s, sub), s.economy.partsMarkupPct) : 0;
+      html += `<tr class="low"><td>${esc(pd.name)}${sub ? `<div class="meta">💡 Alternative gleiche Größe: <strong>${esc(sub.name)}</strong> vorrätig (VK ${eur(subVk)}) <button class="btn small" data-action="use-substitute" data-order="${o.id}" data-from="${n.partId}" data-to="${sub.id}">Verwenden</button></div>` : ''}</td><td class="num">${n.quantity}</td><td class="num">${avail}</td><td class="num"><strong>${missing}</strong></td><td class="num">${eur(EconomySystem.marketBuyCents(s, pd))}</td></tr>`;
     }
     html += `</tbody></table>
       <div class="meta">Lieferant: <button type="button" class="help" data-help="Express-Aufpreis und Versandkosten zahlt die Werkstatt – sie schmälern die Marge, nicht die Rechnung.">?</button></div>
@@ -1091,6 +1100,11 @@ export class UI {
       <span class="muted">⏱ ${(sup.leadMinutes / 60).toFixed(0)} h · ${sup.priceFactor}× Preis</span>
       <button type="button" class="help" data-help="Lieferant für manuelle Bestellungen (+1/+5). ExpressParts liefert in 1 h (35 % Aufpreis), TeileProfi in 8 h, BudgetTeile in 24 h (15 % Rabatt). Gilt nicht für die Auto-Nachbestellung – die hat ihren eigenen Lieferanten oben.">?</button>
     </div>`;
+    html += `<div class="btn-row">
+      <button class="btn small" data-action="restock-consumed" title="Bestellt die in den letzten 48 h verbrauchten Mengen aller Varianten gesammelt nach">Verbrauchte Mengen nachbestellen</button>
+      <button class="btn small ${this.invShowUsage ? 'primary' : ''}" data-action="inv-showusage">${this.invShowUsage ? 'Verbrauch ausblenden' : 'Verbrauch anzeigen'}</button>
+      <button type="button" class="help" data-help="„Verbrauchte Mengen nachbestellen" bestellt pro Variante die in den letzten 48 h verbrauchte Menge (abzüglich offener Lieferungen) beim Auto-Lieferanten – zentrale Auffüllung statt Einzelklicks. „Verbrauch anzeigen" listet alle verbrauchten Varianten über alle Kategorien.">?</button>
+    </div>`;
     html += `<div class="inv-layout"><div class="inv-cats">`;
     for (const cat of game.defs.categories) {
       const vars = game.defs.parts.filter((p) => p.category === cat.id);
@@ -1099,12 +1113,18 @@ export class UI {
     }
     html += `</div><div class="inv-main">`;
     const cat = game.defs.categories.find((c) => c.id === this.invCategory) ?? game.defs.categories[0]!;
-    const variants = game.defs.parts.filter((p) => p.category === cat.id);
-    const visible = variants.filter((p) =>
-      InventorySystem.isVisible(inv, p.id, s.deliveries, search, this.invShowAll, p.name),
-    );
+    const consumedSet = this.invShowUsage
+      ? new Set(InventorySystem.consumedVariants(inv, game.defs.parts.map((p) => p.id), s.totalMinutes, 2880))
+      : null;
+    const variants = consumedSet
+      ? game.defs.parts.filter((p) => consumedSet.has(p.id))
+      : game.defs.parts.filter((p) => p.category === cat.id);
+    const visible = consumedSet
+      ? variants.filter((p) => !search || p.name.toLowerCase().includes(search))
+      : variants.filter((p) => InventorySystem.isVisible(inv, p.id, s.deliveries, search, this.invShowAll, p.name));
     const used48cat = variants.reduce((a, p) => a + InventorySystem.usageWithin(inv, p.id, 2880, s.totalMinutes), 0);
-    html += `<h3 class="section">${esc(cat.name)} <span class="muted">· ${visible.length}/${variants.length} Varianten · Verbrauch 48h: ${used48cat}</span></h3>`;
+    const headLabel = consumedSet ? 'Verbrauchte Varianten (48 h)' : esc(cat.name);
+    html += `<h3 class="section">${headLabel} <span class="muted">· ${visible.length}/${variants.length} Varianten · Verbrauch 48h: ${used48cat}</span></h3>`;
     if (visible.length === 0) {
       html += `<p class="empty">Keine sichtbaren Varianten. Suche nutzen oder „Alle Varianten" einblenden.</p>`;
     } else {
