@@ -1,5 +1,6 @@
 import type { Game } from '../core/Game';
 import type { RepairOrder, Worker } from '../entities/types';
+import { diagnosisBayCostCents } from '../entities/types';
 import type { Selection } from '../rendering/Renderer';
 import { InventorySystem } from '../simulation/InventorySystem';
 import { EconomySystem } from '../simulation/EconomySystem';
@@ -166,7 +167,13 @@ function gameTime(totalMinutes: number): string {
 
 function dueLabel(order: RepairOrder, now: number): string {
   const day = Math.floor(order.dueAtMinute / 1440) + 1;
-  const overdue = now > order.dueAtMinute;
+  const finished = order.status === 'completed' || order.status === 'delivered';
+  const completedAt = finished
+    ? order.statusLog?.find((entry) => entry.status === 'completed')?.atMinute
+    : undefined;
+  const overdue = finished && completedAt === undefined
+    ? order.satisfactionReason.startsWith('Verspätung ')
+    : (completedAt ?? now) > order.dueAtMinute;
   return `<span class="${overdue ? 'overdue' : ''}">Termin: Tag ${day}${overdue ? ' (überschritten!)' : ''}</span>`;
 }
 
@@ -1182,7 +1189,8 @@ export class UI {
     const parts = today?.partsCostCents ?? 0;
     const salary = today?.salaryCents ?? 0;
     const fixed = today?.fixedCostCents ?? 0;
-    const result = rev - parts - salary - fixed;
+    const used = today ? today.partsUsedCents : 0;
+    const result = EconomySystem.operatingResultToday(s);
     const st = s.statistics;
     const avgOrder = st.ordersCompleted > 0 ? Math.round(st.totalRevenueCents / st.ordersCompleted) : 0;
     const avgSat = st.ordersCompleted > 0 ? Math.round(st.satisfactionSum / st.ordersCompleted) : 0;
@@ -1203,10 +1211,11 @@ export class UI {
     html += `<h3 class="section">Heute (Tag ${day})</h3>
       <div class="finance-grid">
         <div><label>Umsatz</label><strong class="pos">${eur(rev)}</strong></div>
-        <div><label>Ersatzteile</label><strong class="neg">${eur(parts)}</strong></div>
+        <div><label>Teileeinkauf (Kasse)</label><strong>${eur(parts)}</strong></div>
+        <div><label>Teileverbrauch</label><strong class="neg">${used === undefined ? '–' : eur(used)}</strong></div>
         <div><label>Personal</label><strong class="neg">${eur(salary)}</strong></div>
         <div><label>Fixkosten</label><strong class="neg">${eur(fixed)}</strong></div>
-        <div class="wide"><label>Betriebsergebnis</label><strong class="${result >= 0 ? 'pos' : 'neg'}">${eur(result)}</strong></div>
+        <div class="wide"><label>Betriebsergebnis ${help('Umsatz minus Materialentnahmen zum Markt-EK, gebuchte Personalkosten und Fixkosten. Einkäufe wirken auf die Kasse, erst Entnahmen auf dieses Ergebnis. Sonstige Buchungen wie Erstattungen sind hier nicht enthalten. Alte Tage ohne Verbrauchserfassung zeigen einen Strich.')}</label><strong class="${result === null ? 'muted' : result >= 0 ? 'pos' : 'neg'}">${result === null ? '–' : eur(result)}</strong></div>
       </div>`;
     html += `<h3 class="section">Gesamt</h3>
       <div class="finance-grid">
@@ -1244,11 +1253,10 @@ export class UI {
     }
     const lastDays = s.economy.daily.slice(-7).reverse();
     if (lastDays.length > 0) {
-      html += `<h3 class="section">Letzte Tage</h3><table class="parts-table"><thead><tr><th>Tag</th><th>Umsatz</th><th>Kosten</th><th>Ergebnis</th></tr></thead><tbody>`;
+      html += `<h3 class="section">Letzte Tage</h3><table class="parts-table"><thead><tr><th>Tag</th><th>Umsatz</th><th>Teileeinkauf</th><th>Teileverbrauch</th><th>Ergebnis</th></tr></thead><tbody>`;
       for (const d of lastDays) {
-        const costs = d.partsCostCents + d.salaryCents + d.fixedCostCents;
-        const result = d.revenueCents - costs;
-        html += `<tr><td>${d.day}</td><td class="num pos">${eur(d.revenueCents)}</td><td class="num neg">${eur(costs)}</td><td class="num ${result >= 0 ? 'pos' : 'neg'}">${eur(result)}</td></tr>`;
+        const result = EconomySystem.operatingResult(d);
+        html += `<tr><td>${d.day}</td><td class="num pos">${eur(d.revenueCents)}</td><td class="num">${eur(d.partsCostCents)}</td><td class="num">${d.partsUsedCents === undefined ? '–' : eur(d.partsUsedCents)}</td><td class="num ${result === null ? 'muted' : result >= 0 ? 'pos' : 'neg'}">${result === null ? '–' : eur(result)}</td></tr>`;
       }
       html += `</tbody></table>`;
     }
@@ -1333,7 +1341,7 @@ export class UI {
     html += `<div class="card">
       <div class="card-title">Diagnoseplätze (${diags.filter((x) => x.unlocked).length}/${diags.length})</div>
       <div class="meta">Parallele Diagnosen <button type="button" class="help" data-help="Vermeidet den Diagnose-Engpass, besonders mit mehreren Mitarbeitern.">?</button></div>
-      <div class="meta">Kosten je weiterem Platz: ${eur(500000)}</div>
+      ${nextDiag ? `<div class="meta">Nächster Diagnoseplatz: ${eur(diagnosisBayCostCents(nextDiag.id))}</div>` : ''}
       ${nextDiag
         ? `<div class="btn-row"><button class="btn primary" data-action="buy-diag">Diagnose ${nextDiag.id.replace('diag', '')} kaufen</button></div>`
         : '<div class="chip st-delivered">Alle 3 Diagnoseplätze installiert</div>'}

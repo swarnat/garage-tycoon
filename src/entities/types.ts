@@ -87,6 +87,8 @@ export interface DailyStats {
   day: number;
   revenueCents: number;
   partsCostCents: number;
+  /** Verbrauch zum Markt-EK bei Entnahme; fehlt in älteren Spielständen. */
+  partsUsedCents?: number;
   salaryCents: number;
   fixedCostCents: number;
   investmentCents: number;
@@ -499,6 +501,9 @@ export const MINUTES_PER_DAY = 1440;
 export const GAME_MINUTES_PER_REAL_SECOND = 6;
 export const SIM_STEP_MINUTES = 0.25;
 export const DIAGNOSIS_BASE_MINUTES = 45;
+export function diagnosisBayCostCents(id: string): number {
+  return id === 'diag2' ? 150000 : 500000;
+}
 export const DIAGNOSIS_FEE_CENTS = 4900;
 export const QC_BASE_MINUTES = 15;
 export const RENT_CENTS_PER_DAY = 9000;

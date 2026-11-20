@@ -102,7 +102,7 @@ describe('Werkstattausbau: zweiter Diagnoseplatz', () => {
     const balanceBefore = game.state.economy.balanceCents;
     expect(game.buyDiagnosisBay()).toBe(true);
     expect(diag2!.unlocked).toBe(true);
-    expect(game.state.economy.balanceCents).toBe(balanceBefore - 500000);
+    expect(game.state.economy.balanceCents).toBe(balanceBefore - 150000);
     expect(game.buyDiagnosisBay()).toBe(true); // diag3 gibt es jetzt auch
     expect(game.buyDiagnosisBay()).toBe(false); // alle gekauft
     expect(game.map.isBlocked(14, 9)).toBe(true); // Karte neu gebaut (Diagnose vorn)

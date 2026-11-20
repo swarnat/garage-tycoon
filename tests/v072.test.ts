@@ -39,15 +39,10 @@ describe('Termine: Feierabend-Deadline + probabilistisch mehr Zeit', () => {
   it('zeitkritische Kunden: selber Tag 18:00, wenn vor Feierabend', () => {
     const game = Game.new(1780);
     game.state.totalMinutes = 9 * 60;
-    const offer = game.generateOffer()!;
-    const customer = game.state.customers.find((c) => c.id === offer.customerId)!;
-    customer.profile = 'time_critical';
-    // Neues Angebot mit time_critical-Profil erzwingen
-    for (const o of game.state.orders.filter((x) => x.status === 'incoming')) game.declineOrder(o.id);
-    const origPick = game.rng.pick.bind(game.rng);
-    game.rng.pick = <T,>(arr: readonly T[]): T => {
-      if (arr.includes('time_critical' as unknown as T)) return 'time_critical' as unknown as T;
-      return origPick(arr);
+    const weighted = game.rng.weighted.bind(game.rng);
+    game.rng.weighted = <T,>(items: readonly T[], weights: readonly number[]): T => {
+      const critical = items.find((item) => item === 'time_critical');
+      return critical ?? weighted(items, weights);
     };
     const next = game.generateOffer()!;
     expect(next.dueAtMinute).toBe(18 * 60);

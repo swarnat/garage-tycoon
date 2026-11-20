@@ -3,6 +3,7 @@ import type {
   CustomerProfile,
   OrderType,
   RepairOrder,
+  RepairDef,
   Vehicle,
 } from '../entities/types';
 import { DIAGNOSIS_FEE_CENTS } from '../entities/types';
@@ -71,6 +72,12 @@ export class CustomerSystem {
       [45, 20, 10, 10, 10, 5],
     );
 
+    // Fehlendes Spezialwerkzeug ist zum Einstieg selten, nicht ausgeschlossen.
+    const toolWeight = (def: RepairDef): number =>
+      def.requiredTools?.some((t) => !state.ownedTools.includes(t))
+        ? 0.2 + 0.8 * Math.min(1, state.totalMinutes / (28 * 1440)) : 1;
+    const repairWeight = (r: RepairDef): number =>
+      toolWeight(r) * (1 + (mileageKm > 120_000 && WEAR_REPAIRS.has(r.id) ? 1.2 : 0));
     let defectIds: string[];
     if (type === 'maintenance') {
       defectIds = [rng.chance(0.7) ? 'oil_change' : 'replace_air_filter'];
@@ -78,16 +85,14 @@ export class CustomerSystem {
       defectIds = ['inspection'];
     } else {
       const pool = ctx.defs.repairs.filter((r) => r.id !== 'inspection');
-      const weights = pool.map(
-        (r) => 1 + (mileageKm > 120_000 && WEAR_REPAIRS.has(r.id) ? 1.2 : 0),
-      );
+      const weights = pool.map(repairWeight);
       const first = rng.weighted(pool, weights);
       defectIds = [first.id];
       if (type === 'major') {
         const rest = pool.filter((r) => r.id !== first.id);
         const second = rng.weighted(
           rest,
-          rest.map((r) => 1 + (WEAR_REPAIRS.has(r.id) ? 0.8 : 0)),
+          rest.map((r) => toolWeight(r) * (1 + (WEAR_REPAIRS.has(r.id) ? 0.8 : 0))),
         );
         defectIds.push(second.id);
       }
@@ -98,7 +103,8 @@ export class CustomerSystem {
       const def = ctx.defs.repairs.find((r) => r.id === id);
       for (const f of def?.followUps ?? []) {
         if (defectIds.length >= 3) break;
-        if (!defectIds.includes(f.repairId) && rng.chance(f.chance)) {
+        const followUp = ctx.defs.repairs.find((r) => r.id === f.repairId);
+        if (followUp && !defectIds.includes(f.repairId) && rng.chance(f.chance * toolWeight(followUp))) {
           defectIds.push(f.repairId);
         }
       }

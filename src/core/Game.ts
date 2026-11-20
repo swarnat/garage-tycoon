@@ -1,5 +1,6 @@
 import type { GameState, RepairOrder, Worker } from '../entities/types';
 import {
+  diagnosisBayCostCents,
   GAME_MINUTES_PER_REAL_SECOND,
   MINUTES_PER_DAY,
   SAVE_VERSION,
@@ -722,9 +723,9 @@ export class Game {
   buyDiagnosisBay(): boolean {
     const bay = this.state.stations.find((s) => s.kind === 'diagnosis' && !s.unlocked);
     if (!bay) return false;
-    const cost = 500000;
+    const cost = diagnosisBayCostCents(bay.id);
     if (this.state.economy.balanceCents < cost) {
-      notify(this.ctx, 'danger', 'Diagnoseplatz: Kontostand reicht nicht (5.000 €).');
+      notify(this.ctx, 'danger', `Diagnoseplatz: Kontostand reicht nicht (${(cost / 100).toLocaleString('de-DE')} €).`);
       return false;
     }
     const n = bay.id.replace('diag', '');

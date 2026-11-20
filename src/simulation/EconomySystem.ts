@@ -3,12 +3,15 @@ import type {
   DailySummary,
   EconomyState,
   GameState,
+  PartNeed,
   Transaction,
 } from '../entities/types';
 import {
   RENT_CENTS_PER_DAY,
   UTILITIES_CENTS_PER_DAY,
 } from '../entities/types';
+
+import { partDef, type SimContext } from './context';
 
 const MAX_TRANSACTIONS = 400;
 const MARKETING_COST_CENTS = [0, 5000, 15000, 30000];
@@ -65,6 +68,7 @@ export class EconomySystem {
         day,
         revenueCents: 0,
         partsCostCents: 0,
+        partsUsedCents: 0,
         salaryCents: 0,
         fixedCostCents: 0,
         investmentCents: 0,
@@ -86,6 +90,21 @@ export class EconomySystem {
   /** Aktueller Markteinkaufspreis (Basispreis × Marktfaktor). */
   static marketBuyCents(state: GameState, part: { id: string; buyCents: number }): number {
     return Math.round(part.buyCents * (state.marketPriceFactors[part.id] ?? 1));
+  }
+
+  /** Materialentnahme ist Verbrauch, keine zweite Zahlung. */
+  static recordPartsUsage(ctx: SimContext, needs: PartNeed[]): void {
+    const { state } = ctx;
+    const day = EconomySystem.dailyFor(state.economy, Math.floor(state.totalMinutes / 1440) + 1);
+    // Eine alte, bereits angebrochene Tageszeile wäre unvollständig.
+    if (day.partsUsedCents === undefined) return;
+    day.partsUsedCents += needs.reduce((sum, n) =>
+      sum + EconomySystem.marketBuyCents(state, partDef(ctx, n.partId)) * n.quantity, 0);
+  }
+
+  static operatingResult(d: DailyStats): number | null {
+    return d.partsUsedCents === undefined ? null :
+      d.revenueCents - d.partsUsedCents - d.salaryCents - d.fixedCostCents;
   }
 
   /** Tagesabschluss: Gehälter + Fixkosten, Statistik. */
@@ -141,7 +160,7 @@ export class EconomySystem {
   /** Tagesabschluss-Zusammenfassung für das Modal (vor dailyReview aufrufen). */
   static buildDailySummary(state: GameState, day: number): DailySummary {
     const d = EconomySystem.dailyFor(state.economy, day);
-    const profit = d.revenueCents - d.partsCostCents - d.salaryCents - d.fixedCostCents;
+    const profit = EconomySystem.operatingResult(d) ?? (d.revenueCents - d.partsCostCents - d.salaryCents - d.fixedCostCents);
     let best: { name: string; min: number } | null = null;
     for (const w of state.workers) {
       if (!best || w.dailyWorkedMinutes > best.min) best = { name: w.name, min: w.dailyWorkedMinutes };
@@ -189,13 +208,11 @@ export class EconomySystem {
     return { cash, inventoryValue, assets, debt, equity: assets - debt };
   }
 
-  static operatingResultToday(state: GameState): number {
+  static operatingResultToday(state: GameState): number | null {
     const d = state.economy.daily.find(
       (x) => x.day === Math.floor(state.totalMinutes / 1440) + 1,
     );
     if (!d) return 0;
-    return (
-      d.revenueCents - d.partsCostCents - d.salaryCents - d.fixedCostCents
-    );
+    return EconomySystem.operatingResult(d);
   }
 }

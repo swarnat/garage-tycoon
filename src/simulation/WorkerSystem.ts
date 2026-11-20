@@ -5,6 +5,7 @@ import { notify, repairDef, stationById, vehicleById } from './context';
 import { OrderSystem } from './OrderSystem';
 import { DiagnosisSystem } from './DiagnosisSystem';
 import { RepairSystem } from './RepairSystem';
+import { EconomySystem } from './EconomySystem';
 import { InventorySystem } from './InventorySystem';
 import { SKILL_LABELS } from './PersonnelSystem';
 import { findPath } from '../world/Pathfinding';
@@ -190,6 +191,7 @@ export class WorkerSystem {
       // Verbrauch genau einmal – auch bei neu vergebenem, unterbrochenem Transport
       if (!order.partsConsumed) {
         InventorySystem.consumeReserved(state.inventory, order.partsNeeded, state.totalMinutes);
+        EconomySystem.recordPartsUsage(ctx, order.partsNeeded);
         order.partsConsumed = true;
       }
       // Lagerhelfer liefern erst an der Bühne ab; Mechaniker tragen selbst.
