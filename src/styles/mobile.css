@@ -15,6 +15,8 @@
 .speed-controls { margin-left: auto; }
 .speed-controls button { min-width: 36px; min-height: 36px; font-size: 13px; }
 
+#build-commit { bottom: calc(max(var(--mob-nav), env(safe-area-inset-bottom)) + 6px); }
+
 #layout { display: block; }
 #canvas-host { position: fixed; top: var(--mob-top); bottom: var(--mob-nav); left: 0; right: 0; }
 
@@ -34,8 +36,10 @@
 
 #modal-backdrop { z-index: 700; }
 #modal { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+#modal:has(.inv-layout) { width: 100vw; max-width: 100vw; }
 #modal-body { max-height: calc(100dvh - 64px); }
-.inv-layout { grid-template-columns: 1fr; }
+.inv-layout { grid-template-columns: minmax(0, 1fr); }
+.inv-deliveries { grid-row: 2; }
 .inv-cats { flex-direction: row; overflow-x: auto; max-height: none; padding-bottom: 4px; }
 .inv-cat { flex: 0 0 auto; }
 .inv-main { overflow-x: auto; }

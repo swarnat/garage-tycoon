@@ -684,6 +684,7 @@ export class UI {
     const modalSig = this.modalOpen ? this.signature() : '';
     if (this.modalOpen && !this.modalMinimized && !editingModal && (force || (!this.interacting && modalSig !== this.lastModalSig))) {
       this.lastModalSig = modalSig;
+      const deliveryScroll = modalBody.querySelector('.inv-deliveries ul')?.scrollTop ?? 0;
       modalBody.innerHTML =
         this.modalKind === 'tool' ? this.renderToolPrompt()
         : this.modalKind === 'approval' ? this.renderApprovalPrompt()
@@ -692,6 +693,8 @@ export class UI {
         : this.modalKind === 'summary' ? this.renderDailySummary()
         : this.modalKind === 'finance' ? this.renderFinance()
         : this.renderInventory();
+      const deliveryList = modalBody.querySelector('.inv-deliveries ul');
+      if (deliveryList) deliveryList.scrollTop = deliveryScroll;
     }
     // Drawer nur bei Inhaltsänderung neu aufbauen (verhindert Klick-Flackern)
     const editing =
@@ -1176,8 +1179,23 @@ export class UI {
       }
       html += `</tbody></table>`;
     }
-    html += `</div></div>`;
-    return html;
+    html += '</div>';
+    const open = s.deliveries.filter((d) => !d.done).sort((a, b) => a.arriveAtMinute - b.arriveAtMinute);
+    html += `<aside class="inv-deliveries" aria-labelledby="inv-deliveries-title">
+      <h3 class="section" id="inv-deliveries-title">Offene Bestellungen (${open.length})</h3>`;
+    if (open.length === 0) html += '<p class="empty">Keine offenen Bestellungen.</p>';
+    else {
+      html += '<ul>';
+      for (const d of open) {
+        const part = game.defs.parts.find((p) => p.id === d.partId);
+        const supplier = game.defs.suppliers.find((p) => p.id === d.supplierId);
+        html += `<li><strong>${d.quantity}× ${esc(part?.name ?? d.partId)}</strong>
+          <div class="meta">${esc(supplier?.name ?? d.supplierId)} · ${eur(d.costCents)}</div>
+          <div class="meta">Ankunft: ${gameTime(d.arriveAtMinute)}</div></li>`;
+      }
+      html += '</ul>';
+    }
+    return html + '</aside></div>';
   }
 
   private renderFinance(): string {
