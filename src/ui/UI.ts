@@ -1124,7 +1124,14 @@ export class UI {
     const s = game.state;
     const inv = s.inventory;
     const search = this.invSearch.trim().toLowerCase();
-    let html = `<div class="btn-row">
+    const stock = InventorySystem.totalStock(inv);
+    const incoming = InventorySystem.openIncoming(s.deliveries);
+    const free = Math.max(0, inv.capacity - stock - incoming);
+    let html = `<div class="card compact inv-capacity">
+      <div class="card-title">Lagerplatz: ${stock + incoming} / ${inv.capacity} Teile${free === 0 ? ' <span class="chip st-waiting_for_parts">Lager voll</span>' : ''}</div>
+      <div class="meta">${stock} im Lager · ${incoming} unterwegs · ${free} frei</div>
+    </div>
+    <div class="btn-row">
       <button class="btn small ${this.invShowAll ? 'primary' : ''}" data-action="inv-showall">${this.invShowAll ? 'Alle Varianten sichtbar' : 'Nur relevante Varianten'}</button>
       <input class="inv-search" type="search" placeholder="Variante suchen…" value="${esc(this.invSearch)}" data-field="inv-search">
     </div>`;
