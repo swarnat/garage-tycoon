@@ -99,16 +99,17 @@ describe('Personal: Einstellen und Entlassen', () => {
     expect(hired.skills.brakes).toBe(cand.skills.brakes);
   });
 
-  it('begrenzt die Belegschaft auf sechs Mitarbeiter', () => {
+  it('erlaubt 18 Mitarbeiter, aber keinen 19. Mitarbeiter', () => {
     const game = Game.new(111);
     game.state.economy.balanceCents = 100_000_000;
-    while (game.state.workers.length < 6) {
-      if (game.state.candidates.length === 0) game.refreshCandidates();
-      expect(game.hireCandidate(game.state.candidates[0]!.id)).toBe(true);
+    const template = game.state.candidates[0]!;
+    for (let count = game.state.workers.length; count < 19; count++) {
+      const candidate = { ...template, id: `staff-limit-${count}`, role: 'mechanic' as const };
+      game.state.candidates.push(candidate);
+      expect(game.hireCandidate(candidate.id)).toBe(count < 18);
     }
-    if (game.state.candidates.length === 0) game.refreshCandidates();
-    expect(game.hireCandidate(game.state.candidates[0]!.id)).toBe(false);
-    expect(game.state.workers).toHaveLength(6);
+    expect(game.state.workers).toHaveLength(18);
+    expect(game.state.notifications.at(-1)?.text).toContain('Maximal 18 Mitarbeiter');
   });
 
   it('entlässt keinen letzten Mitarbeiter', () => {

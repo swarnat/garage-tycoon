@@ -53,7 +53,7 @@ describe('Gezeichnete Fahrzeugmarker', () => {
     expect(done?.destroyed).toBe(true);
   });
 
-  it('zeigt die Sanduhr am Arbeitsplatz nur solange das Fahrzeug wartet', () => {
+  it('wechselt von der Sanduhr zu Zahnrädern, sobald die Reparatur läuft', () => {
     const { game, order, vehicle, draw } = fixture();
     const bay = stationById(game.state, 'lift1');
     order.status = 'repairing';
@@ -67,10 +67,32 @@ describe('Gezeichnete Fahrzeugmarker', () => {
     order.crewIds = [worker.id];
     order.assignedWorkerId = worker.id;
     expect(draw()?.getChildByLabel('waiting')).toBeNull();
+    const gears = draw()?.getChildByLabel('repairing');
+    expect(gears).toBeInstanceOf(Graphics);
+    expect(draw()?.getChildByLabel('repairing')).toBe(gears);
     worker.state = 'waiting';
     expect(draw()?.getChildByLabel('waiting')).toBeInstanceOf(Graphics);
+    expect(gears?.destroyed).toBe(true);
     WorkerSystem.update(game.ctx, 0.25);
     expect(order.laborMinutesActual).toBeGreaterThan(0);
     expect(draw()?.getChildByLabel('waiting')).toBeNull();
+    expect(draw()?.getChildByLabel('repairing')).toBeInstanceOf(Graphics);
+  });
+
+  it('zeigt die Lupe nur während der aktiven Diagnose', () => {
+    const { game, order, vehicle, draw } = fixture();
+    vehicle.state = 'at_diagnosis';
+    order.status = 'diagnosing';
+    const worker = game.state.workers[0]!;
+    worker.state = 'diagnosing';
+    worker.task = { kind: 'diagnose', orderId: order.id, stationId: 'diag1', phase: 'to_station', remainingMinutes: 5 };
+    expect(draw()?.getChildByLabel('waiting')).toBeInstanceOf(Graphics);
+    worker.task.phase = 'working';
+    const badge = draw()?.getChildByLabel('diagnosing');
+    expect(badge).toBeInstanceOf(Graphics);
+    expect(draw()?.getChildByLabel('waiting')).toBeNull();
+    order.status = 'waiting_for_approval';
+    expect(draw()?.getChildByLabel('waiting')).toBeInstanceOf(Graphics);
+    expect(badge?.destroyed).toBe(true);
   });
 });

@@ -26,7 +26,7 @@ export const SKILL_LABELS: Record<SkillId, string> = {
   diagnosis: 'Diagnose',
 };
 
-export const MAX_WORKERS = 6;
+export const MAX_WORKERS = 18;
 export const TRAINING_COST_CENTS = 15000;
 export const TRAINING_MINUTES = 120;
 export const TRAINING_AMOUNT = 5;

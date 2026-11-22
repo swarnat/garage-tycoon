@@ -69,12 +69,16 @@ const STATE_COLORS: Record<string, number> = {
   off_duty: 0x4a5160,
 };
 
-type VehicleMarker = 'completed' | 'waiting';
+const VEHICLE_MARKERS = ['completed', 'waiting', 'diagnosing', 'repairing'] as const;
+type VehicleMarker = typeof VEHICLE_MARKERS[number];
 
 function vehicleMarker(vehicle: Vehicle, order: RepairOrder | undefined, workers: Worker[]): VehicleMarker | null {
   if (!order) return null;
   if (order.status === 'completed') return 'completed';
   if (vehicle.state === 'driving_in' || vehicle.state === 'driving_to_lift' || vehicle.state === 'driving_out') return null;
+  const isWorking = (status: Worker['state']) => workers.some(
+    (w) => w.task?.orderId === order.id && w.task.phase === 'working' && w.state === status,
+  );
 
   switch (order.status) {
     case 'accepted':
@@ -86,13 +90,26 @@ function vehicleMarker(vehicle: Vehicle, order: RepairOrder | undefined, workers
       return 'waiting';
     case 'repairing':
       if (order.repairParking?.phase === 'parked' || (order.partsNeeded.length > 0 && !order.partsAtBay)) return 'waiting';
-      return workers.some((w) => w.task?.orderId === order.id && w.task.phase === 'working' && w.state === 'repairing') ? null : 'waiting';
+      return isWorking('repairing') ? 'repairing' : 'waiting';
     case 'diagnosing':
+      return isWorking('diagnosing') ? 'diagnosing' : 'waiting';
     case 'quality_check':
-      return workers.some((w) => w.task?.orderId === order.id && w.task.phase === 'working' && w.state === order.status) ? null : 'waiting';
+      return isWorking('quality_check') ? null : 'waiting';
     default:
       return null;
   }
+}
+
+function drawGear(marker: Graphics, x: number, y: number, radius: number): void {
+  const points: number[] = [];
+  for (let tooth = 0; tooth < 6; tooth++) {
+    for (const [offset, scale] of [[-0.42, 0.76], [-0.25, 1], [0.25, 1], [0.42, 0.76]] as const) {
+      const angle = (tooth + offset) * Math.PI / 3;
+      points.push(x + Math.cos(angle) * radius * scale, y + Math.sin(angle) * radius * scale);
+    }
+  }
+  marker.poly(points).fill(0xffa866);
+  marker.circle(x, y, radius * 0.33).fill(0x151a22);
 }
 
 /** PixiJS-Rendering: zeigt nur den Simulationszustand, keine Spiellogik. */
@@ -483,7 +500,7 @@ export class Renderer {
   }
 
   private updateVehicleMarker(sprite: Container, kind: VehicleMarker | null): void {
-    const current = sprite.getChildByLabel('completed') ?? sprite.getChildByLabel('waiting');
+    const current = sprite.children.find((child) => VEHICLE_MARKERS.some((label) => label === child.label));
     if (current?.label === kind) return;
     current?.destroy();
     if (!kind) return;
@@ -494,12 +511,19 @@ export class Renderer {
     if (kind === 'completed') {
       marker.moveTo(-5, 0).lineTo(-1, 4).lineTo(6, -5)
         .stroke({ color: 0x6fdc8c, width: 2.8, cap: 'round', join: 'round' });
-    } else {
+    } else if (kind === 'waiting') {
       const yellow = 0xffd54f;
       marker.moveTo(-5, -6).lineTo(5, -6).moveTo(-5, 6).lineTo(5, 6)
         .moveTo(-4, -6).lineTo(4, 6).moveTo(4, -6).lineTo(-4, 6)
         .stroke({ color: yellow, width: 1.8, cap: 'round' });
       marker.poly([-3, 5, 0, 2, 3, 5]).fill(yellow);
+    } else if (kind === 'diagnosing') {
+      const blue = 0x4fc3f7;
+      marker.circle(-2, -2, 4.2).stroke({ color: blue, width: 2 });
+      marker.moveTo(1, 1).lineTo(6, 6).stroke({ color: blue, width: 2.4, cap: 'round' });
+    } else {
+      drawGear(marker, -3.3, 1.8, 5.4);
+      drawGear(marker, 4, -3.5, 3.7);
     }
     sprite.addChild(marker);
   }

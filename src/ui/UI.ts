@@ -3,6 +3,7 @@ import type { RepairOrder, Worker } from '../entities/types';
 import { diagnosisBayCostCents } from '../entities/types';
 import type { Selection } from '../rendering/Renderer';
 import { InventorySystem } from '../simulation/InventorySystem';
+import { MAX_WORKERS } from '../simulation/PersonnelSystem';
 import { EconomySystem } from '../simulation/EconomySystem';
 import { OrderSystem } from '../simulation/OrderSystem';
 import { DELAY_BY_PROFILE, delayChance } from '../simulation/PartsResolver';
@@ -973,7 +974,7 @@ export class UI {
     }
     html += `<p class="empty">Schicht 08:00–18:00 · Klick für Details &amp; Weiterbildung <button type="button" class="help" data-help="Gehälter werden täglich verbucht. Aufgaben werden automatisch nach Qualifikation, Priorität und Termin verteilt – der beste freie Mechaniker übernimmt. Lagerhelfer bringen Teile zur Bühne, der Assistent (max. 1) meldet günstige Marktpreise.">?</button></p>`;
     html += `<h3 class="section">Kandidaten (${s.candidates.length})</h3>`;
-    html += `<div class="btn-row"><button class="btn small" data-action="refresh-candidates">Neue Kandidaten anzeigen</button><span class="muted">Pool erneuert sich täglich · max. 6 Mitarbeiter</span></div>`;
+    html += `<div class="btn-row"><button class="btn small" data-action="refresh-candidates">Neue Kandidaten anzeigen</button><span class="muted">Pool erneuert sich täglich · max. ${MAX_WORKERS} Mitarbeiter</span></div>`;
     const hasAssistant = s.workers.some((w) => w.role === 'assistant');
     for (const c of s.candidates) {
       const top = Object.entries(c.skills).sort((a, b) => b[1] - a[1]).slice(0, 3);
@@ -982,7 +983,7 @@ export class UI {
         : c.role === 'assistant'
           ? 'Beobachtet die Marktpreise und meldet Schnäppchen. Nur 1 anstellbar.'
           : `Stärken: ${top.map(([sk, v]) => `${SKILL_LABELS[sk] ?? sk} ${v}`).join(' · ')}`;
-      const blocked = s.workers.length >= 6 || (c.role === 'assistant' && hasAssistant);
+      const blocked = s.workers.length >= MAX_WORKERS || (c.role === 'assistant' && hasAssistant);
       html += `<div class="card">
         <div class="card-title">${esc(c.name)} <span class="chip role-${c.role}">${ROLE_LABELS[c.role] ?? c.role}</span></div>
         <div class="meta">${roleInfo}</div>
