@@ -985,10 +985,12 @@
     "steps": [
       {
         "id": "remove_wheels",
+        "name": "Räder abnehmen",
         "durationMinutes": 15
       },
       {
         "id": "dismount_old",
+        "name": "Alte Reifen abziehen",
         "durationMinutes": 15,
         "dependsOn": [
           "remove_wheels"
@@ -996,6 +998,7 @@
       },
       {
         "id": "mount_new",
+        "name": "Neue Reifen aufziehen",
         "durationMinutes": 20,
         "dependsOn": [
           "dismount_old"
@@ -1003,6 +1006,7 @@
       },
       {
         "id": "balance",
+        "name": "Räder auswuchten",
         "durationMinutes": 10,
         "dependsOn": [
           "mount_new"
@@ -1035,10 +1039,12 @@
     "steps": [
       {
         "id": "remove_wheel",
+        "name": "Rad abnehmen",
         "durationMinutes": 10
       },
       {
         "id": "swap_rim",
+        "name": "Felge tauschen",
         "durationMinutes": 25,
         "dependsOn": [
           "remove_wheel"
@@ -1046,6 +1052,7 @@
       },
       {
         "id": "mount_wheel",
+        "name": "Rad montieren",
         "durationMinutes": 10,
         "dependsOn": [
           "swap_rim"

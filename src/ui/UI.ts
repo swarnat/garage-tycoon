@@ -1556,7 +1556,8 @@ export class UI {
         def.steps.forEach((step, i) => {
           const done = j.done || i < j.stepIndex;
           const current = !j.done && i === j.stepIndex;
-          html += `<div class="step ${done ? 'done' : ''} ${current ? 'current' : ''}">${done ? '✓' : current ? '▶' : '·'} ${esc(step.name)} (${step.durationMinutes} min)</div>`;
+          const label = step.name?.trim() || `Arbeitsschritt ${i + 1}`;
+          html += `<div class="step ${done ? 'done' : ''} ${current ? 'current' : ''}">${done ? '✓' : current ? '▶' : '·'} ${esc(label)} (${step.durationMinutes} min)</div>`;
         });
         html += `</div></div>`;
       }
