@@ -335,10 +335,12 @@ export class UI {
       const t = e.target as HTMLInputElement;
       if (t.dataset.field === 'inv-search') {
         this.invSearch = t.value;
-        this.refresh(true);
+        const start = t.selectionStart;
+        const end = t.selectionEnd;
+        this.refresh(true, true);
         // Fokus behalten: Render baut das Feld neu auf
         const again = this.root.querySelector('[data-field="inv-search"]') as HTMLInputElement | null;
-        if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+        if (again) { again.focus({ preventScroll: true }); again.setSelectionRange(start, end); }
       }
     });
     this.fileInput.addEventListener('change', () => {
@@ -355,6 +357,7 @@ export class UI {
   openPanel(p: PanelId): void {
     if (p === 'inventory' || p === 'finance') {
       // Lager und Finanzen sind Modals – die Sidebar bleibt, wie sie ist
+      if (p === 'inventory') this.highlightParts.clear();
       this.modalKind = p;
       this.modalOpen = true;
       this.refresh(true);
@@ -369,6 +372,8 @@ export class UI {
   }
 
   closeModal(): void {
+    const focused = this.root.querySelector<HTMLElement>('#modal-body :focus');
+    focused?.blur();
     if (this.modalKind === 'summary') this.getGame().state.dailySummaryPending = null;
     this.modalOpen = false;
     this.modalKind = 'inventory';
@@ -384,22 +389,22 @@ export class UI {
   }
 
   openInventoryForParts(partIds: string[]): void {
+    this.root.querySelector<HTMLElement>('#modal-body :focus')?.blur();
+    this.invSearch = '';
+    this.invShowUsage = false;
     this.modalKind = 'inventory';
     this.modalOpen = true;
+    this.modalMinimized = false;
     this.highlightParts = new Set(partIds);
     this.refresh(true);
+    this.root.querySelector('.parts-table tr.highlight')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
   /** Öffnet das Lager direkt bei der Variante eines Teils (Kategorie + Highlight). */
   openInventoryForPart(partId: string): void {
     const part = this.getGame().defs.parts.find((p) => p.id === partId);
     if (part) this.invCategory = part.category;
-    this.invSearch = '';
-    this.modalKind = 'inventory';
-    this.modalOpen = true;
-    this.modalMinimized = false;
-    this.highlightParts = new Set([partId]);
-    this.refresh(true);
+    this.openInventoryForParts(partId ? [partId] : []);
   }
 
   /** Hinweis-Modal: Reparatur braucht ein Spezialwerkzeug, das noch fehlt. */
@@ -552,9 +557,10 @@ export class UI {
         if (this.partsOrderId) this.actions.declineParts(this.partsOrderId);
         this.closeModal();
         break;
-      case 'inv-category': this.invCategory = id; break;
-      case 'inv-showall': this.invShowAll = !this.invShowAll; break;
-      case 'inv-showusage': this.invShowUsage = !this.invShowUsage; break;
+      case 'inv-category':
+        this.highlightParts.clear(); this.invSearch = ''; this.invShowUsage = false; this.invCategory = id; break;
+      case 'inv-showall': this.highlightParts.clear(); this.invShowAll = !this.invShowAll; break;
+      case 'inv-showusage': this.highlightParts.clear(); this.invShowUsage = !this.invShowUsage; break;
       case 'restock-consumed': this.actions.restockConsumed(); break;
       case 'use-substitute': this.actions.useSubstitute(btn.dataset.order ?? '', btn.dataset.from ?? '', btn.dataset.to ?? ''); break;
       case 'pin-variant': this.actions.pinVariant(btn.dataset.part ?? ''); break;
@@ -573,9 +579,13 @@ export class UI {
       case 'train': this.actions.trainWorker(id, btn.dataset.skill ?? ''); break;
       case 'refresh-candidates': this.actions.refreshCandidates(); break;
       case 'order-missing': {
-        const order = this.getGame().state.orders.find((o) => o.id === id);
+        const s = this.getGame().state;
+        const order = s.orders.find((o) => o.id === id);
         if (order) {
-          this.openInventoryForParts(order.partsNeeded.map((n) => n.partId));
+          this.openInventoryForParts(order.partsNeeded
+            .filter((n) => InventorySystem.available(s.inventory, n.partId) < n.quantity)
+            .map((n) => n.partId));
+          return;
         }
         break;
       }
@@ -619,7 +629,7 @@ export class UI {
     }
   }
 
-  refresh(force = false): void {
+  refresh(force = false, updateSearch = false): void {
     const now = performance.now();
     if (!force && now - this.lastRefresh < 500) return;
     this.lastRefresh = now;
@@ -699,7 +709,7 @@ export class UI {
       activeEl && modalBody.contains(activeEl) &&
       (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
     const modalSig = this.modalOpen ? this.signature() : '';
-    if (this.modalOpen && !this.modalMinimized && !editingModal && (force || (!this.interacting && modalSig !== this.lastModalSig))) {
+    if (this.modalOpen && !this.modalMinimized && (!editingModal || updateSearch) && (force || (!this.interacting && modalSig !== this.lastModalSig))) {
       this.lastModalSig = modalSig;
       const deliveryScroll = modalBody.querySelector('.inv-deliveries ul')?.scrollTop ?? 0;
       modalBody.innerHTML =
@@ -1148,17 +1158,19 @@ export class UI {
     const consumedSet = this.invShowUsage
       ? new Set(InventorySystem.consumedVariants(inv, game.defs.parts.map((p) => p.id), s.totalMinutes, 2880))
       : null;
-    const variants = consumedSet
-      ? game.defs.parts.filter((p) => consumedSet.has(p.id))
+    const focused = !search && this.highlightParts.size > 0;
+    const variants = search ? game.defs.parts : focused
+      ? game.defs.parts.filter((p) => this.highlightParts.has(p.id))
+      : consumedSet ? game.defs.parts.filter((p) => consumedSet.has(p.id))
       : game.defs.parts.filter((p) => p.category === cat.id);
-    const visible = consumedSet
-      ? variants.filter((p) => !search || p.name.toLowerCase().includes(search))
-      : variants.filter((p) => InventorySystem.isVisible(inv, p.id, s.deliveries, search, this.invShowAll, p.name));
+    const visible = search ? variants.filter((p) => p.name.toLowerCase().includes(search) || p.id.toLowerCase().includes(search))
+      : focused || consumedSet ? variants
+      : variants.filter((p) => InventorySystem.isVisible(inv, p.id, s.deliveries, '', this.invShowAll, p.name));
     const used48cat = variants.reduce((a, p) => a + InventorySystem.usageWithin(inv, p.id, 2880, s.totalMinutes), 0);
-    const headLabel = consumedSet ? 'Verbrauchte Varianten (48 h)' : esc(cat.name);
+    const headLabel = search ? 'Suchergebnisse' : focused ? 'Fehlende Varianten' : consumedSet ? 'Verbrauchte Varianten (48 h)' : esc(cat.name);
     html += `<h3 class="section">${headLabel} <span class="muted">· ${visible.length}/${variants.length} Varianten · Verbrauch 48h: ${used48cat}</span></h3>`;
     if (visible.length === 0) {
-      html += `<p class="empty">Keine sichtbaren Varianten. Suche nutzen oder „Alle Varianten" einblenden.</p>`;
+      html += `<p class="empty">${search ? 'Keine passenden Varianten.' : 'Keine sichtbaren Varianten. Suche nutzen oder „Alle Varianten“ einblenden.'}</p>`;
     } else {
       html += `<table class="parts-table"><thead><tr><th>Variante</th><th>Bestand</th><th>Reserv.</th><th>Min</th><th>Auto</th><th>EK</th><th>VK</th><th>24h</th><th>48h</th><th>Letzte Bestellung</th><th>Bestellen</th><th></th></tr></thead><tbody>`;
       for (const p of visible) {

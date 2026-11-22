@@ -191,6 +191,7 @@ body {
 .parts-table th { text-align: left; color: var(--muted); font-size: 10px; text-transform: uppercase; padding: 4px 4px; border-bottom: 1px solid var(--border); }
 .parts-table td { padding: 5px 4px; border-bottom: 1px solid #22262e; }
 .parts-table tr.highlight td { background: #2a2413; }
+.parts-table tr.highlight td:first-child { border-left: 3px solid var(--warn); font-weight: 700; }
 .parts-table tr.low td:first-child { color: var(--warn); }
 .num { font-variant-numeric: tabular-nums; text-align: right; }
 .btn-cell { white-space: nowrap; text-align: right; }
