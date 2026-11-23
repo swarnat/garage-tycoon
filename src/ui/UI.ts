@@ -1092,9 +1092,9 @@ export class UI {
     const history = s.orders.filter((x) => x.customerId === o.customerId && x.status === 'delivered');
     let html = `<div class="card warn-card">
       <div class="card-title">⚠️ Diagnose abgeschlossen – Ersatzteile fehlen</div>
-      <div class="meta">${v ? `${esc(v.make)} ${esc(v.model)} · ` : ''}Auftrag ${o.id} · Termin: ${dueLabel(o, s.totalMinutes)}</div>
+      <div class="meta">${v ? `${esc(v.make)} ${esc(v.model)} · ` : ''}Auftrag ${o.id} · ${dueLabel(o, s.totalMinutes)}</div>
       <div class="meta">Kunde: ${esc(c?.name ?? '?')} (${PROFILE_LABELS[profile] ?? profile})${history.length > 0 ? ` · ${history.length} frühere Aufträge` : ' · Neukunde'}</div>
-      <table class="parts-table"><thead><tr><th>Benötigte Variante</th><th>Bedarf</th><th>Verfügbar</th><th>Fehlt</th><th>EK</th></tr></thead><tbody>`;
+      <table class="parts-table missing-parts-table"><thead><tr><th scope="col">Benötigte Variante</th><th scope="col" class="num">Bedarf</th><th scope="col" class="num">Verfügbar</th><th scope="col" class="num shortage">Fehlt</th><th scope="col" class="num">EK/Stk.</th></tr></thead><tbody>`;
     for (const n of o.partsNeeded) {
       const pd = game.defs.parts.find((x) => x.id === n.partId);
       if (!pd) continue;
@@ -1104,7 +1104,7 @@ export class UI {
       const subId = game.findSubstitute(n.partId);
       const sub = subId ? game.defs.parts.find((x) => x.id === subId) : null;
       const subVk = sub ? EconomySystem.sellPrice(EconomySystem.marketBuyCents(s, sub), s.economy.partsMarkupPct) : 0;
-      html += `<tr class="low"><td>${esc(pd.name)}${sub ? `<div class="meta">💡 Alternative gleiche Größe: <strong>${esc(sub.name)}</strong> vorrätig (VK ${eur(subVk)}) <button class="btn small" data-action="use-substitute" data-order="${o.id}" data-from="${n.partId}" data-to="${sub.id}">Verwenden</button></div>` : ''}</td><td class="num">${n.quantity}</td><td class="num">${avail}</td><td class="num"><strong>${missing}</strong></td><td class="num">${eur(EconomySystem.marketBuyCents(s, pd))}</td></tr>`;
+      html += `<tr class="low"><td>${esc(pd.name)}${sub ? `<div class="meta">💡 Alternative gleiche Größe: <strong>${esc(sub.name)}</strong> vorrätig (VK ${eur(subVk)}) <button class="btn small" data-action="use-substitute" data-order="${o.id}" data-from="${n.partId}" data-to="${sub.id}">Verwenden</button></div>` : ''}</td><td class="num">${n.quantity}</td><td class="num">${avail}</td><td class="num shortage"><strong>${missing}</strong></td><td class="num">${eur(EconomySystem.marketBuyCents(s, pd))}</td></tr>`;
     }
     html += `</tbody></table>
       <div class="meta">Lieferant: <button type="button" class="help" data-help="Express-Aufpreis und Versandkosten zahlt die Werkstatt – sie schmälern die Marge, nicht die Rechnung.">?</button></div>

@@ -260,6 +260,12 @@ body {
 #modal-body { overflow-y: auto; padding: 16px 18px; }
 #modal-body .parts-table { font-size: 13px; }
 #modal-body .parts-table td { padding: 6px 6px; }
+#modal-body .missing-parts-table { margin: 8px 0 10px; }
+#modal-body .missing-parts-table :is(th, td) { padding: 6px clamp(3px, 1vw, 12px); vertical-align: top; }
+.missing-parts-table th.num { width: 1%; text-align: right; }
+.missing-parts-table .num { white-space: nowrap; border-left: 1px solid var(--border); }
+.missing-parts-table .shortage { background: #2a2413; color: var(--warn); }
+.missing-parts-table td:first-child { overflow-wrap: anywhere; }
 
 /* Toasts */
 #toasts { position: fixed; left: 184px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 50; max-width: 420px; }
